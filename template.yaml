@@ -4,7 +4,7 @@ Resources:
   MROFrontend:
     Type: AWS::Amplify::App
     Properties:
-      AccessToken: "REMOVED"
+      AccessToken: "{{AccessTokenToGithub}}"
       AutoBranchCreationConfig:
         EnableAutoBranchCreation: true
         EnableAutoBuild: true
