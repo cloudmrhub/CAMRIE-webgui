@@ -1,5 +1,4 @@
-// src/components/ResultsTab.tsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -57,13 +56,15 @@ export default function ResultsTab() {
                 <TableCell>{entry.name}</TableCell>
                 <TableCell>{entry.status}</TableCell>
                 <TableCell align="right">
-                  {entry.status === 'done' ? (
+                  {entry.status === 'done' && entry.downloadUrl ? (
                     <Stack direction="row" justifyContent="flex-end">
                       <Button
+                        component="a"
+                        href={entry.downloadUrl ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         size="small"
                         variant="outlined"
-                        href={entry.downloadUrl}
-                        target="_blank"
                       >
                         Download
                       </Button>

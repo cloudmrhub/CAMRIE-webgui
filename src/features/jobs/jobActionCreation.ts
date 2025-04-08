@@ -14,9 +14,9 @@ export const getUpstreamJobs = createAsyncThunk(
 
 export const deleteUpstreamJob = createAsyncThunk(
   'jobs/deleteUpstreamJob',
-  async ({ accessToken, jobId }: { accessToken: string; jobId: string }) => {
+  async ({ token, jobId }: { token: string; jobId: string }) => {
     await axios.delete(`${JOBSAPI}/${jobId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     return jobId;
   }

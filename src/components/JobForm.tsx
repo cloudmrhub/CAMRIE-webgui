@@ -1,5 +1,4 @@
-// src/components/JobForm.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { setFieldId, setSequenceId } from '../store/jobSlice';

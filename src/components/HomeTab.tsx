@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -20,6 +20,23 @@ import { useAppDispatch, useAppSelector } from '../features/hooks';
 import { getUploadedData, deleteUploadedData } from '../features/data/dataActionCreation';
 import { getUpstreamJobs, deleteUpstreamJob } from '../features/jobs/jobActionCreation';
 import { jobsSlice } from '../features/jobs/jobsSlice';
+import { RootState } from '../store/store'; // adjust path if different
+
+type FileItem = {
+  id: string;
+  fileName: string;
+  createdAt: string;
+  status: string;
+  link: string;
+};
+
+type JobItem = {
+  id: string;
+  alias: string;
+  createdAt: string;
+  status: string;
+  files: FileItem[];
+};
 
 const HomeTab = () => {
   const dispatch = useAppDispatch();
@@ -60,18 +77,18 @@ const HomeTab = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {[...files].reverse().map((file) => (
-                <TableRow key={`file-${file.id}`}>
-                <TableCell>{file.fileName}</TableCell>
-                  <TableCell>{file.createdAt}</TableCell>
-                  <TableCell>{file.status}</TableCell>
-                  <TableCell>
-                    <IconButton><EditIcon /></IconButton>
-                    <IconButton onClick={() => downloadFile(file.link, file.fileName)}><GetAppIcon /></IconButton>
-                    <IconButton onClick={() => dispatch(deleteUploadedData({ token, fileId: file.id }))}><DeleteIcon /></IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {[...files].reverse().map((file: FileItem) => (
+    <TableRow key={`file-${file.id}`}>
+      <TableCell>{file.fileName}</TableCell>
+      <TableCell>{file.createdAt}</TableCell>
+      <TableCell>{file.status}</TableCell>
+      <TableCell>
+        <IconButton><EditIcon /></IconButton>
+        <IconButton onClick={() => downloadFile(file.link, file.fileName)}><GetAppIcon /></IconButton>
+        <IconButton onClick={() => dispatch(deleteUploadedData({ token,fileId: file.id }))}><DeleteIcon /></IconButton>
+      </TableCell>
+    </TableRow>
+  ))}
             </TableBody>
           </Table>
         </TableContainer>
@@ -91,7 +108,7 @@ const HomeTab = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {[...jobsData].sort((a, b) => b.id - a.id).map((job) => (
+            {[...jobsData].sort((a, b) => Number(b.id) - Number(a.id)).map((job: JobItem) => (
                 <TableRow key={`job-${job.id}`}>
                 <TableCell>{job.id}</TableCell>
                   <TableCell>{job.alias}</TableCell>
@@ -99,9 +116,9 @@ const HomeTab = () => {
                   <TableCell>{job.status}</TableCell>
                   <TableCell>
                     <IconButton><EditIcon /></IconButton>
-                    <IconButton onClick={() => job.files.forEach(f => downloadFile(f.link, f.fileName))}><GetAppIcon /></IconButton>
+                    <IconButton onClick={() => job.files.forEach((f: FileItem) => downloadFile(f.link, f.fileName))}><GetAppIcon /></IconButton>
                     <IconButton onClick={() => {
-                      dispatch(deleteUpstreamJob({ token, jobId: job.id }));
+                      dispatch(deleteUpstreamJob({ token, jobId: job.id.toString() }));
                       const index = jobsData.findIndex(j => j.id === job.id);
                       dispatch(jobsSlice.actions.deleteJob({ index }));
                     }}><DeleteIcon /></IconButton>

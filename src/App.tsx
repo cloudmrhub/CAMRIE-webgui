@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Container, Tabs, Tab, Box, Typography } from '@mui/material';
 import HomeTab from './components/HomeTab';
 import JobForm from './components/JobForm';
