@@ -25,3 +25,11 @@ This project is built using React, Redux Toolkit, and Vite along with Material U
    ```sh
    git clone <repository-url>
    cd camrie-webgui
+
+
+## Contributors
+
+Thanks to all our contributors for making this project better!
+
+- [Eros Montin](https://github.com/erosmontin)
+- [Susie Nguyen](https://github.com/nguyenxx)
