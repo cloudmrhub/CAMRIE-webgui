@@ -37,9 +37,9 @@ export const getUploadedData = createAsyncThunk(
 
 export const deleteUploadedData = createAsyncThunk(
   'data/deleteUploadedData',
-  async ({ accessToken, fileId }: { accessToken: string; fileId: string }) => {
+  async ({ token, fileId }: { token: string; fileId: string }) => {
     await axios.delete(`${DATAAPI}/${fileId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     return fileId;
   }

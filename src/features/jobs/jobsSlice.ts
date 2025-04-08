@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { getUpstreamJobs, deleteUpstreamJob } from './jobActionCreation';
+import { getUpstreamJobs } from './jobActionCreation';
 
 const initialState = {
   jobs: [],
@@ -15,7 +15,7 @@ export const jobsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder.addCase(getUpstreamJobs.fulfilled, (state, action) => {
-      state.jobs = action.payload.jobs; // 👈 Important fix
+      state.jobs = action.payload.jobs;
     });
   },
 });

@@ -11,9 +11,10 @@ import {
   FormControl,
   InputLabel,
   TextField,
-  Grid,
   Paper,
   Divider,
+  Grid,
+  GridProps,
 } from '@mui/material';
 
 const fieldOptions = [
@@ -106,7 +107,7 @@ export default function JobForm() {
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} {...({} as GridProps)}>
             <TextField
               label="Alias"
               fullWidth
@@ -115,20 +116,23 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} {...({} as GridProps)}>
             <TextField
               label="Slice Location"
               type="number"
               fullWidth
               value={sliceLocation}
-              onChange={(e) => setSliceLocation(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) =>
+                setSliceLocation(Math.max(1, parseInt(e.target.value) || 1))
+              }
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} {...({} as GridProps)}>
             <FormControl fullWidth>
-              <InputLabel>Field ID</InputLabel>
+              <InputLabel id="field-id-label">Field ID</InputLabel>
               <Select
+                labelId="field-id-label"
                 value={fieldId ?? ''}
                 label="Field ID"
                 onChange={(e) => dispatch(setFieldId(e.target.value))}
@@ -142,10 +146,11 @@ export default function JobForm() {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} {...({} as GridProps)}>
             <FormControl fullWidth>
-              <InputLabel>Sequence ID</InputLabel>
+              <InputLabel id="sequence-id-label">Sequence ID</InputLabel>
               <Select
+                labelId="sequence-id-label"
                 value={sequenceId ?? ''}
                 label="Sequence ID"
                 onChange={(e) => dispatch(setSequenceId(e.target.value))}
@@ -159,7 +164,7 @@ export default function JobForm() {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid item xs={12} {...({} as GridProps)}>
             <Button
               variant="contained"
               color="primary"
@@ -172,8 +177,11 @@ export default function JobForm() {
           </Grid>
 
           {status && (
-            <Grid item xs={12}>
-              <Typography variant="body2" color={status.startsWith('✅') ? 'green' : 'error'}>
+            <Grid item xs={12} {...({} as GridProps)}>
+              <Typography
+                variant="body2"
+                color={status.startsWith('✅') ? 'green' : 'error'}
+              >
                 {status}
               </Typography>
             </Grid>

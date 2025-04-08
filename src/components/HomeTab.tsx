@@ -42,7 +42,8 @@ const HomeTab = () => {
   const dispatch = useAppDispatch();
   const token = useSelector((state: RootState) => state.auth?.token ?? '');
   const { files } = useAppSelector((state) => state.data);
-  const jobsData = useAppSelector((state) => state.jobs.jobs);
+  const jobsData = useAppSelector((state: RootState) => state.jobs.jobs) as JobItem[];
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

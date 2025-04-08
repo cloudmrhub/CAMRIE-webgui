@@ -30,7 +30,7 @@ function App() {
       </Box>
 
       {/* Tabs */}
-      <Tabs value={tabIndex} onChange={(e, newValue) => setTabIndex(newValue)} centered>
+      <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)} centered>
         <Tab label="Home" />
         <Tab label="Setup" />
         <Tab label="Results" />
