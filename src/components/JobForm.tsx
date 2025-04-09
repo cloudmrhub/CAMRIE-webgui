@@ -14,19 +14,82 @@ import {
   Paper,
   Divider,
   Grid,
-  GridProps,
 } from '@mui/material';
-
 const fieldOptions = [
-  { id: 'cloudMR_birdcagecoil-ismrm25.zip', name: 'Birdcage Coil' },
-  { id: 'cloudMR_arraycoil-v2.zip', name: 'Array Coil' },
+  {
+    id: 'cloudMR_overlap-ismrm25.zip',
+    name: 'overlap',
+    b0: '3T',
+    channels: 16,
+    coil: 'overlap',
+    date: '2024-09-01',
+    description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
+    image:"https://erosmontin.s3.us-east-1.amazonaws.com/overlap.jpg"
+  },
+  {
+    id: 'cloudMR_birdcagecoil-ismrm25.zip',
+    name: 'birdcage',
+    b0: '3T',
+    channels: 1,
+    coil: 'birdcage',
+    date: '2024-09-01',
+    description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
+    image:"https://erosmontin.s3.us-east-1.amazonaws.com/bird.jpg"
+  },
+  {
+    id: 'cloudMR_triangularcoil-ismrm25.zip',
+    name: 'triangular',
+    b0: '3T',
+    channels: 1,
+    coil: 'triangular',
+    date: '2024-09-01',
+    description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
+    image:"https://erosmontin.s3.us-east-1.amazonaws.com/tri.jpg"
+  },
 ];
 
 const sequenceOptions = [
-  { id: 'ISMRM25-miniflash-01.seq', name: 'Miniflash' },
-  { id: 'ISMRM25-radial.seq', name: 'Radial' },
+  {
+    id: 'ISMRM25-miniflash-01.seq',
+    name: 'Miniflash',
+    description: 'ISMRM25',
+    tr: '20 ms',
+    te: '8 ms',
+    ta: '3 sec',
+  },
+  {
+    id: 'ISMRM25-radial.seq',
+    name: 'Radial',
+    description: 'ISMRM25',
+    tr: '15 ms',
+    te: '6 ms',
+    ta: '2.5 sec',
+  },
+  {
+    id: 'ISMRM25-t1w.seq',
+    name: 'T1-weighted',
+    description: 'ISMRM25',
+    tr: '600 ms',
+    te: '10 ms',
+    ta: '4 sec',
+  },
+  {
+    id: 'ISMRM25-t2w.seq',
+    name: 'T2-weighted',
+    description: 'ISMRM25',
+    tr: '4000 ms',
+    te: '80 ms',
+    ta: '6 sec',
+  },
+  {
+    id: 'ISMRM25-pdw.seq',
+    name: 'PD-weighted',
+    description: 'ISMRM25',
+    tr: '4000 ms',
+    te: '10 ms',
+    ta: '5 sec',
+  },
 ];
-
 const API_ENDPOINT = import.meta.env.VITE_PIPELINE_ENDPOINT;
 
 export default function JobForm() {
@@ -36,6 +99,9 @@ export default function JobForm() {
   const [status, setStatus] = useState('');
   const [sliceLocation, setSliceLocation] = useState(20);
   const [alias, setAlias] = useState('');
+
+  const selectedField = fieldOptions.find((f) => f.id === fieldId);
+  const selectedSequence = sequenceOptions.find((s) => s.id === sequenceId);
 
   const handleSubmit = async () => {
     if (!fieldId || !sequenceId || !alias || sliceLocation <= 0) {
@@ -107,7 +173,7 @@ export default function JobForm() {
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} {...({} as GridProps)}>
+          <Grid item xs={12} sm={6}>
             <TextField
               label="Alias"
               fullWidth
@@ -116,7 +182,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6} {...({} as GridProps)}>
+          <Grid item xs={12} sm={6}>
             <TextField
               label="Slice Location"
               type="number"
@@ -128,7 +194,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6} {...({} as GridProps)}>
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel id="field-id-label">Field ID</InputLabel>
               <Select
@@ -146,7 +212,28 @@ export default function JobForm() {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6} {...({} as GridProps)}>
+          {selectedField && (
+            <Grid item xs={12}>
+              <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Field Details
+                </Typography>
+                <Typography>ID: {selectedField.id}</Typography>
+                <Typography>B0: {selectedField.b0}</Typography>
+                <Typography>Channels: {selectedField.channels}</Typography>
+                <Typography>Coil: {selectedField.coil}</Typography>
+                <Typography>Date: {selectedField.date}</Typography>
+                <Typography>Description: {selectedField.description}</Typography>
+                <img
+                  src={selectedField.image}
+                  alt={selectedField.name}
+                  style={{ maxWidth: '100%', height: 'auto', marginTop: '10px' }}
+                />
+              </Paper>
+            </Grid>
+          )}
+
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel id="sequence-id-label">Sequence ID</InputLabel>
               <Select
@@ -162,9 +249,23 @@ export default function JobForm() {
                 ))}
               </Select>
             </FormControl>
+            {selectedSequence && (
+  <Grid item xs={12}>
+    <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+      <Typography variant="subtitle1" gutterBottom>
+        Sequence Details
+      </Typography>
+      <Typography>ID: {selectedSequence.id}</Typography>
+      <Typography>Description: {selectedSequence.description}</Typography>
+      <Typography>TR: {selectedSequence.tr}</Typography>
+      <Typography>TE: {selectedSequence.te}</Typography>
+      <Typography>TA: {selectedSequence.ta}</Typography>
+    </Paper>
+  </Grid>
+)}
           </Grid>
 
-          <Grid item xs={12} {...({} as GridProps)}>
+          <Grid item xs={12}>
             <Button
               variant="contained"
               color="primary"
@@ -177,7 +278,7 @@ export default function JobForm() {
           </Grid>
 
           {status && (
-            <Grid item xs={12} {...({} as GridProps)}>
+            <Grid item xs={12}>
               <Typography
                 variant="body2"
                 color={status.startsWith('✅') ? 'green' : 'error'}
