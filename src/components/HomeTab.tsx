@@ -64,8 +64,8 @@ const HomeTab = () => {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" gutterBottom>Uploaded Data</Typography>
+    <Box>
+      <Typography variant="h6">Uploaded Data</Typography>
       {loading ? <CircularProgress /> : (
         <TableContainer component={Paper} sx={{ mb: 4 }}>
           <Table>

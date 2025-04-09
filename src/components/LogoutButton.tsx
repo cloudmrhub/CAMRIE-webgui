@@ -12,7 +12,7 @@ export default function LogoutButton() {
   };
 
   return (
-    <Button variant="outlined" color="secondary" onClick={handleLogout}>
+    <Button variant="outlined" sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', backgroundColor: 'transparent' } }} onClick={handleLogout}>
       Logout
     </Button>
   );

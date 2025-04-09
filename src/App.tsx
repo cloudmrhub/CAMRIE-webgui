@@ -5,8 +5,21 @@ import HomeTab from './components/HomeTab';
 import JobForm from './components/JobForm';
 import ResultsTab from './components/ResultsTab'; // create if needed
 import Login from './components/Login';
+import NavBar from './components/NavBar/NavBar'; 
 import LogoutButton from './components/LogoutButton';
 import { useAppSelector } from './features/hooks';
+import Footer from './components/Footer';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import './App.css'
+
+// Create a theme with custom primary color
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#580F8B', // Set the primary color to #580F8B
+    },
+  },
+});
 
 function App() {
   const [tabIndex, setTabIndex] = useState(0);
@@ -15,33 +28,42 @@ function App() {
   // If not logged in, show login page only
   if (!token) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 10 }}>
-        <Login onLogin={() => setTabIndex(0)} />
-      </Container>
+      <ThemeProvider theme={theme}>
+        <Container maxWidth="sm" sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+        }}>
+          <Login onLogin={() => setTabIndex(0)} />
+          <Footer />
+        </Container>
+      </ThemeProvider>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4 }}>
-      {/* Logout button */}
-      <Box display="flex" justifyContent="flex-end" alignItems="center" mb={2}>
-        <Typography variant="body2" mr={2}>Logged in</Typography>
-        <LogoutButton />
-      </Box>
+    <ThemeProvider theme={theme}>
+      <NavBar />
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        {/* Logout button */}
+        <Box display="flex" justifyContent="flex-end" alignItems="center" mb={2}>
+        </Box>
 
-      {/* Tabs */}
-      <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)} centered>
-        <Tab label="Home" />
-        <Tab label="Setup" />
-        <Tab label="Results" />
-      </Tabs>
+        {/* Tabs */}
+        <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)} sx={{ borderBottom: '1px solid #dcdcdc'}}>
+          <Tab label="Home" />
+          <Tab label="Setup" />
+          <Tab label="Results" />
+        </Tabs>
 
-      <Box mt={4}>
-        {tabIndex === 0 && <HomeTab />}
-        {tabIndex === 1 && <JobForm />}
-        {tabIndex === 2 && <ResultsTab />}
-      </Box>
-    </Container>
+        <Box mt={4}>
+          {tabIndex === 0 && <HomeTab />}
+          {tabIndex === 1 && <JobForm />}
+          {tabIndex === 2 && <ResultsTab />}
+        </Box>
+      </Container>
+    </ThemeProvider>
+
   );
 }
 
