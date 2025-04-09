@@ -56,14 +56,7 @@ const sequenceOptions = [
     tr: '20 ms',
     te: '8 ms',
     ta: '3 sec',
-  },
-  {
-    id: 'ISMRM25-radial.seq',
-    name: 'Radial',
-    description: 'ISMRM25',
-    tr: '15 ms',
-    te: '6 ms',
-    ta: '2.5 sec',
+    type: 'pulseq'
   },
   {
     id: 'ISMRM25-t1w.seq',
@@ -72,6 +65,7 @@ const sequenceOptions = [
     tr: '600 ms',
     te: '10 ms',
     ta: '4 sec',
+    type: 'pulseq'
   },
   {
     id: 'ISMRM25-t2w.seq',
@@ -80,6 +74,7 @@ const sequenceOptions = [
     tr: '4000 ms',
     te: '80 ms',
     ta: '6 sec',
+    type: 'pulseq'
   },
   {
     id: 'ISMRM25-pdw.seq',
@@ -88,6 +83,7 @@ const sequenceOptions = [
     tr: '4000 ms',
     te: '10 ms',
     ta: '5 sec',
+    type: 'pulseq'
   },
 ];
 const API_ENDPOINT = import.meta.env.VITE_PIPELINE_ENDPOINT;
