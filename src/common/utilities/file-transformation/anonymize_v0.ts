@@ -20,7 +20,7 @@ export const anonymizeTWIX = async (file: any) => {
         file_format = 'VD';
         const num_scans = int2; // The number of measurements in this file
         // const measID = bytes_reader.read_u32(); // Unused, but this is where they are
-        const fileID = bytes_reader.read_u32();
+        // const fileID = bytes_reader.read_u32();
 
         for (let i = 0; i < num_scans; i++) {
             measOffset.push(Number(bytes_reader.read_u64())); // Where the header of the first measurement starts
@@ -332,12 +332,3 @@ const char = (c: any) => {
     return c.charCodeAt(0);
 };
 
-const arrays_equal = (dv1: any, dv2: any) => {
-    if (dv1.length != dv2.length) return false;
-
-    for (let i = 0; i < dv1.length; i++) {
-        if (dv1[i] != dv2[i]) return false;
-    }
-
-    return true;
-};

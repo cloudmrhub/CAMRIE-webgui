@@ -18,11 +18,27 @@ const CmrCheckbox = (props: CmrCheckboxProps) => {
     const { defaultChecked, onChange, children, ...rest } = props;
 
     return (
-        <FormControlLabel disabled={props.disabled} style={props.style} className={props.className} control={<Checkbox style={props.style} checked={props.checked} defaultChecked={defaultChecked} onChange={onChange}/>}
-                          label={<span className='cmr-label' style={{paddingRight:0,paddingLeft:0,color:'var(--bs-card-color)'}}>
-                                {props.children}
-                          </span>}
-                          labelPlacement="start"/>
+<FormControlLabel
+  {...rest} // ✅ Spread remaining props
+  disabled={props.disabled}
+  style={props.style}
+  className={props.className}
+  control={
+    <Checkbox
+      style={props.style}
+      checked={props.checked}
+      defaultChecked={defaultChecked}
+      onChange={onChange}
+    />
+  }
+  label={
+    <span className='cmr-label' style={{ paddingRight: 0, paddingLeft: 0, color: 'var(--bs-card-color)' }}>
+      {props.children}
+    </span>
+  }
+  labelPlacement="start"
+/>
+
     );
 };
 

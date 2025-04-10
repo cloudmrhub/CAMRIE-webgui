@@ -11,7 +11,6 @@ export default function Confirmation({ name,message,cancelText='Cancel',
     color, open, setOpen, confirmCallback=()=>{},confirmText='Confirm', cancellable=false, cancelCallback=()=>{}, width}: { name: string | undefined; cancelText?:string; message:string|undefined;
     color?: "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning" | undefined, open:boolean, setOpen:(open:boolean)=>void, confirmCallback?:()=>void,
     cancellable?:boolean, cancelCallback?:()=>void, width?:number, confirmText?:string}) {
-    const [text, setText] = React.useState('');
 
     const handleClose = () => {
         setOpen(false);
