@@ -1,26 +1,38 @@
 import axios from 'axios';
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import {ROI_GET,UNZIP} from '../../Variables';
-import {NiiFile, Volume} from "./resultSlice";
+import {UNZIP} from '../../Variables';
+import {NiiFile, Volume} from "./resultsSlice";
 import {Job, sampleJob} from "../jobs/jobsSlice";
 
 
 
 
-export const getPipelineROI = createAsyncThunk('GetROI', async ({accessToken, pipeline}:{accessToken:string, pipeline:string}) => {
-    const config = {
-        headers: {
-            Authorization:`Bearer ${accessToken}`
-        },
-        params: {
-            pipeline_id: pipeline,
+type GetROIPayload = {
+    accessToken: string;
+    pipeline: string;
+  };
+  
+  export const getPipelineROI = createAsyncThunk(
+    'GetROI',
+    async ({ accessToken, pipeline }: GetROIPayload) => {
+      const response = await fetch(
+        `${import.meta.env.VITE_PIPELINE_ENDPOINT}/getroi?pipeline_id=${pipeline}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         }
-    };
-    const response = await axios.get(ROI_GET, config);
-    // console.log(response);
-    return {rois:response.data, pipeline_id:pipeline};
-});
-
+      );
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch ROI');
+      }
+  
+      const data = await response.json();
+      return { rois: data.rois, pipeline_id: pipeline };
+    }
+  );
 
 export function niiToVolume(nii:NiiFile){
     return {

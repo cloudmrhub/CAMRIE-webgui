@@ -10,6 +10,8 @@ import {
   MenuItem,
   Slider
 } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
+
 
 import DeleteIcon from '@mui/icons-material/Delete';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -49,7 +51,8 @@ const Layer: React.FC<LayerProps> = ({
 
   const colormapNames = nv.colormaps?.() ?? [];
 
-  const handleColorChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+  const handleColorChange = (event: SelectChangeEvent) => {
+
     const selectedColor = event.target.value as string;
     setColor(selectedColor);
     onColorMapChange(image.id, selectedColor);
@@ -115,27 +118,27 @@ const Layer: React.FC<LayerProps> = ({
                   onChange={handleColorChange}
                   sx={{ width: 200 }}
                 >
-                  {colormapNames.map((name) => (
-                    <MenuItem key={name} value={name}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          width: '100%'
-                        }}
-                      >
-                        <Box>{name}</Box>
-                        <Box
-                          sx={{
-                            width: '30%',
-                            ml: 1,
-                            height: '1rem',
-                            background: makeColorGradient(getColorMapValues(name))
-                          }}
-                        />
-                      </Box>
-                    </MenuItem>
-                  ))}
+                  {colormapNames.map((name: string) => (
+  <MenuItem key={name} value={name}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        width: '100%'
+      }}
+    >
+      <Box>{name}</Box>
+      <Box
+        sx={{
+          width: '30%',
+          ml: 1,
+          height: '1rem',
+          background: makeColorGradient(getColorMapValues(name))
+        }}
+      />
+    </Box>
+  </MenuItem>
+))}
                 </Select>
               </FormControl>
 

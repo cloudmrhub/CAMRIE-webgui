@@ -13,7 +13,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import NiiVue, { nv } from './viewer/Niivue.jsx';
-import { resultActions } from '../features/results/resultSlice';
+import { resultActions } from '../features/results/resultsSlice.js';
 import { getUpstreamJobs } from '../features/jobs/jobActionCreation';
 import { loadResult, getPipelineROI } from '../features/results/resultActionCreation.js';
 

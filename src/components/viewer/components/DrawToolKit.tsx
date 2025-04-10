@@ -1,7 +1,6 @@
 import React, { CSSProperties, useState } from 'react';
 import {
   Box,
-  Button,
   FormControl,
   FormLabel,
   IconButton,
@@ -23,6 +22,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import FormatColorFillIcon from '@mui/icons-material/FormatColorFill';
 import OpacityIcon from '@mui/icons-material/Opacity';
 
+import { ROI } from '../../../features/results/resultsSlice';
 
 
 import DrawPlatte from './DrawPlatte';

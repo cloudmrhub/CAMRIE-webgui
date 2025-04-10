@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import {
   Drawer,
   Box,
-  Typography,
   IconButton,
   Button
 } from '@mui/material';
