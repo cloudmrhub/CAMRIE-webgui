@@ -18,18 +18,14 @@ export const getAccessToken = createAsyncThunk(
       const response = await axios.post(SIGNIN, signinData, {
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'cmrhv1',
           'From': 'e@e.it',
           'Accept': '*/*',
-          'Connection': 'keep-alive',
-          'Accept-Encoding': 'gzip, deflate, br'
         },
       });
 
       const data = response.data;
 
       if (data.access_token) {
-        console.log('Access Token:', data.access_token);
         thunkAPI.dispatch(getProfile(data.access_token));
       }
 

@@ -28,3 +28,4 @@ const jobSlice = createSlice({
 export const { setFieldId, setSequenceId } = jobSlice.actions;
 
 export default jobSlice.reducer;
+

@@ -15,9 +15,15 @@
     "@mui/icons-material": "^5.15.15",
     "@mui/material": "^5.15.15",
     "@mui/system": "^5.15.15",
+    "@mui/x-data-grid": "^7.28.3",
     "@niivue/niivue": "^0.54.0",
     "@reduxjs/toolkit": "^2.6.1",
     "axios": "^1.8.4",
+    "jszip": "^3.10.1",
+    "lil-gui": "^0.20.0",
+    "mathjs": "^14.4.0",
+    "plotly": "^1.0.6",
+    "plotly.js-dist-min": "^3.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-redux": "^9.2.0"
@@ -31,6 +37,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
+    "sass-embedded": "^1.86.3",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0"

@@ -11,8 +11,13 @@ interface LoginProps {
 
 export default function Login({ onLogin }: LoginProps) {
   const dispatch = useDispatch<AppDispatch>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  // Use hardcoded credentials for development only.
+  const defaultEmail = process.env.NODE_ENV === 'development' ? 'eros.montin@gmail.com' : '';
+  const defaultPassword = process.env.NODE_ENV === 'development' ? 'eros' : '';
+
+  const [email, setEmail] = useState(defaultEmail);
+  const [password, setPassword] = useState(defaultPassword);
   const { token, error, loading } = useSelector((state: RootState) => state.auth);
 
   const handleLogin = () => {
@@ -25,11 +30,33 @@ export default function Login({ onLogin }: LoginProps) {
     }
   }, [token]);
 
+  // Automatically trigger login if in development mode and credentials exist
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && defaultEmail && defaultPassword) {
+      handleLogin();
+    }
+  }, []);
+
   return (
     <Box sx={{ maxWidth: 400, mx: 'auto', mt: 10 }}>
-      <Typography variant="h5" gutterBottom>Login</Typography>
-      <TextField label="Email" fullWidth margin="normal" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <TextField label="Password" fullWidth type="password" margin="normal" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <Typography variant="h5" gutterBottom>
+        Login
+      </Typography>
+      <TextField
+        label="Email"
+        fullWidth
+        margin="normal"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <TextField
+        label="Password"
+        fullWidth
+        type="password"
+        margin="normal"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <Button variant="contained" fullWidth onClick={handleLogin} disabled={loading}>
         {loading ? 'Logging in...' : 'Login'}
       </Button>

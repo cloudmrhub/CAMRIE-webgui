@@ -11,7 +11,6 @@ export const getUploadedData = createAsyncThunk(
       headers: {
         'Content-Type': 'application/json',
         'Accept': '*/*',
-        'Connection': 'keep-alive',
         Authorization: `Bearer ${accessToken}`,
       },
     });
