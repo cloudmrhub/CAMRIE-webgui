@@ -1,61 +1,74 @@
 import * as React from 'react';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
+import {
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
+} from '@mui/material';
 
-export default function DeletionDialog(props: { name: string | undefined; deletionCallback: () => void; }) {
-    const [open, setOpen] = React.useState(true);
-    const [text, setText] = React.useState('');
+interface DeletionDialogProps {
+  name?: string;
+  deletionCallback: () => void;
+  open?: boolean;               // optional – defaults to true
+  onClose?: () => void;         // bubble up close if parent cares
+}
 
-    const handleClickOpen = () => {
-        setOpen(true);
-    };
+export default function DeletionDialog({
+  name = '',
+  deletionCallback,
+  open: openProp = true,
+  onClose,
+}: DeletionDialogProps) {
+  const [open, setOpen]   = React.useState(openProp);
+  const [text, setText]   = React.useState('');
 
-    const handleClose = () => {
-        setOpen(false);
-    };
+  const close = () => {
+    setOpen(false);
+    onClose?.();
+  };
 
-    const handleConfirm = () => {
-        if(text===props.name){
-            props.deletionCallback();
-            setOpen(false);
-        }
-    };
+  const confirm = () => {
+    deletionCallback();
+    close();
+  };
 
-    const handleTextFieldChange=(e: { target: { value: React.SetStateAction<string>; }; })=>{
-        setText( e.target.value);
-    }
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setText(e.target.value);
 
-    return (
-        <div>
-            <Dialog open={open} onClose={handleClose}>
-                <DialogTitle>Confirmation</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        To delete the files, please type your full name below and confirm.
-                    </DialogContentText>
+  return (
+    <Dialog open={open} onClose={close}>
+      <DialogTitle>Confirmation</DialogTitle>
 
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        id="name"
-                        type="email"
-                        placeholder = {props.name}
-                        fullWidth
-                        inputProps={{style: {fontSize: "16pt"}}}
-                        variant="standard"
-                        onChange={handleTextFieldChange}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <button className='btn btn-secondary' onClick={handleClose}>Cancel</button>
-                    <button className='btn btn-danger' onClick={handleConfirm}>Confirm</button>
-                </DialogActions>
-            </Dialog>
-        </div>
-    );
+      <DialogContent>
+        <DialogContentText>
+          To delete the files, please type your full name below and confirm.
+        </DialogContentText>
+
+        <TextField
+          autoFocus
+          fullWidth
+          variant="standard"
+          placeholder={name}
+          inputProps={{ style: { fontSize: '16pt' } }}
+          onChange={handleTextChange}
+        />
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={close} color="secondary">
+          Cancel
+        </Button>
+        <Button
+          onClick={confirm}
+          color="error"
+          disabled={text !== name}
+        >
+          Confirm
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }

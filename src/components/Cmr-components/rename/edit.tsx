@@ -1,94 +1,94 @@
 import * as React from 'react';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import CmrButton from "../button/Button";
-import {useEffect} from "react";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from '@mui/material';
+import CmrButton from '../button/Button';
 
-export default function CmrNameDialog(props: {originalName: string; renamingCallback:(alias:string)=>Promise<boolean>, open:boolean, setOpen:(open:boolean)=>void}) {
-    let {originalName,open, setOpen} = props;
-    const [helperText, setHelperText] = React.useState('');
-    const [text, setText] = React.useState(originalName);
-    const [error, setError] = React.useState(false);
+interface CmrNameDialogProps {
+  originalName: string;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  renamingCallback: (alias: string) => Promise<boolean>;
+}
 
-    const renamingCallback = props.renamingCallback;
+export default function CmrNameDialog({
+  originalName,
+  open,
+  setOpen,
+  renamingCallback,
+}: CmrNameDialogProps) {
+  const [text, setText]           = React.useState(originalName);
+  const [helperText, setHelper]   = React.useState('');
+  const [error, setError]         = React.useState(false);
 
-    const handleClose = () => {
-        setOpen(false);
-    };
+  const close = () => setOpen(false);
 
-    useEffect(() => {
-        checkError(originalName);
-    }, [originalName]);
+  /* validate whenever originalName changes */
+  React.useEffect(() => {
+    validate(originalName);
+  }, [originalName]);
 
-    const handleConfirm = async () => {
-        // if(!error)
-        if(await renamingCallback(text))
-            handleClose();
-    };
+  const validate = (val: string) => {
+    // allow 1‑5 letter extensions (e.g. ".nii.gz" would fail; adapt if needed)
+    const fileNameRegex = /^[a-zA-Z0-9_\-]+\.[a-zA-Z]{1,5}$/;
+    const newExt = val.split('.').pop();
+    const oldExt = originalName.includes('.') ? originalName.split('.').pop() : '?';
 
-    const handleTextFieldChange=(e: { target: { value: string; }; })=>{
-        setText( e.target.value);
-        checkError(e.target.value);
+    if (!fileNameRegex.test(val)) {
+      setError(true);
+      setHelper(
+        val.includes('.')
+          ? 'Invalid file name, please check.'
+          : 'Invalid file name, needs a valid extension.'
+      );
+    } else if (newExt !== oldExt) {
+      setError(false);
+      setHelper(`You are changing the extension from .${oldExt} to .${newExt}.`);
+    } else {
+      setError(false);
+      setHelper('');
     }
-    const checkError=(text: string)=>{
-        const fileNameRegex = /^[a-zA-Z0-9_\-]+\.[a-zA-Z]{1,5}$/;
-        let newExtension = text.split('.').pop();
-        let orgExtension = (originalName.indexOf('.')>=0)? originalName.split('.').pop(): '?';
-        if(!fileNameRegex.test(text)){
-            setError(true);
-            if(text.indexOf('.')<0){
-                setHelperText('Invalid file name, needs a valid extension.');
-            }else{
-                setHelperText('Invalid file name, please check.');
-            }
-        }else if(newExtension!==orgExtension){
-            setHelperText(`You are modifying your file extension from .${orgExtension} to .${newExtension}.`);
-            setError(false);
-        }else{
-            setError(false);
-            setHelperText('');
-        }
-    }
+  };
 
-    return (
-        <div>
-            <Dialog open={open} onClose={handleClose}  fullWidth
-                    maxWidth="xs">
-                <DialogTitle>
-                Rename the File {originalName} as:
-                </DialogTitle>
-                <DialogContent>
-                    {/*<DialogContentText>*/}
-                    {/*    Renaming file {originalName} to:*/}
-                    {/*</DialogContentText>*/}
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value);
+    validate(e.target.value);
+  };
 
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        id="name"
-                        // type="file"
-                        defaultValue = {originalName}
-                        onFocus={event => {
-                            event.target.select();
-                        }}
-                        fullWidth
-                        inputProps={{style: {fontSize: "16pt"}}}
-                        variant="standard"
-                        onChange={handleTextFieldChange}
-                        error={error}
-                        helperText={helperText}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <CmrButton variant={"outlined"} color={'inherit'} sx={{color:'#333'}} onClick={handleClose}>Cancel</CmrButton>
-                    <CmrButton variant={"contained"} color={'primary'} onClick={handleConfirm}>Confirm</CmrButton>
-                </DialogActions>
-            </Dialog>
-        </div>
-    );
+  const confirm = async () => {
+    if (await renamingCallback(text)) close();
+  };
+
+  return (
+    <Dialog open={open} onClose={close} fullWidth maxWidth="xs">
+      <DialogTitle>Rename the file {originalName} as:</DialogTitle>
+
+      <DialogContent>
+        <TextField
+          autoFocus
+          fullWidth
+          variant="standard"
+          value={text}
+          inputProps={{ style: { fontSize: '16pt' } }}
+          error={error}
+          helperText={helperText}
+          onFocus={e => e.target.select()}
+          onChange={onInputChange}
+        />
+      </DialogContent>
+
+      <DialogActions>
+        <CmrButton variant="outlined" color="inherit" sx={{ color: '#333' }} onClick={close}>
+          Cancel
+        </CmrButton>
+        <CmrButton variant="contained" color="primary" onClick={confirm} disabled={error}>
+          Confirm
+        </CmrButton>
+      </DialogActions>
+    </Dialog>
+  );
 }

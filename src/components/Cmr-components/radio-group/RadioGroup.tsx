@@ -1,32 +1,39 @@
-import React from 'react';
-import './RadioGroup.scss';
 import { Radio } from 'antd';
-import { RadioChangeEvent } from 'antd/lib/radio/interface';
+import type { RadioGroupProps, RadioChangeEvent } from 'antd';
+import type { ReactNode } from 'react';
+import './RadioGroup.scss';
 
-interface CmrRadioGroupProps {
-    defaultValue?: any;
-    disabled?: boolean;
-    name?: string;
-    value?: any;
-    onChange?: (e: RadioChangeEvent) => void;
-    children?: React.ReactNode;
+export interface CmrRadioGroupProps<T = any>
+  extends Omit<RadioGroupProps, 'children' | 'value' | 'defaultValue' | 'onChange'> {
+  /** Controlled value */
+  value?: T;
+  /** Uncontrolled default */
+  defaultValue?: T;
+  /** Change handler */
+  onChange?: (e: RadioChangeEvent) => void;
+  /** Radio buttons */
+  children?: ReactNode;
 }
 
-const CmrRadioGroup = (props: CmrRadioGroupProps) => {
-    const { defaultValue, disabled, name, value, onChange, children, ...rest } = props;
-
-    return (
-        <Radio.Group
-            defaultValue={defaultValue}
-            disabled={disabled}
-            name={name}
-            value={value}
-            onChange={onChange}
-            {...rest}
-        >
-            {children}
-        </Radio.Group>
-    );
-};
+const CmrRadioGroup = <T,>({
+  defaultValue,
+  disabled,
+  name,
+  value,
+  onChange,
+  children,
+  ...rest
+}: CmrRadioGroupProps<T>) => (
+  <Radio.Group
+    defaultValue={defaultValue}
+    disabled={disabled}
+    name={name}
+    value={value}
+    onChange={onChange}
+    {...rest}
+  >
+    {children}
+  </Radio.Group>
+);
 
 export default CmrRadioGroup;

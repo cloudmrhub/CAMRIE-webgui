@@ -1,12 +1,11 @@
 import * as React from 'react';
-import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import CmrButton from '../button/Button';
-import {StyledComponentProps} from "@mui/material";
+
 
 export default function Confirmation({ name,message,cancelText='Cancel',
     color, open, setOpen, confirmCallback=()=>{},confirmText='Confirm', cancellable=false, cancelCallback=()=>{}, width}: { name: string | undefined; cancelText?:string; message:string|undefined;

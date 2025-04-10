@@ -1,29 +1,24 @@
-import React, {CSSProperties} from 'react';
+import * as React from 'react';
+import { InputNumber, InputNumberProps } from 'antd';
 import './InputNumber.scss';
-import { InputNumber } from 'antd';
-import { SizeType } from 'antd/lib/config-provider/SizeContext';
 
-interface CmrInputNumberProps {
-    defaultValue?: number;
-    disabled?: boolean;
-    keyboard?: boolean;
-    max?: number;
-    min?: number;
-    size?: SizeType;
-    value?: number;
-    onChange?: (value: number|null) => void;
-    children?: React.ReactNode;
-    style?: CSSProperties;
+export interface CmrInputNumberProps
+  extends Omit<InputNumberProps<number>, 'size'> {
+  size?: 'small' | 'middle' | 'large';
 }
 
-const CmrInputNumber = (props: CmrInputNumberProps) => {
-    const { defaultValue, style, max, min, value, onChange, children, ...rest } = props;
+const CmrInputNumber = React.forwardRef<
+  HTMLInputElement,
+  CmrInputNumberProps
+>((props, ref) => {
+  const { children, ...rest } = props;
 
-    return (
-        <InputNumber defaultValue={defaultValue} max={max} style={style} min={min} value={value} onChange={onChange} {...rest}>
-            {children}
-        </InputNumber>
-    );
-};
+  return (
+    <InputNumber<number> ref={ref} {...rest}>
+      {children}
+    </InputNumber>
+  );
+});
 
+CmrInputNumber.displayName = 'CmrInputNumber';
 export default CmrInputNumber;

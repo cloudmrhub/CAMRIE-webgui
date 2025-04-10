@@ -1,72 +1,100 @@
 import * as React from 'react';
-import TextField from '@mui/material/TextField';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
+import {
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  InputAdornment,
+} from '@mui/material';
 import CmrButton from '../button/Button';
-import { InputAdornment } from '@mui/material';
-import {useEffect} from "react";
 
-export interface EditConfirmationProps{
-    name?: string; // Equivalent to string | undefined
-    defaultText?: string;
-    message?: string;
-    color?: "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning";
-    open: boolean;
-    setOpen: (open: boolean) => void;
-    confirmCallback?: (text: string) => void;
-    cancellable?: boolean;
-    cancelCallback?: (edit: string) => void;
-    suffix?:string;
+export interface EditConfirmationProps {
+  name?: string;
+  defaultText?: string;
+  message?: string;
+  color?: 'inherit' | 'primary' | 'secondary' | 'success' | 'error' | 'info' | 'warning';
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  confirmCallback?: (text: string) => void;
+  cancellable?: boolean;
+  cancelCallback?: (text: string) => void;
+  suffix?: string;
 }
 
-export default function EditConfirmation({ name,message, defaultText='',
-    color, open, setOpen, confirmCallback=()=>{}, cancellable=false, cancelCallback=()=>{},suffix=''}:EditConfirmationProps) {
-    const [text, setText] = React.useState(defaultText);
-    useEffect(() => {
-        if(open)
-            setText(defaultText);
-    }, [open]);
-    const handleClose = () => {
-        setOpen(false);
-    };
+export default function EditConfirmation({
+  name = 'Confirmation',
+  message,
+  defaultText = '',
+  color = 'primary',
+  open,
+  setOpen,
+  confirmCallback = () => {},
+  cancellable = false,
+  cancelCallback = () => {},
+  suffix = '',
+}: EditConfirmationProps) {
+  const [text, setText] = React.useState(defaultText);
 
-    const handleConfirm=()=>{
-        confirmCallback(text+suffix);
-        handleClose();
-    }
+  // reset local state whenever the dialog opens or the default changes
+  React.useEffect(() => {
+    if (open) setText(defaultText);
+  }, [open, defaultText]);
 
-    const handleCancel=()=>{
-        cancelCallback(text+suffix);
-        handleClose();
-    }
+  const close = () => setOpen(false);
 
+  const confirm = () => {
+    confirmCallback(text + suffix);
+    close();
+  };
 
-    return (
-        <Dialog maxWidth="xs" fullWidth={true} open={open} onClose={handleCancel}>
-            <DialogTitle>{name?name:'Confirmation'}</DialogTitle>
-            <DialogContent>
-                <DialogContentText alignContent={'center'}>
-                    {message}
-                </DialogContentText>
-                <DialogActions>
-                    <TextField fullWidth variant='standard'
-                               InputProps={{
-                                   endAdornment: (
-                                       <InputAdornment position="end"  sx={{ whiteSpace: 'nowrap' }}>{suffix}</InputAdornment>
-                                   ),
-                               }}
-                               defaultValue={text} onChange={(e)=>setText(e.target.value)}/>
-                </DialogActions>
-                <DialogActions>
-                    {cancellable&&
-                        <CmrButton variant={"outlined"} color={'inherit'} sx={{color:'#333'}} onClick={handleCancel}>Cancel</CmrButton>
-                    }
-                    <CmrButton variant={"contained"} color={color} onClick={handleConfirm}>Confirm</CmrButton>
-                </DialogActions>
-            </DialogContent>
-        </Dialog>
-    );
+  const cancel = () => {
+    cancelCallback(text + suffix);
+    close();
+  };
+
+  return (
+    <Dialog maxWidth="xs" fullWidth open={open} onClose={close}>
+      <DialogTitle>{name}</DialogTitle>
+
+      <DialogContent>
+        {message && (
+          <DialogContentText sx={{ mb: 2 }} align="center">
+            {message}
+          </DialogContentText>
+        )}
+
+        <TextField
+          fullWidth
+          variant="standard"
+          value={text}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)}
+          InputProps={{
+            endAdornment: suffix && (
+              <InputAdornment position="end" sx={{ whiteSpace: 'nowrap' }}>
+                {suffix}
+              </InputAdornment>
+            ),
+          }}
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        {cancellable && (
+          <CmrButton variant="outlined" color="inherit" onClick={cancel}>
+            Cancel
+          </CmrButton>
+        )}
+        <CmrButton
+          variant="contained"
+          color={color}
+          onClick={confirm}
+          disabled={text + suffix === defaultText + suffix}
+        >
+          Confirm
+        </CmrButton>
+      </DialogActions>
+    </Dialog>
+  );
 }

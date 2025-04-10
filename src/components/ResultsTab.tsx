@@ -13,9 +13,9 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import NiiVue, { nv } from './viewer/Niivue.jsx';
-import { resultActions } from '../features/rois/resultSlice';
+import { resultActions } from '../features/results/resultSlice';
 import { getUpstreamJobs } from '../features/jobs/jobActionCreation';
-import { loadResult, getPipelineROI } from '../features/rois/resultActionCreation';
+import { loadResult, getPipelineROI } from '../features/results/resultActionCreation.js';
 
 const ResultsTab = () => {
   const dispatch = useDispatch();

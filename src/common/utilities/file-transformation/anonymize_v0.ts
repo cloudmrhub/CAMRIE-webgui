@@ -5,7 +5,7 @@ export const anonymizeTWIX = async (file: any) => {
 
     const bytes_reader = file_reader(file_bytes);
     let preamble = new Uint8Array(file_bytes); // Interpret as a bunch of ints
-    let num_scans = 1;
+    const num_scans = 1;
     let file_format;
     const measOffset = [];
     const measLength = [];
@@ -13,13 +13,13 @@ export const anonymizeTWIX = async (file: any) => {
     const int1 = bytes_reader.read_u32();
     const int2 = bytes_reader.read_u32();
 
-    let VDHeaderPatientInfoViews = [];
+    const VDHeaderPatientInfoViews = [];
 
     if (int1 < 10000 && int2 <= 64) {
         // Looks like a VD format
         file_format = 'VD';
-        let num_scans = int2; // The number of measurements in this file
-        const measID = bytes_reader.read_u32(); // Unused, but this is where they are
+        const num_scans = int2; // The number of measurements in this file
+        // const measID = bytes_reader.read_u32(); // Unused, but this is where they are
         const fileID = bytes_reader.read_u32();
 
         for (let i = 0; i < num_scans; i++) {
@@ -35,7 +35,7 @@ export const anonymizeTWIX = async (file: any) => {
     }
 
     console.log(`${file_format} file, ${num_scans} scan(s).`);
-    let found_pii = new Set();
+    const found_pii = new Set();
 
     if (file_format == 'VD') {
         // VD seems to store patient info in here...
@@ -61,7 +61,7 @@ export const anonymizeTWIX = async (file: any) => {
     }
 
     const headers = [];
-    let data_slices = [];
+    const data_slices = [];
 
     for (let i = 0; i < num_scans; i++) {
         console.log(`Scan ${i + 1}.`);
@@ -92,7 +92,7 @@ export const anonymizeTWIX = async (file: any) => {
         verify_anonymous(header, found_pii); // double check by scanning for patient info bytes
     }
 
-    let file_pieces = [preamble];
+    const file_pieces = [preamble];
 
     for (let i = 0; i < num_scans; i++) {
         file_pieces.push(headers[i]);
@@ -110,7 +110,7 @@ export const anonymizeTWIX = async (file: any) => {
 };
 
 const file_reader = (b: any) => {
-    let bytes = b;
+    const bytes = b;
     let k = 0;
 
     return {
@@ -164,7 +164,7 @@ const anonymize_header = (data: any) => {
 const anonymizeByTag = (data: any, tagNames: any, do_replace: any) => {
     let found_at = -1; // Start search from the beginning
     let n = 0; // Track number of replacements
-    let old_values = new Set();
+    const old_values = new Set();
 
     if (!Array.isArray(tagNames)) {
         tagNames = [tagNames]; // Ensure tagNames is always an array for consistency
@@ -172,10 +172,10 @@ const anonymizeByTag = (data: any, tagNames: any, do_replace: any) => {
 
     console.log('anonymizeByTag', tagNames);
 
-    for (let tag of tagNames) {
+    for (const tag of tagNames) {
         let continueSearch = true;
         while (continueSearch) {
-            let old_found_at = found_at;
+            const old_found_at = found_at;
             let old_value;
             [found_at, old_value] = processTagOnce(data, tag, do_replace, found_at + 1);
 
@@ -292,7 +292,7 @@ const verify_anonymous = (data: any, tags: any) => {
     console.log(tags);
     try{
         for (let i = 0; i < data.length; i++) {
-            for (let tag_value of tags) {
+            for (const tag_value of tags) {
                 if (utf8_decode(data.slice(i, i + tag_value.length)) == tag_value) {
                     console.log('Anonymization failed at location', i);
                     console.log(utf8_decode(data.slice(Math.max(i - 50, 0), i + tag_value.length + 10)));

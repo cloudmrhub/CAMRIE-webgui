@@ -3,9 +3,9 @@ import {Box, Button, CircularProgress, Stack, Switch, Tooltip, Typography} from 
 import {IconButton,FormControl,Select,MenuItem,InputLabel} from "@mui/material";
 import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
-import {ROI} from "../../../features/rois/resultSlice";
+import {ROI} from "../../../features/results/resultSlice";
 import {useAppDispatch, useAppSelector} from "../../../features/hooks";
-import {getPipelineROI} from "../../../features/rois/resultActionCreation";
+import {getPipelineROI} from "../../../features/results/resultActionCreation";
 import HomeIcon from '@mui/icons-material/Home';
 import CenterFocusStrongIcon from '@mui/icons-material/CenterFocusStrong';
 import ZoomInMapIcon from '@mui/icons-material/ZoomInMap';
@@ -82,15 +82,15 @@ export default function Toolbar({ accessToken = '', nv, nvUpdateSliceType, slice
   setSaving: (saving: boolean) => void;
 }) {
   console.log('Toolbar accessToken:', accessToken);
-  let dispatch = useAppDispatch();
+  const dispatch = useAppDispatch();
   function handleSliceTypeChange(e: { target: { value: any } }) {
-    let newSliceType = e.target.value
-    let nvUpdateSliceType = nvUpdateSliceType
+    const newSliceType = e.target.value
+    const nvUpdateSliceType = nvUpdateSliceType
     nvUpdateSliceType(newSliceType)
   }
 
-  let dragModes = ["Pan","Measurement","Contrast",'None'];
-  let pipeline = useAppSelector(state => state.result.activeJob?.pipeline_id);
+  const dragModes = ["Pan","Measurement","Contrast",'None'];
+  const pipeline = useAppSelector(state => state.result.activeJob?.pipeline_id);
 
   return (
     <Box  sx={{display:'flex', flexDirection:'column',width:'100%'}}>

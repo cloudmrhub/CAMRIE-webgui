@@ -1,40 +1,46 @@
-import React from 'react';
+import * as React from 'react';
+import { Input, InputProps } from 'antd';
 import './Input.scss';
-import { Input } from 'antd';
-import { SizeType } from 'antd/lib/config-provider/SizeContext';
-import { LiteralUnion } from 'antd/lib/_util/type';
 
-interface CmrInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix' | 'type'> {
-    defaultValue?: string;
-    id?: string;
-    maxLength?: number;
-    size?: SizeType;
-    value?: string;
-    type?: any;
-    prefix?: React.ReactNode;
-    bordered?: boolean;
-    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onPressEnter?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+export interface CmrInputProps
+  extends Omit<InputProps, 'size' | 'prefix' | 'type'> {
+  size?: 'small' | 'middle' | 'large';
+  type?: React.HTMLInputTypeAttribute;
 }
 
-const CmrInput = (props: CmrInputProps) => {
-    const { defaultValue, id, maxLength, size, value, type, prefix, bordered, onChange, onPressEnter, ...rest } = props;
+const CmrInput = React.forwardRef<HTMLInputElement, CmrInputProps>(
+  (
+    {
+      defaultValue,
+      id,
+      maxLength,
+      size,
+      value,
+      type,
+      prefix,
+      bordered,
+      onChange,
+      onPressEnter,
+      ...rest
+    },
+    ref
+  ) => (
+    <Input
+      ref={ref}
+      defaultValue={defaultValue}
+      id={id}
+      maxLength={maxLength}
+      size={size}
+      value={value}
+      type={type}
+      prefix={prefix}
+      bordered={bordered}
+      onChange={onChange}
+      onPressEnter={onPressEnter}
+      {...rest}
+    />
+  )
+);
 
-    return (
-        <Input
-            defaultValue={defaultValue}
-            id={id}
-            maxLength={maxLength}
-            size={size}
-            value={value}
-            type={type}
-            prefix={prefix}
-            bordered={bordered}
-            onChange={onChange}
-            onPressEnter={onPressEnter}
-            {...rest}
-        />
-    );
-};
-
+CmrInput.displayName = 'CmrInput';
 export default CmrInput;

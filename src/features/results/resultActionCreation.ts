@@ -37,10 +37,10 @@ export const loadResult = createAsyncThunk('LoadResult', async ({accessToken,job
     if(job.pipeline_id==sampleJob.pipeline_id){
         return sampleResult;
     }
-    let volumes:Volume[] = [];
-    let file = job.files[0];
+    const volumes:Volume[] = [];
+    const file = job.files[0];
     // console.log(file);
-    let result = (await axios.post(UNZIP, JSON.parse(file.location),{
+    const result = (await axios.post(UNZIP, JSON.parse(file.location),{
         headers: {
             Authorization:`Bearer ${accessToken}`
         }
@@ -50,7 +50,7 @@ export const loadResult = createAsyncThunk('LoadResult', async ({accessToken,job
     
      
 
-    let niis = <NiiFile[]> result.data;
+    const niis = <NiiFile[]> result.data;
     // console.log(niis);
     niis.forEach((value)=>{
         // console.log(value);
@@ -88,7 +88,7 @@ export const loadResult = createAsyncThunk('LoadResult', async ({accessToken,job
 // });
 
 // For local testing purposes:
-let sampleResult = {
+const sampleResult = {
     job: sampleJob,
     pipeline_id: '###',
     volumes: [

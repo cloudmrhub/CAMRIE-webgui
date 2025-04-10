@@ -5,11 +5,11 @@ export const isUndefined = (value: any) => {
 };
 
 export const complexToPolarR = (re: Array<number>, im: Array<number>) => {
-    let result = [];
+    const result = [];
 
     for (let i = 0; i < re?.length; i++) {
-        let a = complex(re[i], im[i]);
-        let p = a.toPolar();
+        const a = complex(re[i], im[i]);
+        const p = a.toPolar();
         result[i] = p.r;
     }
 
@@ -17,11 +17,11 @@ export const complexToPolarR = (re: Array<number>, im: Array<number>) => {
 };
 
 export const complexToPolarP = (re: Array<number>, im: Array<number>) => {
-    let result = [];
+    const result = [];
 
     for (let i = 0; i < re?.length; i++) {
-        let a = complex(re[i], im[i]);
-        let p = a.toPolar();
+        const a = complex(re[i], im[i]);
+        const p = a.toPolar();
         result[i] = p.phi;
     }
 
@@ -63,7 +63,7 @@ export const linearFit2pts = (p0: any, p1: any) => {
 };
 
 export const purgenan = (array: any) => {
-    let par: any = [];
+    const par: any = [];
 
     for (let i = 0; i < array.length; i++) {
         if (!isNaN(array[i])) {
@@ -123,7 +123,7 @@ export const getFileExtension = (fileName: string) => {
  */
 export function getMax(array:number[]):number{
     let max = array.length>0?array[0]:0;
-    for(let element of array){
+    for(const element of array){
         if(element>max)
             max = element;
     }
@@ -132,7 +132,7 @@ export function getMax(array:number[]):number{
 
 export function getMin(array:number[]):number{
     let min = array.length>0?array[0]:0;
-    for(let element of array){
+    for(const element of array){
         if(element<min)
             min = element;
     }

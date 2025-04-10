@@ -15,7 +15,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import IconButton from "@mui/material/IconButton";
 import Confirmation from "./Cmr-components/dialogue/Confirmation.tsx";
-import {getPipelineROI} from "../features/rois/resultActionCreation";
+import {getPipelineROI} from "../features/results/resultActionCreation.ts";
 import CMRUpload from "./Cmr-components/upload/Upload";
 
 export const ROITable = (props:{pipelineID: string,
@@ -40,7 +40,7 @@ export const ROITable = (props:{pipelineID: string,
         },
     };
     const createPayload = async (file: File, fileAlias: string) => {
-        let formData = new FormData();
+        const formData = new FormData();
         if (file) {
             const lambdaFile: LambdaFile = {
                 "filename": fileAlias,
@@ -54,7 +54,7 @@ export const ROITable = (props:{pipelineID: string,
             const fileExtension = getFileExtension(file.name);
 
             if (fileExtension == 'dat') {
-                let safe = await is_safe_twix(file);
+                const safe = await is_safe_twix(file);
                 if (!safe){
                     alert('This file contains PIH data. Please anonymize the file before uploading');
                     return undefined;
@@ -70,7 +70,7 @@ export const ROITable = (props:{pipelineID: string,
             flex: 1,
             editable:true,
             valueSetter:(params: GridValueSetterParams)=>{
-                let value = params.value;
+                const value = params.value;
                 // console.log(params);
                 const newAlias = params.value; // Value entered by the user
                 // console.log(newAlias);
@@ -196,8 +196,8 @@ export const ROITable = (props:{pipelineID: string,
             <div className="col-4">
                 <Button color={'success'} style={{textTransform:'none'}} variant={'contained'} fullWidth={true} onClick={async ()=>{
                     let fileName = 'label';
-                    let selectedLabels = []
-                    for(let label of selectedData) {
+                    const selectedLabels = []
+                    for(const label of selectedData) {
                         fileName+=label;
                         selectedLabels.push(Number(label));
                     }
@@ -226,7 +226,7 @@ export const ROITable = (props:{pipelineID: string,
                            },
                        };
                        console.log(props);
-                       let filename = file.name;
+                       const filename = file.name;
                        filename.split('.').pop();
                        const response = await axios.post(ROI_UPLOAD, {
                            "filename": filename,

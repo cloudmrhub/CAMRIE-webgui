@@ -1,24 +1,26 @@
-import React from 'react';
 import { Select } from 'antd';
+import type { ReactNode } from 'react';
 import './Option.scss';
 
 const { Option } = Select;
 
-interface CmrOptionProps {
-    title?: string;
-    value: string | number;
-    disabled?: boolean;
-    children?: any;
+export interface CmrOptionProps {
+  title?: string;
+  value: string | number;
+  disabled?: boolean;
+  children?: ReactNode;
 }
 
-const CmrOption = (props: CmrOptionProps) => {
-    const { title, value, disabled, children, ...rest } = props;
-
-    return (
-        <Option title={title} value={value} disabled={disabled} {...rest}>
-            {children}
-        </Option>
-    );
-};
+const CmrOption: React.FC<CmrOptionProps> = ({
+  title,
+  value,
+  disabled,
+  children,
+  ...rest
+}) => (
+  <Option title={title} value={value} disabled={disabled} {...rest}>
+    {children}
+  </Option>
+);
 
 export default CmrOption;

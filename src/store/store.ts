@@ -3,7 +3,7 @@ import authReducer from './authSlice';
 import jobReducer from './jobSlice'; // this might be replaced
 import dataReducer from '../features/data/dataSlice';
 import jobsReducer from '../features/jobs/jobsSlice';
-import resultReducer from '../features/rois/resultSlice';
+import resultReducer from '../features/results/resultSlice';
 
 export const store = configureStore({
   reducer: {

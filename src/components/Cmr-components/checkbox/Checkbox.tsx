@@ -1,7 +1,6 @@
 import React, {ChangeEvent} from 'react';
 import { Checkbox } from '@mui/material';
 import './Checkbox.scss';
-import { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { FormControlLabel } from '@mui/material';
 
 interface CmrCheckboxProps  extends React.HTMLAttributes<HTMLDivElement>{

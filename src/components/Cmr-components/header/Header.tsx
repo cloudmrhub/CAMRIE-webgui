@@ -1,111 +1,142 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useLocation, NavigateFunction } from 'react-router-dom';
 import './Header.scss';
-import { Link, useNavigate } from 'react-router-dom';
 
-interface MenuItem{
-    path: string
-    title: string
+export interface MenuItem {
+  path: string;
+  title: string;
 }
 
-const Header = ({siteTitle, authentication,handleLogout,menuList}:{
-    siteTitle:string,
-    authentication: {email:string, accessToken: string}
-    menuList: MenuItem[],
-    handleLogout: ()=>void
+interface HeaderProps {
+  siteTitle: string;
+  authentication?: { email: string; accessToken: string };
+  menuList: MenuItem[];
+  handleLogout: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({
+  siteTitle,
+  authentication,
+  menuList,
+  handleLogout,
 }) => {
-    const navigate = useNavigate();
-    const currPath = navigate.name;
-    const [menuSelect, setMenuSelect] = useState(siteTitle);
-    const { email, accessToken } = authentication;
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const [selected, setSelected] = useState(siteTitle);
 
-    useEffect(() => {
-        for (let item of menuList) {
-            // console.log(item.path);
-            // console.log(currPath);
-            if (item.path === currPath) setMenuSelect(item.title);
-        }
-    }, [currPath]);
+  /* keep selected menu in sync with the URL */
+  useEffect(() => {
+    const match = menuList.find(m => m.path === location.pathname);
+    if (match) setSelected(match.title);
+  }, [location.pathname, menuList]);
 
-    const handleMenuChange = (info: MenuItem,navigate:any) => {
-        if (currPath === info.path) return;
-        navigate(info.path);
-        for (let item of menuList) {
-            if (item.path === info.path){
-                setMenuSelect(item.title);
-            }
-        }
-        return false;
-    };
+  const changeMenu = (item: MenuItem, nav: NavigateFunction) => {
+    if (location.pathname === item.path) return;
+    nav(item.path);
+    setSelected(item.title);
+  };
 
-    return (
-        <nav className="navbar navbar-expand-md navbar-dark bg-dark shadow-sm" style={{background: '#000000'}}>
-            {/*add small-margin to className to align header content to the ends*/}
-            <div className="container-xl">
-                <Link to="/" className="navbar-brand" style={{ display: 'flex', alignItems: 'center' }}>
-{/* <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)', display: 'inline-block' }}> */}
-<div style={{ 
-        // backgroundColor: 'white', 
-        borderRadius: '30%', 
-        width: '50px', 
-        height: '50px', 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center' 
-    }}>
-    <img src={process.env.PUBLIC_URL + '/MR Optimum_final_white.png'} alt="Logo" style={{height: '40px', width: '40px'}} /> {/* adjust height and width as needed */}
-</div>                    {/* {siteTitle} */}
-                </Link>
-                <button className="navbar-toggler" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#navbarToggleExternalContent" aria-controls="navbarToggleExternalContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span className="navbar-toggler-icon"></span>
+  return (
+    <nav className="navbar navbar-expand-md navbar-dark bg-dark shadow-sm">
+      <div className="container-xl">
+        <Link to="/" className="navbar-brand d-flex align-items-center">
+          <div
+            style={{
+              borderRadius: '30%',
+              width: 50,
+              height: 50,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <img
+              src={`${import.meta.env.BASE_URL ?? ''}MR Optimum_final_white.png`}
+              alt="Logo"
+              style={{ width: 40, height: 40 }}
+            />
+          </div>
+        </Link>
+
+        <button
+          className="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarToggleExternalContent"
+          aria-controls="navbarToggleExternalContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span className="navbar-toggler-icon" />
+        </button>
+
+        <div className="collapse navbar-collapse" id="navbarToggleExternalContent">
+          {/* left menu */}
+          <ul className="navbar-nav">
+            {menuList.map(item => (
+              <li
+                key={item.path}
+                className={`nav-item${item.title === selected ? ' active' : ''}`}
+              >
+                {item.title === 'Bug Report' ? (
+                  <a
+                    className="nav-link"
+                    href="https://github.com/cloudmrhub-com/mroptimum/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {item.title}
+                  </a>
+                ) : (
+                  <Link
+                    className="nav-link"
+                    to={item.path}
+                    onClick={e => {
+                      e.preventDefault();
+                      changeMenu(item, navigate);
+                    }}
+                  >
+                    {item.title}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* right auth menu */}
+          {authentication?.accessToken && (
+            <ul className="navbar-nav ms-auto">
+              <li className="nav-item dropdown">
+                <button
+                  className="nav-link dropdown-toggle"
+                  id="dropdownMenuButton"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  type="button"
+                >
+                  {authentication.email}
                 </button>
-
-                <div className="collapse navbar-collapse" id="navbarToggleExternalContent">
-                    {/* Left Side Of Navbar */}
-                    <ul className="navbar-nav">
-                        {menuList.map((menuItem)=>{
-                            return <li className={`nav-item${(menuItem.title==menuSelect)?' active':''}`} key={menuItem.path}>
-                                <a className='nav-link' style={{cursor:'pointer'}} onClick={(event)=>{
-                                    switch(menuItem.title) {
-                                        case 'Bug Report':
-                                            window.open('https://github.com/cloudmrhub-com/mroptimum/issues')
-                                            // window.location.href='https://github.com/cloudmrhub-com/mroptimum/issues';
-                                            return;
-                                    }
-                                    event.preventDefault();
-                                    handleMenuChange(menuItem, navigate)
-                                }} >
-                                    {menuItem.title}
-                                </a>
-                            </li>;
-                        })}
-                    </ul>
-
-                    {/**Right Side Of Navbar **/}
-                    {authentication.accessToken!='' &&(
-                        <ul className="navbar-nav ms-auto">
-                            {/** Authentication Links **/}
-                            <li className="nav-item dropdown">
-                                <button className="nav-link  dropdown-toggle" type="button"
-                                        id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                                    {email} <span className="caret"></span>
-                                </button>
-                                <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                    <li><button className="dropdown-item"
-                                                onClick={(event)=>{event.preventDefault();
-                                                    handleLogout();}}>
-                                        Logout
-                                    </button></li>
-                                </ul>
-                            </li>
-                        </ul>)}
-                </div>
-            </div>
-        </nav>
-    );
+                <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                  <li>
+                    <button
+                      className="dropdown-item"
+                      onClick={e => {
+                        e.preventDefault();
+                        handleLogout();
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
 };
 
 export default Header;
-export type { MenuItem };
-

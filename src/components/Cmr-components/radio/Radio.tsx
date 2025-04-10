@@ -1,23 +1,23 @@
-import React from 'react';
-import './Radio.scss';
 import { Radio } from 'antd';
+import type { RadioProps } from 'antd';
+import type { ReactNode } from 'react';
+import './Radio.scss';
 
-interface CmrRadioProps {
-    checked?: boolean;
-    defaultChecked?: boolean;
-    disabled?: boolean;
-    value?: any;
-    children?: any;
+export interface CmrRadioProps<T = any>
+  extends Omit<RadioProps, 'children' | 'value'> {
+  /** Radio value that will be submitted */
+  value?: T;
+  /** Label */
+  children?: ReactNode;
 }
 
-const CmrRadio = (props: CmrRadioProps) => {
-    const { checked, defaultChecked, disabled, value, children, ...rest } = props;
-
-    return (
-        <Radio checked={checked} defaultChecked={defaultChecked} disabled={disabled} value={value} {...rest}>
-            {children}
-        </Radio>
-    );
-};
+const CmrRadio = <T,>({
+  children,
+  ...rest
+}: CmrRadioProps<T>) => (
+  <Radio {...rest}>
+    {children}
+  </Radio>
+);
 
 export default CmrRadio;

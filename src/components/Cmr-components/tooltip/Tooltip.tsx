@@ -1,50 +1,8 @@
-import React from 'react';
-import './Tooltip.scss';
 import { Tooltip } from 'antd';
-import {  TooltipPlacement } from 'antd/lib/tooltip';
+import type { TooltipProps } from 'antd';
+import './Tooltip.scss';
 
-interface CmrTooltipProps {
-    arrowPointAtCenter?: boolean;
-    autoAdjustOverflow?: boolean;
-    color?: string;
-    defaultVisible?: boolean;
-    mouseEnterDelay?: number;
-    mouseLeaveDelay?: number;
-    overlayClassName?: string;
-    placement?: TooltipPlacement;
-    visible?: boolean;
-    title: React.ReactNode;
-    overlay?: React.ReactNode;
-}
-
-const CmrTooltip = (props: CmrTooltipProps) => {
-    const {
-        arrowPointAtCenter,
-        autoAdjustOverflow,
-        color,
-        defaultVisible,
-        mouseEnterDelay,
-        mouseLeaveDelay,
-        overlayClassName,
-        placement,
-        visible,
-        ...rest
-    } = props;
-
-    return (
-        <Tooltip
-            arrowPointAtCenter={arrowPointAtCenter}
-            autoAdjustOverflow={autoAdjustOverflow}
-            color={color}
-            defaultVisible={defaultVisible}
-            mouseEnterDelay={mouseEnterDelay}
-            mouseLeaveDelay={mouseLeaveDelay}
-            overlayClassName={overlayClassName}
-            placement={placement}
-            visible={visible}
-            {...rest}
-        />
-    );
-};
+/** CloudMR-styled wrapper around Ant Design Tooltip */
+const CmrTooltip: React.FC<TooltipProps> = props => <Tooltip {...props} />;
 
 export default CmrTooltip;

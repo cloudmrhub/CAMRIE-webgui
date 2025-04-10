@@ -185,27 +185,27 @@ export const resultGetters = {
     },
 
     getDecimateAcceleration1: (state: RootState): number | undefined => {
-        let acc = state.result.activeJob?.setup.task?.options.reconstructor?.options.accelerations;
+        const acc = state.result.activeJob?.setup.task?.options.reconstructor?.options.accelerations;
         return (acc) ? acc[0] : 0;
     },
 
     getDecimateAcceleration2: (state: RootState): number | undefined => {
-        let acc = state.result.activeJob?.setup.task?.options.reconstructor?.options.accelerations;
+        const acc = state.result.activeJob?.setup.task?.options.reconstructor?.options.accelerations;
         return (acc) ? acc[1] : 0;
     },
 
     getDecimateACL: (state: RootState): number | null | undefined => {
-        let acl = state.result.activeJob?.setup.task?.options.reconstructor?.options.acl;
+        const acl = state.result.activeJob?.setup.task?.options.reconstructor?.options.acl;
         return (acl) ? acl[0] : 0;
     },
 
     getKernelSize1: (state: RootState): number | undefined => {
-        let ks = state.result.activeJob?.setup.task?.options.reconstructor?.options.kernelSize;
+        const ks = state.result.activeJob?.setup.task?.options.reconstructor?.options.kernelSize;
         return (ks) ? ks[0] : 0;
     },
 
     getKernelSize2: (state: RootState): number | undefined => {
-        let ks = state.result.activeJob?.setup.task?.options.reconstructor?.options.kernelSize;
+        const ks = state.result.activeJob?.setup.task?.options.reconstructor?.options.kernelSize;
         return (ks) ? ks[1] : 0;
     },
 

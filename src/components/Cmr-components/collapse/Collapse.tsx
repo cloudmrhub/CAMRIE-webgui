@@ -1,102 +1,58 @@
 import React, { cloneElement } from 'react';
-import { Collapse } from 'antd';
-import { CollapsibleType } from 'antd/es/collapse/CollapsePanel';
-import { ExpandIconPosition } from 'antd/es/collapse/Collapse';
 import './Collapse.scss';
 
-interface CmrCollapseProps {
-    accordion?: boolean;
-    activeKey?: Array<string | number> | number;
-    bordered?: boolean;
-    collapsible?: CollapsibleType;
-    defaultActiveKey?: Array<string | number>;
-    destroyInactivePanel?: boolean;
-    expandIconPosition?: ExpandIconPosition;
-    ghost?: boolean;
-    onChange?: (key: Array<string | number> | number) => void;
-    children?: JSX.Element[] | JSX.Element;
+export interface CmrCollapseProps {
+  accordion?: boolean;
+  activeKey?: Array<string | number> | string | number;
+  defaultActiveKey?: Array<string | number> | string | number;
+  onChange?: (key: Array<string | number>) => void;
+  children?: React.ReactNode;
 }
 
-const CmrCollapse = (props: CmrCollapseProps) => {
-    let { activeKey, defaultActiveKey, onChange, children } = props;
-    defaultActiveKey = defaultActiveKey || [];
-    const [activeKeys, setActiveKeys] = React.useState(defaultActiveKey);
+const CmrCollapse: React.FC<CmrCollapseProps> = ({
+  defaultActiveKey = [],
+  activeKey,
+  onChange,
+  children,
+}) => {
+  const [activeKeys, setActiveKeys] = React.useState<Array<string | number>>(
+    Array.isArray(defaultActiveKey) ? defaultActiveKey : [defaultActiveKey]
+  );
 
-    // Sync activeKey prop with state
-    React.useEffect(() => {
-        if (activeKey !== undefined && activeKey !== activeKeys) {
-            if (Array.isArray(activeKey)) {
-                setActiveKeys(activeKey);
-            } else {
-                setActiveKeys([activeKey]);
-            }
-        }
-    }, [activeKey]);
+  // Sync with the controlled prop
+  React.useEffect(() => {
+    if (activeKey !== undefined) {
+      setActiveKeys(Array.isArray(activeKey) ? activeKey : [activeKey]);
+    }
+  }, [activeKey]);               // ← removed activeKeys
 
-    // Handle toggling panels
-    const onToggle = (key: number) => {
-        const newKeys = [...activeKeys];
-        const keyIndex = newKeys.indexOf(key);
+  const toggle = (key: string | number) => {
+    const next = activeKeys.includes(key)
+      ? activeKeys.filter(k => k !== key)
+      : [...activeKeys, key];
 
-        if (keyIndex === -1) {
-            newKeys.push(key);
-        } else {
-            newKeys.splice(keyIndex, 1);
-        }
+    setActiveKeys(next);
+    onChange?.(next);
+  };
 
-        setActiveKeys(newKeys);
-        if (onChange) onChange(newKeys);
-    };
+  const enhanced = React.Children.map(children, (child, index) => {
+    if (!React.isValidElement(child)) return child;
 
-    // Render children
-    const renderChildren = () => {
-        if (!children) return null;
+    const key = child.key ?? index;          // keep React’s own key
+    const expanded = activeKeys.includes(key as string | number);
 
-        if (Array.isArray(children)) {
-            return children.map((child, index) => {
-                const panelKey = index;
-                const expanded = activeKeys.includes(panelKey);
-
-                // Make header clickable
-                const header = (
-                    <div onClick={() => onToggle(panelKey)} style={{ cursor: 'pointer' }}>
-                        {child.props.header}
-                    </div>
-                );
-
-                return cloneElement(child, {
-                    expanded,
-                    panelKey,
-                    onToggle,
-                    header, // Override header with clickable version
-                });
-            });
-        } else {
-            // Handle single child case
-            const panelKey = 0;
-            const expanded = activeKeys.includes(panelKey);
-
-            // Make header clickable
-            const header = (
-                <div onClick={() => onToggle(panelKey)} style={{ cursor: 'pointer' }}>
-                    {children.props.header}
-                </div>
-            );
-
-            return cloneElement(children, {
-                expanded,
-                panelKey,
-                onToggle,
-                header, // Override header with clickable version
-            });
-        }
-    };
-
-    return (
-        <div className="cmr-collapse">
-            <div>{renderChildren()}</div>
+    return cloneElement(child, {
+      expanded,
+      panelKey: key,
+      header: (
+        <div onClick={() => toggle(key as string | number)} style={{ cursor: 'pointer' }}>
+          {child.props.header}
         </div>
-    );
+      ),
+    });
+  });
+
+  return <div className="cmr-collapse">{enhanced}</div>;
 };
 
 export default CmrCollapse;

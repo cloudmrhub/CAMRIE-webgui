@@ -3,25 +3,25 @@ import {Box, Button} from '@mui/material'
 import {NVImage} from '@niivue/niivue';
 import {SettingsPanel} from './components/SettingsPanel.jsx'
 import {NumberPicker} from './components/NumberPicker.jsx'
-import {ColorPicker} from './components/ColorPicker.jsx'
-import {LayersPanel} from './components/LayersPanel.jsx'
-import {NiivuePanel} from './components/NiivuePanel.tsx'
+import {ColorPicker} from './components/ColorPicker'
+import {LayersPanel} from './components/LayersPanel'
+import {NiivuePanel} from './components/NiivuePanel'
 import {Niivue} from './NiivuePatcher';
 import NVSwitch from './components/Switch.jsx'
 import Toolbar from './components/Toolbar.tsx'
-import Layer from './components/Layer.jsx'
+import Layer from './components/Layer'
 import './Niivue.css'
-import EditConfirmation from "./CmrComponents/dialogue/EditConfirmation.tsx";
+import EditConfirmation from "../../components/Cmr-components/dialogue/EditConfirmation.tsx";
 import axios from "axios";
 import {ROI_UPLOAD} from "../../Variables";
-import Confirmation from "./CmrComponents/dialogue/Confirmation.tsx";
+import Confirmation from "../../components/Cmr-components/dialogue/Confirmation.tsx";
 import {DrawToolkit} from "./components/DrawToolKit";
 import Plotly from "plotly.js-dist-min";
 import {ROITable} from "../Rois.tsx";
 import {calculateMean, calculateStandardDeviation} from "./components/stats";
 import JSZip from "jszip";
 import {getMax, getMin} from "../../common/utilities";
-import {getPipelineROI} from "../../features/rois/resultActionCreation";
+import {getPipelineROI} from "../../features/results/resultActionCreation.ts";
 import {useAppDispatch, useAppSelector} from "../../features/hooks";
 
 export const nv = new Niivue({
