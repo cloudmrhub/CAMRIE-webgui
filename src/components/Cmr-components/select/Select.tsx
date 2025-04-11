@@ -17,9 +17,15 @@ export interface CmrSelectProps<T extends string | number = string>
 
 const CmrSelect = <T extends string | number = string>({
   children,
+  defaultValue,
+  value,
   ...rest
 }: CmrSelectProps<T>) => (
-  <Select<T> {...rest}>
+  <Select<T>
+    {...rest}
+    defaultValue={Array.isArray(defaultValue) ? defaultValue[0] : defaultValue}
+    value={Array.isArray(value) ? value[0] : value}
+  >
     {children}
   </Select>
 );
