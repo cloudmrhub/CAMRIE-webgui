@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import { useState, useMemo } from 'react';
 import { Select, SelectProps } from 'antd';
@@ -5,9 +6,14 @@ import './DropDown.scss';
 
 const { Option } = Select;
 
+type BasicOption<T extends string | number> = {
+  label: React.ReactNode;
+  value: T;
+};
+
 export interface CmrDropDownProps<T extends string | number = string>
-  extends SelectProps<T> {
-  options: T[] | { label: React.ReactNode; value: T }[];
+  extends Omit<SelectProps<T>, 'options'> {
+  options: T[] | BasicOption<T>[];
   isOptionsObj?: boolean;
 }
 
@@ -64,7 +70,7 @@ function CmrDropDown<T extends string | number = string>({
         }}
       >
         {isOptionsObj
-          ? (options as { label: React.ReactNode; value: T }[]).map(({ label, value }) => (
+          ? (options as BasicOption<T>[]).map(({ label, value }) => (
               <Option key={String(value)} value={value}>
                 {label}
               </Option>

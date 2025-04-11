@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import {
   Box,
@@ -11,14 +12,14 @@ import GetAppIcon from '@mui/icons-material/GetApp';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store/store';
+import { RootState, AppDispatch } from '../store/store'; // Updated import
 import NiiVue, { nv } from './viewer/Niivue.jsx';
 import { resultActions } from '../features/results/resultsSlice.js';
 import { getUpstreamJobs } from '../features/jobs/jobActionCreation';
 import { loadResult, getPipelineROI } from '../features/results/resultActionCreation.js';
 
 const ResultsTab = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>(); // Typed dispatch
   const token = useSelector((state: RootState) => state.auth.token);
   const jobs = useSelector((state: RootState) => state.jobs.jobs);
   const resultState = useSelector((state: RootState) => state.result);
@@ -28,10 +29,12 @@ const ResultsTab = () => {
   const rois = pipelineID && resultState?.rois?.[pipelineID] ? resultState.rois[pipelineID] : [];
   const selectedVolume = resultState?.selectedVolume ?? 0;
   const [loading, setLoading] = useState(true);
-  console.log('token', token);
+
   const fetchJobs = async () => {
     setLoading(true);
-    await dispatch(getUpstreamJobs(token));
+    if (token) {
+      await dispatch(getUpstreamJobs(token));
+    }
     setLoading(false);
   };
 
@@ -47,8 +50,9 @@ const ResultsTab = () => {
     files.forEach((file) => {
       if (file.link && file.link !== 'unknown') {
         const a = document.createElement('a');
+        const ext = file.link.split('.').pop();
         a.href = file.link;
-        a.download = `${file.fileName}.${file.link.split('.').pop()}`;
+        a.download = `${file.fileName}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -61,24 +65,26 @@ const ResultsTab = () => {
       dispatch(resultActions.setOpenPanel([1, 2]));
       return;
     }
-    dispatch(loadResult({ accessToken: token, job })).then((response: any) => {
-      const result = response.payload;
-      const volumes = result.volumes;
-      const niis = result.niis;
-      if (niis?.length && volumes?.length) {
-        for (let i = 0; i < niis.length; i++) {
-          if (niis[i].id === 0) {
-            dispatch(resultActions.selectVolume(i));
-            nv.loadVolumes([volumes[i]]);
-            dispatch(resultActions.setOpenPanel([1, 2]));
-            nv.closeDrawing();
-            break;
+    if (token) {
+      dispatch(loadResult({ accessToken: token, job })).then((response: any) => {
+        const result = response.payload;
+        const volumes = result.volumes;
+        const niis = result.niis;
+        if (niis?.length && volumes?.length) {
+          for (let i = 0; i < niis.length; i++) {
+            if (niis[i].id === 0) {
+              dispatch(resultActions.selectVolume(i));
+              nv.loadVolumes([volumes[i]]);
+              dispatch(resultActions.setOpenPanel([1, 2]));
+              nv.closeDrawing();
+              break;
+            }
           }
+          setTimeout(() => nv.resizeListener(), 300);
+          dispatch(getPipelineROI({ pipeline: job.pipeline_id, accessToken: token }));
         }
-        setTimeout(() => nv.resizeListener(), 300);
-        dispatch(getPipelineROI({ pipeline: job.pipeline_id, accessToken: token }));
-      }
-    });
+      });
+    }
   };
 
   return (
@@ -134,7 +140,7 @@ const ResultsTab = () => {
                 rois={rois}
                 pipelineID={activeJob.pipeline_id}
                 saveROICallback={() => {
-                  if (activeJob.pipeline_id) {
+                  if (activeJob.pipeline_id && token) {
                     dispatch(getPipelineROI({ pipeline: activeJob.pipeline_id, accessToken: token }));
                   }
                 }}

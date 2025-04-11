@@ -31,7 +31,7 @@ type FileItem = {
 };
 
 type JobItem = {
-  id: string;
+  id: number;
   alias: string;
   createdAt: string;
   status: string;
