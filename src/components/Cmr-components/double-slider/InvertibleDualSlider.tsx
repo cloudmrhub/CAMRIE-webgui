@@ -7,11 +7,10 @@ interface InvertibleDualSliderProps {
   max: number;
   setMin?: (v: number) => void;
   setMax?: (v: number) => void;
-  reverse?: boolean; 
+  reverse?: boolean;
   transform?: (x: number) => number;
   onFinalize?: () => void;
 }
-
 
 export const InvertibleDualSlider: React.FC<InvertibleDualSliderProps> = ({
   name,
@@ -27,6 +26,8 @@ export const InvertibleDualSlider: React.FC<InvertibleDualSliderProps> = ({
   const effMin = min;
   const effMax = max;
 
+  const trackRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     setMin?.(min);
     setMax?.(max);
@@ -34,9 +35,6 @@ export const InvertibleDualSlider: React.FC<InvertibleDualSliderProps> = ({
     setRightPos(100);
   }, [min, max]);
 
-  const trackRef = React.useRef<HTMLDivElement>(null);
-
-  // you could remove this entirely if it's not connected to the JSX yet
   const startDrag = (
     e: React.MouseEvent<HTMLDivElement>,
     which: 'left' | 'right'
@@ -88,7 +86,50 @@ export const InvertibleDualSlider: React.FC<InvertibleDualSliderProps> = ({
         </Box>
       )}
 
-      {/* slider track & input boxes would go here */}
+      <Box
+        ref={trackRef}
+        sx={{
+          position: 'relative',
+          height: 4,
+          flexGrow: 1,
+          backgroundColor: '#888',
+          borderRadius: 2,
+        }}
+      >
+        {/* Left handle */}
+        <Box
+          onMouseDown={(e) => startDrag(e, 'left')}
+          sx={{
+            position: 'absolute',
+            left: `${leftPos}%`,
+            width: 10,
+            height: 10,
+            backgroundColor: 'white',
+            borderRadius: '50%',
+            top: '-3px',
+            transform: 'translateX(-50%)',
+            cursor: 'ew-resize',
+            zIndex: 2,
+          }}
+        />
+
+        {/* Right handle */}
+        <Box
+          onMouseDown={(e) => startDrag(e, 'right')}
+          sx={{
+            position: 'absolute',
+            left: `${rightPos}%`,
+            width: 10,
+            height: 10,
+            backgroundColor: 'white',
+            borderRadius: '50%',
+            top: '-3px',
+            transform: 'translateX(-50%)',
+            cursor: 'ew-resize',
+            zIndex: 2,
+          }}
+        />
+      </Box>
     </Box>
   );
 };
