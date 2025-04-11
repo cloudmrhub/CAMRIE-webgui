@@ -46,7 +46,6 @@ window.nv = nv;
 // It is exported so that it can be used in other projects easily
 export default function NiiVueport(props) {
     const { accessToken = '' } = props;
-    console.log('Access token in Niivue (prop):', accessToken);
     let dispatch = useAppDispatch();
     let storeAccessToken = useAppSelector(state => state.auth.token);
     const selectedVolume = props.selectedVolume;
