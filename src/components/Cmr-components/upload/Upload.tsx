@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { Box, Button, SxProps, Theme } from '@mui/material';
+import {  Button, SxProps, Theme } from '@mui/material';
 import UploadWindow from './UploadWindow';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import './Upload.scss';
@@ -164,5 +164,4 @@ CmrUpload.defaultProps = {
   changeNameAfterUpload: true,
 };
 
-export type { CMRUploadProps };
 export default CmrUpload;
