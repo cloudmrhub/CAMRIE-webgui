@@ -21,14 +21,14 @@ interface Props {
 }
 
 const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
-    '--DataGrid-containerBackground': 'transparent',
-    '& .MuiDataGrid-columnHeaders': {
-        backgroundColor: '#333', // Header background color
-        color: '#fff',           // Header text color
-        fontWeight: 'bold',      // Make text bold
-    },
     '& .MuiDataGrid-columnHeaders .MuiSvgIcon-root': {
         color: '#fff', // Change the icon color in the header to white
+    },
+    '--DataGrid-containerBackground': 'transparent',
+    '& .MuiDataGrid-columnHeaders': {
+        backgroundColor: '#580f8b',
+        color: '#fff',
+        fontWeight: 'bold',
     },
     '& .MuiDataGrid-cell': {
         backgroundColor: '#fff', // Set the background of the cells to white

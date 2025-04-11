@@ -24,6 +24,8 @@ import UploadedDataGrid from '../components/DataGrid';
 import JobResultsDataGrid from '../components/JobResultsDataGrid';
 import { RootState } from '../store/store'; // adjust path if different
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
+
 
 
 type FileItem = {
@@ -71,8 +73,8 @@ const HomeTab = () => {
     <Box>
       {/* <Typography variant="h6">Uploaded Data</Typography> */}
       <Box display="flex" alignItems="center" mb={1}>
-        <KeyboardArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
-        <Typography sx={{ fontWeight: 500 }}>
+      <KeyboardDoubleArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
+        <Typography sx={{ fontWeight: 600, color: '#580f8b' }}>
           Uploaded Data
         </Typography>
       </Box>
@@ -114,8 +116,8 @@ const HomeTab = () => {
       )} */}
 
       <Box display="flex" alignItems="center" mt={4} mb={1}>
-        <KeyboardArrowRightIcon sx={{ color: '#390063', fontSize: 20, mr: 1 }} />
-        <Typography sx={{ fontWeight: 500 }}>
+      <KeyboardDoubleArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
+        <Typography sx={{ fontWeight: 600, color: '#580f8b' }}>
           Job Results
         </Typography>
       </Box>
