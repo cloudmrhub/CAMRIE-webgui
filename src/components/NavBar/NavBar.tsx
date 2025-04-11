@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Typography, Button, Menu, MenuItem, Container, Box } from '@mui/material';
+// import React, { useState } from 'react';
+import { AppBar, Toolbar, Typography, Container, Box } from '@mui/material';
 // import { Menu as AccountCircle } from '@mui/icons-material';
 import LogoutButton from '../LogoutButton'; // Adjust the path as necessary
 import './NavBar.css';
 
 const NavBar = () => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+//   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 //   const openMenu = Boolean(anchorEl);
 
 //   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -17,7 +17,7 @@ const NavBar = () => {
 //   };
 
   return (
-    <AppBar position="sticky" sx={{ backgroundColor: '#390063', paddingY: 2, boxShadow: 'none' }}>
+    <AppBar position="static" sx={{ backgroundColor: '#390063', paddingY: 2, boxShadow: 'none' }}>
       <Container maxWidth="lg">
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {/* Left side - Logo and Navigation */}

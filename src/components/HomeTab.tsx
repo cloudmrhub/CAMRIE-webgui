@@ -20,7 +20,11 @@ import { useAppDispatch, useAppSelector } from '../features/hooks';
 import { getUploadedData, deleteUploadedData } from '../features/data/dataActionCreation';
 import { getUpstreamJobs, deleteUpstreamJob } from '../features/jobs/jobActionCreation';
 import { jobsSlice } from '../features/jobs/jobsSlice';
+import UploadedDataGrid from '../components/DataGrid';
+import JobResultsDataGrid from '../components/JobResultsDataGrid';
 import { RootState } from '../store/store'; // adjust path if different
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+
 
 type FileItem = {
   id: string;
@@ -65,8 +69,22 @@ const HomeTab = () => {
 
   return (
     <Box>
-      <Typography variant="h6">Uploaded Data</Typography>
+      {/* <Typography variant="h6">Uploaded Data</Typography> */}
+      <Box display="flex" alignItems="center" mb={1}>
+        <KeyboardArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
+        <Typography sx={{ fontWeight: 500 }}>
+          Uploaded Data
+        </Typography>
+      </Box>
+
       {loading ? <CircularProgress /> : (
+        <UploadedDataGrid
+          rows={[...files].reverse()}
+          onDownload={downloadFile}
+          onDelete={(fileId: string) => dispatch(deleteUploadedData({ token, fileId }))}
+        />
+      )}
+      {/* {loading ? <CircularProgress /> : (
         <TableContainer component={Paper} sx={{ mb: 4 }}>
           <Table>
             <TableHead>
@@ -79,24 +97,41 @@ const HomeTab = () => {
             </TableHead>
             <TableBody>
               {[...files].reverse().map((file: FileItem) => (
-    <TableRow key={`file-${file.id}`}>
-      <TableCell>{file.fileName}</TableCell>
-      <TableCell>{file.createdAt}</TableCell>
-      <TableCell>{file.status}</TableCell>
-      <TableCell>
-        <IconButton><EditIcon /></IconButton>
-        <IconButton onClick={() => downloadFile(file.link, file.fileName)}><GetAppIcon /></IconButton>
-        <IconButton onClick={() => dispatch(deleteUploadedData({ token,fileId: file.id }))}><DeleteIcon /></IconButton>
-      </TableCell>
-    </TableRow>
-  ))}
+                <TableRow key={`file-${file.id}`}>
+                  <TableCell>{file.fileName}</TableCell>
+                  <TableCell>{file.createdAt}</TableCell>
+                  <TableCell>{file.status}</TableCell>
+                  <TableCell>
+                    <IconButton><EditIcon /></IconButton>
+                    <IconButton onClick={() => downloadFile(file.link, file.fileName)}><GetAppIcon /></IconButton>
+                    <IconButton onClick={() => dispatch(deleteUploadedData({ token, fileId: file.id }))}><DeleteIcon /></IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
-      )}
+      )} */}
 
-      <Typography variant="h5" gutterBottom>Job Results</Typography>
+      <Box display="flex" alignItems="center" mt={4} mb={1}>
+        <KeyboardArrowRightIcon sx={{ color: '#390063', fontSize: 20, mr: 1 }} />
+        <Typography sx={{ fontWeight: 500 }}>
+          Job Results
+        </Typography>
+      </Box>
+
       {loading ? <CircularProgress /> : (
+        <JobResultsDataGrid
+          rows={[...jobsData].sort((a, b) => Number(b.id) - Number(a.id))}
+          onDownload={(files) => files.forEach((f: FileItem) => downloadFile(f.link, f.fileName))}
+          onDelete={(jobId: string) => {
+            dispatch(deleteUpstreamJob({ token, jobId }));
+            const index = jobsData.findIndex(j => j.id === jobId);
+            dispatch(jobsSlice.actions.deleteJob({ index }));
+          }}
+        />
+      )}
+      {/* {loading ? <CircularProgress /> : (
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -109,9 +144,9 @@ const HomeTab = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-            {[...jobsData].sort((a, b) => Number(b.id) - Number(a.id)).map((job: JobItem) => (
+              {[...jobsData].sort((a, b) => Number(b.id) - Number(a.id)).map((job: JobItem) => (
                 <TableRow key={`job-${job.id}`}>
-                <TableCell>{job.id}</TableCell>
+                  <TableCell>{job.id}</TableCell>
                   <TableCell>{job.alias}</TableCell>
                   <TableCell>{job.createdAt}</TableCell>
                   <TableCell>{job.status}</TableCell>
@@ -129,7 +164,7 @@ const HomeTab = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      )}
+      )} */}
     </Box>
   );
 };

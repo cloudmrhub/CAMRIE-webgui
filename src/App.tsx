@@ -1,12 +1,12 @@
 // src/App.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Tabs, Tab, Box, Typography } from '@mui/material';
 import HomeTab from './components/HomeTab';
 import JobForm from './components/JobForm';
 import ResultsTab from './components/ResultsTab'; // create if needed
 import Login from './components/Login';
 import NavBar from './components/NavBar/NavBar'; 
-import LogoutButton from './components/LogoutButton';
+// import LogoutButton from './components/LogoutButton';
 import { useAppSelector } from './features/hooks';
 import Footer from './components/Footer';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -16,7 +16,7 @@ import './App.css'
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#580F8B', // Set the primary color to #580F8B
+      main: '#580f8b', // Set the primary color to #580F8B
     },
   },
 });
@@ -24,6 +24,18 @@ const theme = createTheme({
 function App() {
   const [tabIndex, setTabIndex] = useState(0);
   const token = useAppSelector((state) => state.auth.token);
+  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // If not logged in, show login page only
   if (!token) {
@@ -32,7 +44,7 @@ function App() {
         <Container maxWidth="sm" sx={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100vh',
+          minHeight: windowHeight,
         }}>
           <Login onLogin={() => setTabIndex(0)} />
           <Footer />
@@ -44,7 +56,11 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <NavBar />
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Container maxWidth="lg" sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: windowHeight,
+        }}>
         {/* Logout button */}
         <Box display="flex" justifyContent="flex-end" alignItems="center" mb={2}>
         </Box>
@@ -61,6 +77,8 @@ function App() {
           {tabIndex === 1 && <JobForm />}
           {tabIndex === 2 && <ResultsTab />}
         </Box>
+
+        <Footer />
       </Container>
     </ThemeProvider>
 

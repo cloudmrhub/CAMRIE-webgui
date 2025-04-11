@@ -47,7 +47,7 @@ export default function Login({ onLogin }: LoginProps) {
           <img
             src="/camrieLetterLogo.png"
             className="img-fluid"
-            style={{ margin: 'auto', height: '70pt' }}
+            style={{ margin: 'auto', height: '80pt' }}
             alt="Logo"
           />
         </div>
