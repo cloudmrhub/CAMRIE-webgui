@@ -13,8 +13,8 @@ export default function Login({ onLogin }: LoginProps) {
   const dispatch = useDispatch<AppDispatch>();
 
   // Use hardcoded credentials for development only.
-  const defaultEmail = process.env.NODE_ENV === 'development' ? 'eros.montin@gmail.com' : '';
-  const defaultPassword = process.env.NODE_ENV === 'development' ? 'eros' : '';
+  const defaultEmail = process.env.NODE_ENV === 'development' ? '' : '';
+  const defaultPassword = process.env.NODE_ENV === 'development' ? '' : '';
 
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState(defaultPassword);
