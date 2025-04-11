@@ -1,3 +1,4 @@
+
 import { useState, cloneElement, ReactElement, SyntheticEvent } from 'react';
 import { Tabs, Tab, Typography, Box } from '@mui/material';
 import type { TabInfo } from './tab.model';
@@ -10,7 +11,7 @@ interface CmrTabsProps {
 interface TabPanelProps {
   index: number;
   value: number;
-  children: ReactElement;
+  children: ReactElement<{ visible?: boolean }>;
 }
 
 function CustomTabPanel({ value, index, children }: TabPanelProps) {

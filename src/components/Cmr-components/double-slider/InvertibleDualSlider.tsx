@@ -19,7 +19,6 @@ export const InvertibleDualSlider: React.FC<InvertibleDualSliderProps> = ({
   max,
   setMin,
   setMax,
-  transform = x => x,
   onFinalize,
 }) => {
   const [leftPos, setLeftPos] = React.useState(0);
