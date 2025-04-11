@@ -6,6 +6,7 @@ export interface CmrInputProps
   extends Omit<InputProps, 'size' | 'prefix' | 'type'> {
   size?: 'small' | 'middle' | 'large';
   type?: React.HTMLInputTypeAttribute;
+  prefix?: React.ReactNode; // ✅ Explicitly added to avoid TS2339
 }
 
 const CmrInput = React.forwardRef<HTMLInputElement, CmrInputProps>(

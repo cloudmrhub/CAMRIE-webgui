@@ -1,3 +1,4 @@
+
 import React, { cloneElement } from 'react';
 import './Collapse.scss';
 
@@ -7,6 +8,12 @@ export interface CmrCollapseProps {
   defaultActiveKey?: Array<string | number> | string | number;
   onChange?: (key: Array<string | number>) => void;
   children?: React.ReactNode;
+}
+
+interface CollapsibleChildProps {
+  expanded?: boolean;
+  panelKey?: string | number;
+  header?: React.ReactNode;
 }
 
 const CmrCollapse: React.FC<CmrCollapseProps> = ({
@@ -19,12 +26,11 @@ const CmrCollapse: React.FC<CmrCollapseProps> = ({
     Array.isArray(defaultActiveKey) ? defaultActiveKey : [defaultActiveKey]
   );
 
-  // Sync with the controlled prop
   React.useEffect(() => {
     if (activeKey !== undefined) {
       setActiveKeys(Array.isArray(activeKey) ? activeKey : [activeKey]);
     }
-  }, [activeKey]);               // ← removed activeKeys
+  }, [activeKey]);
 
   const toggle = (key: string | number) => {
     const next = activeKeys.includes(key)
@@ -38,15 +44,15 @@ const CmrCollapse: React.FC<CmrCollapseProps> = ({
   const enhanced = React.Children.map(children, (child, index) => {
     if (!React.isValidElement(child)) return child;
 
-    const key = child.key ?? index;          // keep React’s own key
+    const key = child.key ?? index;
     const expanded = activeKeys.includes(key as string | number);
 
-    return cloneElement(child, {
+    return cloneElement(child as React.ReactElement<CollapsibleChildProps>, {
       expanded,
       panelKey: key,
       header: (
         <div onClick={() => toggle(key as string | number)} style={{ cursor: 'pointer' }}>
-          {child.props.header}
+          {(child.props as CollapsibleChildProps).header}
         </div>
       ),
     });

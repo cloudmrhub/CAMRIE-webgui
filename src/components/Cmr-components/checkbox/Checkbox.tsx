@@ -1,4 +1,4 @@
-import React, { ChangeEvent, ReactNode, CSSProperties } from 'react';
+import { ChangeEvent, ReactNode, CSSProperties } from 'react';
 import { Checkbox, FormControlLabel } from '@mui/material';
 import './Checkbox.scss';
 
