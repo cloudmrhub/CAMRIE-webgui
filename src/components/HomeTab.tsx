@@ -42,8 +42,21 @@ const HomeTab = () => {
   const dispatch = useAppDispatch();
   const token = useSelector((state: RootState) => state.auth?.token ?? '');
   const { files } = useAppSelector((state) => state.data);
-  const jobsData = useAppSelector((state: RootState) => state.jobs.jobs) as JobItem[];
-
+  const rawJobs = useAppSelector((state: RootState) => state.jobs.jobs);
+  const jobsData: JobItem[] = rawJobs.map(job => ({
+    id: job.id,
+    alias: job.alias,
+    createdAt: job.createdAt,
+    status: job.status,
+    files: job.files.map(file => ({
+      id: file.id.toString(),
+      fileName: file.fileName,
+      createdAt: file.createdAt,
+      status: file.status,
+      link: file.link
+    }))
+  }));
+  
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
