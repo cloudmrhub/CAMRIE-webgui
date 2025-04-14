@@ -144,21 +144,7 @@ export default function NiiVueport(props) {
         stylingProxy(props.niis[props.selectedVolume]);
     },[props.selectedVolume,props.niis])
 
-    // only run this when the component is mounted on the page
-    // or else it will be recursive and continuously add all
-    // initial images supplied to the NiiVue component
-    //
-    // All subsequent imgaes should be added via a
-    // button or drag and drop
-    // React.useEffect(async ()=>{
-    //   // props.volumes.map(async (vol)=>{
-    //   //   let image = await NVImage.loadFromUrl({url:vol.url})
-    //   //   nv.addVolume(image)
-    //   //   setLayers([...nv.volumes])
-    //   // })
-    //   await nv.loadVolumes(props.volumes)
-    //   setLayers([...nv.volumes])
-    // }, [])
+  
 
     const [rangeKey, setRangeKey] = useState(0);
     nv.onResetContrast = ()=>{
@@ -198,16 +184,18 @@ export default function NiiVueport(props) {
 
 
     function checkRange(numbers) {
-        // console.log(numbers);
+        console.log("checkRange input:", numbers);
         const range_min = getMin(numbers);
+        console.log("range_min:", range_min);
         const range_max = getMax(numbers);
+        console.log("range_max:", range_max);
 
         const range = range_max - range_min;
         if(range == 0){
             return numbers;
         }
-
-        if (range < 1e-2) {
+        console.log("range:", range);
+        if (range < 1e-1) {
             // Find a suitable 'a' that is a whole power of 10
             // Here, we want 'a' to scale the range to fit within [1, 10)
             let a = 1;
@@ -227,6 +215,7 @@ export default function NiiVueport(props) {
             nv.transformA = a;
             nv.transformB = b;
             nv.power = power;
+            console.log("transformed:", transformed);
             return transformed;
         } else {
             // If range is not smaller than 10E-2, return the original array
@@ -240,6 +229,7 @@ export default function NiiVueport(props) {
 
 
     function verifyComplex(volume){
+        console.log("verifyComplex called with volume:", volume);
         volume.real = volume.img;
         setComplexMode('real');
         // Ensure volume.imaginary is defined and has the same length as volume.img
@@ -266,8 +256,8 @@ export default function NiiVueport(props) {
         }
 
         // Initialize absolute and phase arrays
-        volume.absolute = new Float32Array(volume.img.length);
-        volume.phase = new Float32Array(volume.img.length);
+        volume.absolute = new Float64Array(volume.img.length);
+        volume.phase = new Float64Array(volume.img.length);
 
         // Calculate absolute and phase values
         for (let i = 0; i < volume.img.length; i++) {
@@ -284,8 +274,10 @@ export default function NiiVueport(props) {
     }
 
     function nvSetDisplayedVoxels(voxelType){
-        setComplexMode(voxelType);
+        console.log("nvSetDisplayedVoxels:", voxelType);
         let volume = nv.volumes[0];
+        console.log("Current volume before applying:", volume);
+        setComplexMode(voxelType);
         switch (voxelType){
             case 'phase':
                 volume.img = checkRange(volume.phase);

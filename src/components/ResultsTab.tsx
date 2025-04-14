@@ -42,7 +42,7 @@ const ResultsTab = () => {
     fetchJobs();
     const interval = setInterval(() => {
       fetchJobs();
-    }, 5000);
+    }, 500000);
     return () => clearInterval(interval);
   }, [token]);
 
