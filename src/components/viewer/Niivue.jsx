@@ -166,6 +166,13 @@ export default function NiiVueport(props) {
             return;
         }
         // console.log(nv.volumes);
+        const vol = nv.volumes[0];
+        console.log("Loaded volume:", vol);
+        if (!vol.imaginary || vol.imaginary.length !== vol.img.length) {
+          console.warn("Imaginary component missing or mismatched. Filling with zeros.");
+          vol.imaginary = new Float32Array(vol.img.length);
+        }
+        
         setLayers([...nv.volumes]);
         setBoundMins(nv.frac2mm([0,0,0]));
         setBoundMaxs(nv.frac2mm([1,1,1]));
@@ -179,6 +186,12 @@ export default function NiiVueport(props) {
         // volume.calMinMax()
         // setMin(volume.cal_min);
         // setMax(volume.cal_max);
+        verifyComplex(volume);
+        volume.calMinMax();
+        setMin(volume.cal_min);
+        setMax(volume.cal_max);
+        volume.vox_min = getMin(volume.img);
+        volume.vox_max = getMax(volume.img);
         nv.resetScene();
     }
 
@@ -195,7 +208,7 @@ export default function NiiVueport(props) {
             return numbers;
         }
         console.log("range:", range);
-        if (range < 1e-1) {
+        if (range < 1e-2) {
             // Find a suitable 'a' that is a whole power of 10
             // Here, we want 'a' to scale the range to fit within [1, 10)
             let a = 1;
@@ -228,79 +241,51 @@ export default function NiiVueport(props) {
     }
 
 
-    function verifyComplex(volume){
-        console.log("verifyComplex called with volume:", volume);
-        volume.real = volume.img;
-        setComplexMode('real');
-        // Ensure volume.imaginary is defined and has the same length as volume.img
+    function verifyComplex(volume) {
+        volume.real = volume.img
+        setComplexMode('real')
         if (!volume.imaginary || volume.imaginary.length !== volume.img.length) {
-            setComplexOptions(['real','absolute']);
-            // Initialize absolute and phase arrays
-            volume.absolute = new volume.img.constructor(volume.img.length);
-            // Calculate absolute and phase values
-            for (let i = 0; i < volume.img.length; i++) {
-                const realPart = volume.real[i];
-                // Calculate the absolute value (magnitude)
-                volume.absolute[i] = Math.sqrt(realPart * realPart);
-            }
-            return false;
+          setComplexOptions(['real', 'absolute'])
+          volume.absolute = new Float32Array(volume.img.length)
+          for (let i = 0; i < volume.img.length; i++) {
+            const realPart = volume.real[i]
+            volume.absolute[i] = Math.sqrt(realPart * realPart)
+          }
+        } else {
+          volume.absolute = new Float32Array(volume.img.length)
+          volume.phase = new Float32Array(volume.img.length)
+          let allZero = true
+          for (let i = 0; i < volume.img.length; i++) {
+            const realPart = volume.real[i]
+            const imaginaryPart = volume.imaginary[i]
+            volume.absolute[i] = Math.sqrt(realPart * realPart + imaginaryPart * imaginaryPart)
+            volume.phase[i] = Math.atan2(imaginaryPart, realPart)
+            if (imaginaryPart !== 0) allZero = false
+          }
+          setComplexOptions(allZero ? ['real', 'absolute'] : ['real', 'imaginary', 'absolute', 'phase'])
         }
+      }
 
-        let allZero = true;
-        // Test for imaginary nulls
-        for (let i = 0; i < volume.img.length; i++) {
-            if(volume.imaginary[i]!==0){
-                allZero = false;
-                break;
-            }
+
+    function nvSetDisplayedVoxels(voxelType) {
+        const volume = nv.volumes[0];
+        switch (voxelType) {
+          case 'phase':
+            volume.img = checkRange(volume.phase);
+            break;
+          case 'real':
+            volume.img = checkRange(volume.real);
+            break;
+          case 'imaginary':
+            volume.img = checkRange(volume.imaginary);
+            break;
+          case 'absolute':
+            volume.img = checkRange(volume.absolute);
+            break;
         }
-
-        // Initialize absolute and phase arrays
-        volume.absolute = new Float64Array(volume.img.length);
-        volume.phase = new Float64Array(volume.img.length);
-
-        // Calculate absolute and phase values
-        for (let i = 0; i < volume.img.length; i++) {
-            const realPart = volume.real[i];
-            const imaginaryPart = volume.imaginary[i];
-            // Calculate the absolute value (magnitude)
-            volume.absolute[i] = Math.sqrt(realPart * realPart + imaginaryPart * imaginaryPart);
-
-            // Calculate the phase (argument)
-            volume.phase[i] = Math.atan2(imaginaryPart, realPart);
-        }
-        setComplexOptions((allZero)?['real','absolute']:['real','imaginary','absolute','phase']);
-        return !allZero;
-    }
-
-    function nvSetDisplayedVoxels(voxelType){
-        console.log("nvSetDisplayedVoxels:", voxelType);
-        let volume = nv.volumes[0];
-        console.log("Current volume before applying:", volume);
         setComplexMode(voxelType);
-        switch (voxelType){
-            case 'phase':
-                volume.img = checkRange(volume.phase);
-                break;
-            case 'absolute':
-                volume.img = checkRange(volume.absolute);
-                break;
-            case 'real':
-                volume.img = checkRange(volume.real);
-                break;
-            case 'imaginary':
-                volume.img = checkRange(volume.imaginary);
-                break;
-        }
-        volume.calMinMax();
-        setMin(volume.cal_min);
-        setMax(volume.cal_max);
-        volume.vox_min = getMin(volume.img);
-        volume.vox_max = getMax(volume.img);
-        nv.setVolume(volume);
-        nv.drawScene();
-        resampleImage();
-    }
+        nv.updateGLVolume();
+      }
 
 
     nv.onLocationChange = (data) => {
