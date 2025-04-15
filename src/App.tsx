@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Tabs, Tab, Box, Typography } from '@mui/material';
 import HomeTab from './components/HomeTab';
 import JobForm from './components/JobForm';
@@ -7,16 +7,34 @@ import ResultsTab from './components/ResultsTab'; // create if needed
 import Login from './components/Login';
 import LogoutButton from './components/LogoutButton';
 import { useAppSelector } from './features/hooks';
+import Footer from './components/Footer';
+import './App.css'
 
 function App() {
   const [tabIndex, setTabIndex] = useState(0);
   const token = useAppSelector((state) => state.auth.token);
+  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // If not logged in, show login page only
   if (!token) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 10 }}>
+      <Container maxWidth="sm" sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: windowHeight }}>
         <Login onLogin={() => setTabIndex(0)} />
+        <Footer />
       </Container>
     );
   }
