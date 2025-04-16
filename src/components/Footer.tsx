@@ -7,15 +7,16 @@ const Footer: React.FC = () => {
       component="footer"
       sx={{
         backgroundColor: '#f8f9fa',
-        padding: '25px',
+        paddingBottom: '25px',
+        paddingTop: '30px',
         marginTop: 'auto',
         textAlign: 'center',
-        fontSize: '14px',
+        fontSize: '14px !important',
         color: '#6c757d',
       }}
     >
       <Container>
-        <Typography variant="body2">
+        <Typography>
           &copy; 2025 Copyright: Center for Biomedical Imaging. All rights reserved.
         </Typography>
       </Container>

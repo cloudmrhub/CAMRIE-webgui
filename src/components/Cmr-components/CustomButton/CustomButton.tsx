@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, ButtonProps } from '@mui/material';
-// import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import './CustomButton.css';
 
 interface CustomButtonProps extends ButtonProps {
@@ -22,7 +22,7 @@ const CustomButton: React.FC<CustomButtonProps> = ({
       {...props}
       className={`custom-button ${className || ''}`}
     >
-      {/* {icon && <FontAwesomeIcon icon={icon} style={{ marginRight: '12px', ...iconStyle }} />} */}
+      {icon && <FontAwesomeIcon icon={icon} style={{ marginRight: '12px', ...iconStyle }} />}
       {text}
     </Button>
   );

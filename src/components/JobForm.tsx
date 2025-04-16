@@ -24,7 +24,7 @@ const fieldOptions = [
     coil: 'overlap',
     date: '2024-09-01',
     description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
-    image:"https://erosmontin.s3.us-east-1.amazonaws.com/overlap.jpg"
+    image: "https://erosmontin.s3.us-east-1.amazonaws.com/overlap.jpg"
   },
   {
     id: 'cloudMR_birdcagecoil-ismrm25.zip',
@@ -34,7 +34,7 @@ const fieldOptions = [
     coil: 'birdcage',
     date: '2024-09-01',
     description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
-    image:"https://erosmontin.s3.us-east-1.amazonaws.com/bird.jpg"
+    image: "https://erosmontin.s3.us-east-1.amazonaws.com/bird.jpg"
   },
   {
     id: 'cloudMR_triangularcoil-ismrm25.zip',
@@ -44,7 +44,7 @@ const fieldOptions = [
     coil: 'triangular',
     date: '2024-09-01',
     description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
-    image:"https://erosmontin.s3.us-east-1.amazonaws.com/tri.jpg"
+    image: "https://erosmontin.s3.us-east-1.amazonaws.com/tri.jpg"
   },
 ];
 
@@ -161,11 +161,16 @@ export default function JobForm() {
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', mt: 6 }}>
+    <Box sx={{ maxWidth: 'lg', mx: 'auto', mt: 2 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h5" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ fontWeight: 'bold', color: '#580f8b', textAlign: 'left' }}
+        >
           Setup Parameters
         </Typography>
+
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={2}>
@@ -246,19 +251,19 @@ export default function JobForm() {
               </Select>
             </FormControl>
             {selectedSequence && (
-  <Grid item xs={12}>
-    <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
-      <Typography variant="subtitle1" gutterBottom>
-        Sequence Details
-      </Typography>
-      <Typography>ID: {selectedSequence.id}</Typography>
-      <Typography>Description: {selectedSequence.description}</Typography>
-      <Typography>TR: {selectedSequence.tr}</Typography>
-      <Typography>TE: {selectedSequence.te}</Typography>
-      <Typography>TA: {selectedSequence.ta}</Typography>
-    </Paper>
-  </Grid>
-)}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Sequence Details
+                  </Typography>
+                  <Typography>ID: {selectedSequence.id}</Typography>
+                  <Typography>Description: {selectedSequence.description}</Typography>
+                  <Typography>TR: {selectedSequence.tr}</Typography>
+                  <Typography>TE: {selectedSequence.te}</Typography>
+                  <Typography>TA: {selectedSequence.ta}</Typography>
+                </Paper>
+              </Grid>
+            )}
           </Grid>
 
           <Grid item xs={12}>

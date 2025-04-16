@@ -42,7 +42,7 @@ export default function Login({ onLogin }: LoginProps) {
     <Box sx={{  
       maxWidth: 400,            
       mx: 'auto', 
-      paddingTop: 'calc(20vh - 20px)'
+      paddingTop: 'calc(25vh)'
       }}>
       {/* <Typography variant="h5" gutterBottom>
         Login

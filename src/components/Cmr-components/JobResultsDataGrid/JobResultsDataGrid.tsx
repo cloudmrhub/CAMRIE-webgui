@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { IconButton, Box } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,10 +14,18 @@ type FileItem = {
     link: string;
 };
 
+type JobItem = {
+    id: string;
+    alias: string;
+    createdAt: string;
+    status: string;
+    files: FileItem[];
+};
+
 interface Props {
-    rows: FileItem[];
-    onDownload: (url: string, name: string) => void;
-    onDelete: (fileId: string) => void;
+    rows: JobItem[];
+    onDownload: (files: FileItem[]) => void;
+    onDelete: (jobId: string) => void;
 }
 
 const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
@@ -68,13 +76,14 @@ const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
     },
 }));
 
-const UploadedDataGrid = ({ rows, onDownload, onDelete }: Props) => {
+const JobResultsDataGrid = ({ rows, onDownload, onDelete }: Props) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const columns: GridColDef[] = [
-        { field: 'fileName', headerName: 'File Name', flex: 1 },
+        { field: 'id', headerName: 'Job ID', flex: 1 },
+        { field: 'alias', headerName: 'Alias', flex: 1 },
         { field: 'createdAt', headerName: 'Date Uploaded', flex: 1 },
-        // { field: 'status', headerName: 'Status', flex: 1 },
+        { field: 'status', headerName: 'Status', flex: 1 },
         {
             field: 'actions',
             headerName: 'Actions',
@@ -83,7 +92,7 @@ const UploadedDataGrid = ({ rows, onDownload, onDelete }: Props) => {
             renderCell: (params: GridRenderCellParams) => (
                 <Box>
                     <IconButton><EditIcon /></IconButton>
-                    <IconButton onClick={() => onDownload(params.row.link, params.row.fileName)}><GetAppIcon /></IconButton>
+                    <IconButton onClick={() => onDownload(params.row.files)}><GetAppIcon /></IconButton>
                     <IconButton onClick={() => onDelete(params.row.id)}><DeleteIcon /></IconButton>
                 </Box>
             ),
@@ -101,11 +110,11 @@ const UploadedDataGrid = ({ rows, onDownload, onDelete }: Props) => {
                 checkboxSelection
                 onRowSelectionModelChange={(selection) => {
                     setSelectedIds(selection as string[]);
-                    console.log('Selected Row IDs:', selection);
+                    console.log('Selected Job IDs:', selection);
                 }}
             />
         </div>
     );
 };
 
-export default UploadedDataGrid;
+export default JobResultsDataGrid;

@@ -18,6 +18,10 @@ const theme = createTheme({
       main: '#580f8b', // Set the primary color to #580F8B
     },
   },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontSize: 14,
+  },
 });
 
 function App() {
@@ -59,7 +63,7 @@ function App() {
           display: 'flex',
           flexDirection: 'column',
           minHeight: windowHeight,
-          my: 4,
+          mt: 4,
           mx: 'auto'
         }}>
         
@@ -75,6 +79,8 @@ function App() {
           {tabIndex === 1 && <JobForm />}
           {tabIndex === 2 && <ResultsTab />}
         </Box>
+
+        <Footer />
       </Container>
     </ThemeProvider>
   );

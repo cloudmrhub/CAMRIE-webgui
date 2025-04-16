@@ -88,13 +88,17 @@ const ResultsTab = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: 'auto', mt: 4 }}>
+    <Box sx={{ maxWidth: 'lg', mx: 'auto' }}>
       {!token ? (
         <Typography color="text.secondary">Waiting for login...</Typography>
       ) : (
         <>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Job Results</Typography>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ fontWeight: 'bold', color: '#580f8b', textAlign: 'left' }}
+            >Job Results</Typography>
             <Button onClick={fetchJobs} startIcon={<RefreshIcon />}>Refresh</Button>
           </Box>
 
@@ -104,7 +108,7 @@ const ResultsTab = () => {
             jobs.map((job: any) => (
               <Box
                 key={job.id}
-                sx={{ border: '1px solid #ccc', borderRadius: 2, p: 2, mb: 2 }}
+                sx={{ border: '1px solid #ccc', borderRadius: 2, p: 2, mb: 2, backgroundColor: '#fff' }}
               >
                 <Typography><strong>ID:</strong> {job.id}</Typography>
                 <Typography><strong>Alias:</strong> {job.alias}</Typography>
@@ -119,7 +123,7 @@ const ResultsTab = () => {
                   {job.status === 'completed' && (
                     <Tooltip title={`View job ${job.alias}`}>
                       <IconButton onClick={() => handleView(job)}>
-                        <PlayArrowIcon sx={{ color: '#4CAF50', '&:hover': { color: '#45a049' } }} />
+                        <PlayArrowIcon sx={{ color: '#580f8b', '&:hover': { color: '#580f8b' } }} />
                       </IconButton>
                     </Tooltip>
                   )}
@@ -134,9 +138,9 @@ const ResultsTab = () => {
                 niis={niis}
                 selectedVolume={selectedVolume ?? 0}
                 setSelectedVolume={(index: number) => dispatch(resultActions.selectVolume(index))}
-                warn={() => {}}
-                setWarning={() => {}}
-                setWarningOpen={() => {}}
+                warn={() => { }}
+                setWarning={() => { }}
+                setWarningOpen={() => { }}
                 rois={rois}
                 pipelineID={activeJob.pipeline_id}
                 saveROICallback={() => {
