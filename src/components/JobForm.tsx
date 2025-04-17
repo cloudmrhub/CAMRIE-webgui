@@ -15,6 +15,8 @@ import {
   Divider,
   Grid,
 } from '@mui/material';
+import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
+
 const fieldOptions = [
   {
     id: 'cloudMR_overlap-ismrm25.zip',
@@ -161,9 +163,15 @@ export default function JobForm() {
   };
 
   return (
-    <Box sx={{ maxWidth: 'lg', mx: 'auto', mt: 2 }}>
+    <Box sx={{ maxWidth: 'lg', mx: 'auto' }}>
+      <Box display="flex" alignItems="center" mb={1}>
+        <KeyboardDoubleArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
+        <Typography variant="h6" sx={{ fontWeight: 600, color: '#580f8b', fontSize: 18 }}>
+          Setup Parameters
+        </Typography>
+      </Box>
       <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography
+        {/* <Typography
           variant="h6"
           gutterBottom
           sx={{ fontWeight: 'bold', color: '#580f8b', textAlign: 'left' }}
@@ -171,7 +179,7 @@ export default function JobForm() {
           Setup Parameters
         </Typography>
 
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 2 }} /> */}
 
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>

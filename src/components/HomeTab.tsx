@@ -83,7 +83,7 @@ const HomeTab = () => {
     <Box>
       <Box display="flex" alignItems="center" mb={1}>
         <KeyboardDoubleArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
-        <Typography variant="h6" sx={{ fontWeight: 600, color: '#580f8b', fontSize: 16 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: '#580f8b', fontSize: 18 }}>
           Uploaded Data
         </Typography>
       </Box>
@@ -95,10 +95,9 @@ const HomeTab = () => {
         />
       )}
 
-      {/* <Typography variant="h5" gutterBottom>Job Results</Typography> */}
-      <Box display="flex" alignItems="center" mb={1} mt={4}>
+      {/* <Box display="flex" alignItems="center" mb={1} mt={4}>
         <KeyboardDoubleArrowRightIcon sx={{ color: '#580f8b', fontSize: 20, mr: 1 }} />
-        <Typography sx={{ fontWeight: 600, color: '#580f8b', fontSize: 16 }}>
+        <Typography sx={{ fontWeight: 600, color: '#580f8b', fontSize: 18 }}>
           Job Results
         </Typography>
       </Box>
@@ -112,7 +111,7 @@ const HomeTab = () => {
             dispatch(jobsSlice.actions.deleteJob({ index }));
           }}
         />
-      )}
+      )} */}
     </Box>
   );
 };

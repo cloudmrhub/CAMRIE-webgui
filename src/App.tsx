@@ -1,6 +1,6 @@
 // src/App.tsx
-import { useState, useEffect } from 'react';
-import { Container, Tabs, Tab, Box} from '@mui/material';
+import { useState } from 'react';
+import { Container, Tabs, Tab, Box } from '@mui/material';
 import HomeTab from './components/HomeTab';
 import JobForm from './components/JobForm';
 import ResultsTab from './components/ResultsTab'; // create if needed
@@ -8,7 +8,7 @@ import Login from './components/Login';
 import { useAppSelector } from './features/hooks';
 import Footer from './components/Footer';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import NavBar from './components/NavBar/NavBar'; 
+import NavBar from './components/NavBar/NavBar';
 import './App.css'
 
 // Create a theme with custom primary color
@@ -27,18 +27,6 @@ const theme = createTheme({
 function App() {
   const [tabIndex, setTabIndex] = useState(0);
   const token = useAppSelector((state) => state.auth.token);
-  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowHeight(window.innerHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
 
   // If not logged in, show login page only
   if (!token) {
@@ -47,7 +35,7 @@ function App() {
         <Container maxWidth="sm" sx={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: windowHeight
+          minHeight: '100vh'
         }}>
           <Login onLogin={() => setTabIndex(0)} />
           <Footer />
@@ -59,16 +47,24 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <NavBar />
-      <Container maxWidth="lg" sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: windowHeight,
-          mt: 4,
-          mx: 'auto'
-        }}>
-        
+      <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}
+    >
+      <Container maxWidth="lg" 
+      sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        mt: 4,
+        // pt: 4,
+      }}>
+
         {/* Tabs */}
-        <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)} sx={{ borderBottom: '1px solid #dcdcdc'}}>
+        <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)} sx={{ borderBottom: '1px solid #dcdcdc' }}>
           <Tab label="Home" />
           <Tab label="Setup" />
           <Tab label="Results" />
@@ -82,6 +78,8 @@ function App() {
 
         <Footer />
       </Container>
+    </Box>
+      
     </ThemeProvider>
   );
 }

@@ -30,12 +30,6 @@ const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
         color: '#333',
         fontWeight: 'bold',
     },
-    // '--DataGrid-containerBackground': 'transparent',
-    // '& .MuiDataGrid-columnHeaders': {
-    //     backgroundColor: '#DBDBDB',
-    //     color: '#333',
-    //     fontWeight: 'bold',
-    // },
     '& .MuiDataGrid-cell': {
         backgroundColor: '#fff',
     },

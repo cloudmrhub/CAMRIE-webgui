@@ -30,7 +30,7 @@ interface Props {
 
 const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
     '& .MuiDataGrid-columnHeaders .MuiSvgIcon-root': {
-        color: '#580f8b', // Change the icon color in the header to white
+        color: '#580f8b', 
     },
     '--DataGrid-containerBackground': 'transparent',
     '& .MuiDataGrid-columnHeaders': {
