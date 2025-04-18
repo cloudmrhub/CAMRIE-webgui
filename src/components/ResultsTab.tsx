@@ -139,6 +139,7 @@ const ResultsTab = () => {
           ) : (
             <Box sx={{ height: 600, width: '100%' }}>
               <StyledDataGrid
+                disableRowSelectionOnClick
                 rows={jobs.map((job: any) => ({
                   id: job.id,
                   alias: job.alias,
