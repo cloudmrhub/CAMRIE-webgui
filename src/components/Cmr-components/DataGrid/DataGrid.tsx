@@ -185,7 +185,7 @@ const UploadedDataGrid = ({ rows, onDownload, onDelete, onSelectionChange }: Pro
       renderCell: (params: GridRenderCellParams) => (
         <Box>
           <IconButton onClick={() => onDownload(params.row.link, params.row.fileName)}><GetAppIcon /></IconButton>
-          <IconButton onClick={() => onDelete(params.row.id)}><DeleteIcon /></IconButton>
+          {/* <IconButton onClick={() => onDelete(params.row.id)}><DeleteIcon /></IconButton> */}
         </Box>
       ),
     },

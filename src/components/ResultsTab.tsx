@@ -150,10 +150,10 @@ const ResultsTab = () => {
                   job: job,
                 }))}
                 columns={[
-                  { field: 'id', headerName: 'ID', flex: 1 },
+                  { field: 'id', headerName: 'Job ID', flex: 1 },
                   { field: 'alias', headerName: 'Alias', flex: 1 },
                   { field: 'status', headerName: 'Status', flex: 1 },
-                  { field: 'createdAt', headerName: 'Submitted', flex: 1 },
+                  { field: 'createdAt', headerName: 'Date Submitted', flex: 1 },
                   {
                     field: 'actions',
                     headerName: 'Actions',
