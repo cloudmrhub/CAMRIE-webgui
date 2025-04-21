@@ -104,7 +104,6 @@
 
 // export default UploadedDataGrid;
 
-
 import { useState, useEffect } from 'react';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { IconButton, Box } from '@mui/material';
@@ -125,7 +124,7 @@ interface Props {
   rows: FileItem[];
   onDownload: (url: string, name: string) => void;
   onDelete: (fileId: string) => void;
-  onSelectionChange?: (selectedIds: string[]) => void; // ✅ NEW PROP
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
@@ -185,7 +184,6 @@ const UploadedDataGrid = ({ rows, onDownload, onDelete, onSelectionChange }: Pro
       flex: 1,
       renderCell: (params: GridRenderCellParams) => (
         <Box>
-          <IconButton><EditIcon /></IconButton>
           <IconButton onClick={() => onDownload(params.row.link, params.row.fileName)}><GetAppIcon /></IconButton>
           <IconButton onClick={() => onDelete(params.row.id)}><DeleteIcon /></IconButton>
         </Box>
@@ -201,10 +199,11 @@ const UploadedDataGrid = ({ rows, onDownload, onDelete, onSelectionChange }: Pro
         pageSizeOptions={[10, 20]}
         initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
         getRowId={(row) => row.id}
-        checkboxSelection
-        onRowSelectionModelChange={(selection) => {
-          setSelectedIds(selection as string[]);
-        }}
+        disableRowSelectionOnClick
+        // checkboxSelection
+        // onRowSelectionModelChange={(selection) => {
+        //   setSelectedIds(selection as string[]);
+        // }}
       />
     </div>
   );

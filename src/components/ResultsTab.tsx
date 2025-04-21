@@ -140,7 +140,8 @@ const ResultsTab = () => {
             <Box sx={{ height: 600, width: '100%' }}>
               <StyledDataGrid
                 disableRowSelectionOnClick
-                rows={jobs.map((job: any) => ({
+                // updated to show only completed jobs
+                rows={jobs.filter((job: any) => job.status === 'completed').map((job: any) => ({
                   id: job.id,
                   alias: job.alias,
                   status: job.status,

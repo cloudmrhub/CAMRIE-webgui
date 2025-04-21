@@ -181,7 +181,7 @@ export const ROITable = (props: {
             {/* Download/Delete/Upload */}
             <div className="row mt-2">
                 <div className="col-4">
-                    <Button color="success" variant="contained" fullWidth onClick={async () => {
+                    <Button variant="contained" fullWidth onClick={async () => {
                         const selectedLabels = selectedData.map(label => Number(label));
                         if (!selectedLabels.length) return warnEmptySelection("No ROI selected for download");
                         await props.nv.saveImageByLabels(`label${selectedLabels.join('')}.nii`, selectedLabels);

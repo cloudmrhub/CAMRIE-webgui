@@ -142,7 +142,8 @@ import { getUploadedData, deleteUploadedData } from '../features/data/dataAction
 import { getUpstreamJobs } from '../features/jobs/jobActionCreation';
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
 import UploadedDataGrid from '../components/Cmr-components/DataGrid/DataGrid';
-import JobResultsDataGrid from './Cmr-components/JobResultsDataGrid/JobResultsDataGrid';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { RootState } from '../store/store';
 
 type FileItem = {
@@ -157,9 +158,8 @@ const HomeTab = () => {
   const dispatch = useAppDispatch();
   const token = useSelector((state: RootState) => state.auth?.token ?? '');
   const { files } = useAppSelector((state) => state.data);
-
   const [loading, setLoading] = useState(true);
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]); // ✅ Track selected rows
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
 
   useEffect(() => {
     setLoading(true);
@@ -178,11 +178,25 @@ const HomeTab = () => {
     document.body.removeChild(a);
   };
 
-  const downloadSelectedFiles = () => {
+  // download multiple selections
+  const downloadSelectedFiles = async () => {
     const selectedFiles = files.filter((file: FileItem) => selectedFileIds.includes(file.id));
-    selectedFiles.forEach(file => {
+    if (selectedFiles.length === 1) {
+      const file = selectedFiles[0];
       downloadFile(file.link, file.fileName);
+      return;
+    }
+
+    const zip = new JSZip();
+    const fetches = selectedFiles.map(async (file) => {
+      const response = await fetch(file.link);
+      const blob = await response.blob();
+      zip.file(file.fileName, blob);
     });
+
+    await Promise.all(fetches);
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    saveAs(zipBlob, 'downloaded_files.zip');
   };
 
   return (
@@ -199,9 +213,9 @@ const HomeTab = () => {
             rows={[...files].reverse()}
             onDownload={downloadFile}
             onDelete={(fileId: string) => dispatch(deleteUploadedData({ token, fileId }))}
-            onSelectionChange={(selectedIds: string[]) => setSelectedFileIds(selectedIds)} // ✅ Pass selection update
+            onSelectionChange={(selectedIds: string[]) => setSelectedFileIds(selectedIds)}
           />
-          <div className="button-container">
+          {/* <div className="button-container">
             <Grid container spacing={2} className="w-100">
               <Grid item xs={12} md={6} sx={{ display: 'flex', gap: 2 }}>
                 <CustomButton
@@ -209,14 +223,13 @@ const HomeTab = () => {
                   icon={faTrash}
                   text="Delete"
                   className="flex-button"
-                  // you can add delete selected logic if needed
                 />
                 <CustomButton
                   color="success"
                   icon={faDownload}
                   text="Download"
-                  disabled={selectedFileIds.length === 0} // ✅ Only enabled if files selected
-                  onClick={downloadSelectedFiles} // ✅ New function
+                  disabled={selectedFileIds.length === 0}
+                  onClick={downloadSelectedFiles}
                   className="flex-button"
                 />
               </Grid>
@@ -230,7 +243,7 @@ const HomeTab = () => {
                 />
               </Grid>
             </Grid>
-          </div>
+          </div> */}
         </>
       )}
     </Box>
