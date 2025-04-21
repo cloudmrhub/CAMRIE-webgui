@@ -82,7 +82,7 @@ const NavBar = () => {
               About
             </Button>
             <Button disabled sx={{ ml: 1, textTransform: 'none', color: 'white !important', opacity: 0.6 }}>
-              Bug Report 2
+              Bug Report
             </Button>
           </Box>
 
