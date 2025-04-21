@@ -53,3 +53,15 @@ footer p {
 .purple {
   color: #580f8b;
 }
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+/* Makes all buttons take equal width */
+.button-container .flex-button {
+  flex: 1;
+}

@@ -1,4 +1,4 @@
-.custom-purple-button {
+/* .custom-purple-button {
     background-color: #580f8b !important;
     border: 1px solid #580f8b !important;
     color: #fff !important;
@@ -7,4 +7,12 @@
 .custom-purple-button:hover {
     background-color: #4a0d72 !important;
     border-color: #4a0d72 !important;
+} */
+
+.custom-button {
+    box-shadow: none !important;
+}
+
+.custom-button:hover {
+    box-shadow: none !important;
 }

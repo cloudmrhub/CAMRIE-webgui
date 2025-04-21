@@ -15,14 +15,22 @@ const CustomButton: React.FC<CustomButtonProps> = ({
   text,
   className,
   iconStyle,
+  color,
+  variant = 'contained',
   ...props
 }) => {
   return (
     <Button
       {...props}
+      color={color}
+      variant={variant}
       className={`custom-button ${className || ''}`}
     >
-      {icon && <FontAwesomeIcon icon={icon} style={{ marginRight: '12px', ...iconStyle }} />}
+      {icon && (
+        <span style={{ display: 'flex', alignItems: 'center', marginRight: '8px', ...iconStyle }}>
+          {React.isValidElement(icon) ? icon : <FontAwesomeIcon icon={icon} />}
+        </span>
+      )}
       {text}
     </Button>
   );
