@@ -2,6 +2,7 @@
 import { Button } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 export default function LogoutButton() {
   const dispatch = useDispatch();
@@ -12,8 +13,12 @@ export default function LogoutButton() {
   };
 
   return (
-    <Button variant="outlined" sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', backgroundColor: 'transparent' } }} onClick={handleLogout}>
-      Logout
+    <Button variant="outlined" sx={{ borderColor: 'white', color: '#333', textTransform: 'none', '&:hover': { borderColor: 'white', backgroundColor: 'transparent' } }} onClick={handleLogout}>
+      <LogoutIcon sx={{
+          fontSize: '18px',
+          color: 'rgba(0, 0, 0, 0.6)',
+          marginRight: '12px',
+        }}/> Log Out
     </Button>
   );
 }

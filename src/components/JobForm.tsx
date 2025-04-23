@@ -58,41 +58,194 @@ const fieldOptions = [
 
 const sequenceOptions = [
   {
-    id: 'ISMRM25-miniflash-01.seq',
-    name: 'T1-Weighted Spoiled GRE',
+    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.mtrk',
+    name: 'Sequence 1',
     description: 'ISMRM25',
-    tr: '20 ms',
-    te: '8 ms',
-    ta: '3 sec',
-    type: 'pulseq'
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'mtrk'
   },
   {
     id: 'ISMRM25-t1w.seq',
-    name: 'T1-Weighted Spin Echo',
+    name: 'Sequence 2',
     description: 'ISMRM25',
-    tr: '600 ms',
-    te: '10 ms',
-    ta: '4 sec',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 3',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.mtrk',
+    name: 'Sequence 4',
+    description: 'ISMRM25',
+    tr: 'Sequence 4',
+    te: '',
+    ta: '',
+    type: 'mtrk'
+  },
+  {
+    id: 'ISMRM25-miniflash-01.seq',
+    name: 'Sequence 5',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
     type: 'pulseq'
   },
   {
     id: 'ISMRM25-t2w.seq',
-    name: 'T2-Weighted Spin Echo',
+    name: 'Sequence 6',
     description: 'ISMRM25',
-    tr: '4000 ms',
-    te: '80 ms',
-    ta: '6 sec',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 7',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 8',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
     type: 'pulseq'
   },
   {
     id: 'ISMRM25-pdw.seq',
-    name: 'PD-Weighted Spin Echo',
+    name: 'Sequence 9',
     description: 'ISMRM25',
-    tr: '4000 ms',
-    te: '10 ms',
-    ta: '5 sec',
+    tr: '',
+    te: '',
+    ta: '',
     type: 'pulseq'
   },
+  {
+    id: 'ISMRM25-miniflash-00.seq',
+    name: 'Sequence 10',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.mtrk',
+    name: 'Sequence 11',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'mtrk'
+  },
+  {
+    id: 'ISMRM25-miniflasj-01.seq',
+    name: 'Sequence 12',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.mtrk',
+    name: 'Sequence 13',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'mtrk'
+  },
+  {
+    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 14',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR500_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 15',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.seq',
+    name: 'Sequence 16',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'pulseq'
+  },
+  {
+    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.mtrk',
+    name: 'Sequence 17',
+    description: 'ISMRM25',
+    tr: '',
+    te: '',
+    ta: '',
+    type: 'mtrk'
+  }  
+  // {
+  //   id: 'ISMRM25-miniflash-01.seq',
+  //   name: 'T1-Weighted Spoiled GRE',
+  //   description: 'ISMRM25',
+  //   tr: '20 ms',
+  //   te: '8 ms',
+  //   ta: '3 sec',
+  //   type: 'pulseq'
+  // },
+  // {
+  //   id: 'ISMRM25-t1w.seq',
+  //   name: 'T1-Weighted Spin Echo',
+  //   description: 'ISMRM25',
+  //   tr: '600 ms',
+  //   te: '10 ms',
+  //   ta: '4 sec',
+  //   type: 'pulseq'
+  // },
+  // {
+  //   id: 'ISMRM25-t2w.seq',
+  //   name: 'T2-Weighted Spin Echo',
+  //   description: 'ISMRM25',
+  //   tr: '4000 ms',
+  //   te: '80 ms',
+  //   ta: '6 sec',
+  //   type: 'pulseq'
+  // },
+  // {
+  //   id: 'ISMRM25-pdw.seq',
+  //   name: 'PD-Weighted Spin Echo',
+  //   description: 'ISMRM25',
+  //   tr: '4000 ms',
+  //   te: '10 ms',
+  //   ta: '5 sec',
+  //   type: 'pulseq'
+  // },
 ];
 const API_ENDPOINT = import.meta.env.VITE_PIPELINE_ENDPOINT;
 
@@ -269,6 +422,13 @@ export default function JobForm() {
                 value={sequenceId ?? ''}
                 label="Select Sequence"
                 onChange={(e) => dispatch(setSequenceId(e.target.value))}
+                MenuProps={{
+                  PaperProps: {
+                    style: {
+                      maxHeight: 37 * 5 + 8, // 5 items at 37px height + padding
+                    },
+                  },
+                }}
               >
                 {sequenceOptions.map((option) => (
                   <MenuItem key={option.id} value={option.id}>
@@ -290,7 +450,7 @@ export default function JobForm() {
                     <Typography><strong>TR:</strong> {selectedSequence.tr}</Typography>
                     <Typography><strong>TE:</strong> {selectedSequence.te}</Typography>
                     <Typography><strong>FA:</strong> </Typography>
-                    <Typography><strong>ACC:</strong> </Typography>
+                    <Typography><strong>ACC:</strong> 1x1</Typography>
                   </Box>
                 </CardContent>
               </Card>

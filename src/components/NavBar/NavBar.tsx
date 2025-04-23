@@ -12,8 +12,9 @@ import {
 } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import LogoutIcon from '@mui/icons-material/Logout';
 import './NavBar.css';
+import LogoutButton from '../LogoutButton';
+import { useAppSelector } from '../../features/hooks';
 
 const StyledMenu = styled(Menu)(({ theme }) => ({
   '& .MuiPaper-root': {
@@ -63,11 +64,7 @@ const NavBar = () => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    handleClose();
-    console.log('Logged out!');
-    // Add actual logout logic here
-  };
+  const email = useAppSelector((state) => state.auth.profile?.email) || 'Loading...';
 
   return (
     <AppBar position="static" sx={{ backgroundColor: '#390063', paddingY: 2, boxShadow: 'none' }}>
@@ -106,7 +103,8 @@ const NavBar = () => {
                   background: 'none'
                 }
               }}
-            >eros.montin@gmail.com
+            >
+              {email}
             </Button>
 
             <StyledMenu
@@ -119,17 +117,14 @@ const NavBar = () => {
               }}
               anchorOrigin={{
                 vertical: 'bottom',
-                horizontal: 'left', // align to left
+                horizontal: 'left',
               }}
               transformOrigin={{
                 vertical: 'top',
                 horizontal: 'left',
               }}
             >
-              <MenuItem onClick={handleLogout} disableRipple>
-                <LogoutIcon />
-                Log Out
-              </MenuItem>
+              <LogoutButton />
             </StyledMenu>
           </Box>
         </Toolbar>
