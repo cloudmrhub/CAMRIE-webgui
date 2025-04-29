@@ -17,10 +17,13 @@ import { RootState, AppDispatch } from '../store/store'; // Updated import
 import NiiVue, { nv } from './viewer/Niivue.jsx';
 import { resultActions } from '../features/results/resultsSlice.js';
 import { getUpstreamJobs } from '../features/jobs/jobActionCreation';
+import { deleteUpstreamJob } from '../features/jobs/jobActionCreation';
 import { loadResult, getPipelineROI } from '../features/results/resultActionCreation.js';
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
 import { DataGrid, GridRenderCellParams } from '@mui/x-data-grid';
 import { styled } from '@mui/material/styles';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { width } from '@mui/system';
 
 const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
   '& .MuiDataGrid-columnHeaders .MuiSvgIcon-root': {
@@ -167,11 +170,22 @@ const ResultsTab = () => {
                           </IconButton>
                         </Tooltip>
                         {params.row.status === 'completed' && (
-                          <Tooltip title={`View job ${params.row.alias}`}>
-                            <IconButton onClick={() => handleView(params.row.job)}>
-                              <PlayArrowIcon sx={{ color: '#580f8b', '&:hover': { color: '#580f8b' } }} />
-                            </IconButton>
-                          </Tooltip>
+                          <>
+                            <Tooltip title={`View job ${params.row.alias}`}>
+                              <IconButton onClick={() => handleView(params.row.job)}>
+                                <PlayArrowIcon sx={{ color: '#580f8b', '&:hover': { color: '#580f8b' } }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Job">
+                              <IconButton
+                                onClick={() =>
+                                  dispatch(deleteUpstreamJob({ token, jobId: String(params.row.id) }))
+                                }
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </>
                         )}
                       </Box>
                     ),
@@ -210,28 +224,6 @@ const ResultsTab = () => {
               </CardContent>
             </Card>
           </Box>
-          {/* <Box mt={4}>
-            {activeJob && token ? (
-              <NiiVue
-                niis={niis}
-                selectedVolume={selectedVolume ?? 0}
-                setSelectedVolume={(index: number) => dispatch(resultActions.selectVolume(index))}
-                warn={() => { }}
-                setWarning={() => { }}
-                setWarningOpen={() => { }}
-                rois={rois}
-                pipelineID={activeJob.pipeline_id}
-                saveROICallback={() => {
-                  if (activeJob.pipeline_id && token) {
-                    dispatch(getPipelineROI({ pipeline: activeJob.pipeline_id, accessToken: token }));
-                  }
-                }}
-                accessToken={token}
-              />
-            ) : (
-              <Typography color="text.secondary">Waiting for token...</Typography>
-            )}
-          </Box> */}
         </>
       )}
     </Box>

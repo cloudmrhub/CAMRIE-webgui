@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-import { DATAAPI } from '../../Variables';
+import { DATAAPI, DELETEDATAAPI } from '../../Variables';
 
 export const getUploadedData = createAsyncThunk(
   'data/getUploadedData',
@@ -29,16 +29,17 @@ export const getUploadedData = createAsyncThunk(
   }
 );
 
-
-
-
-  
-
 export const deleteUploadedData = createAsyncThunk(
   'data/deleteUploadedData',
   async ({ token, fileId }: { token: string; fileId: string }) => {
-    await axios.delete(`${DATAAPI}/${fileId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    console.log(token);
+    console.log(fileId);
+    await axios.get(`${DELETEDATAAPI}/${fileId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+        Authorization: `Bearer ${token}`,
+      },
     });
     return fileId;
   }

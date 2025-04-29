@@ -39,6 +39,7 @@ const fieldOptions = [
     channels: 1,
     coil: '3T Head Birdcage Coil',
     resolution: '2 mm isotropic',
+    emSimulator: 'MARIE',
     date: '2024-09-01',
     description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
     image: "https://erosmontin.s3.us-east-1.amazonaws.com/bird.jpg"
@@ -50,6 +51,7 @@ const fieldOptions = [
     channels: 1,
     coil: '8-Ch 7T Head Triangular Coilr',
     resolution: '2 mm isotropic',
+    emSimulator: 'MARIE',
     date: '2024-09-01',
     description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
     image: "https://erosmontin.s3.us-east-1.amazonaws.com/tri.jpg"
@@ -58,194 +60,77 @@ const fieldOptions = [
 
 const sequenceOptions = [
   {
-    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 1',
+    id: 'PD-Weighted_Spin_Echo.mtrk',
+    name: 'PD Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'mtrk'
-  },
-  {
-    id: 'ISMRM25-t1w.seq',
-    name: 'Sequence 2',
+    },
+    {
+    id: 'PD-Weighted_Spin_Echo.seq',
+    name: 'PD Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 3',
+    },
+    {
+    id: 'T1-Weighted_Spin_Echo.mtrk',
+    name: 'T1 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 4',
-    description: 'ISMRM25',
-    tr: 'Sequence 4',
-    te: '',
-    ta: '',
+    tr: '600ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'mtrk'
-  },
-  {
-    id: 'ISMRM25-miniflash-01.seq',
-    name: 'Sequence 5',
+    },
+    {
+    id: 'T1-Weighted_Spin_Echo.seq',
+    name: 'T1 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '600ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'pulseq'
-  },
-  {
-    id: 'ISMRM25-t2w.seq',
-    name: 'Sequence 6',
+    },
+    {
+    id: 'T1-Weighted_Spoiled_GRE.mtrk',
+    name: 'T1 Weighted Spoiled GRE',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 7',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 8',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'ISMRM25-pdw.seq',
-    name: 'Sequence 9',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'ISMRM25-miniflash-00.seq',
-    name: 'Sequence 10',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 11',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '40ms',
+    te: '10ms',
+    fa: [15],
     type: 'mtrk'
-  },
-  {
-    id: 'ISMRM25-miniflasj-01.seq',
-    name: 'Sequence 12',
+    },
+    {
+    id: 'T1-Weighted_Spoiled_GRE.seq',
+    name: 'T1 Weighted Spoiled GRE',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '40ms',
+    te: '10ms',
+    fa: [15],
     type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 13',
+    },
+    {
+    id: 'T2-Weighted_Spin_Echo.mtrk',
+    name: 'T2 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '80ms',
+    fa: [90, 180],
     type: 'mtrk'
-  },
-  {
-    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 14',
+    },
+    {
+    id: 'T2-Weighted_Spin_Echo.seq',
+    name: 'T2 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '80ms',
+    fa: [90, 180],
     type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR500_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 15',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 16',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 17',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'mtrk'
-  }  
-  // {
-  //   id: 'ISMRM25-miniflash-01.seq',
-  //   name: 'T1-Weighted Spoiled GRE',
-  //   description: 'ISMRM25',
-  //   tr: '20 ms',
-  //   te: '8 ms',
-  //   ta: '3 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-t1w.seq',
-  //   name: 'T1-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '600 ms',
-  //   te: '10 ms',
-  //   ta: '4 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-t2w.seq',
-  //   name: 'T2-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '4000 ms',
-  //   te: '80 ms',
-  //   ta: '6 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-pdw.seq',
-  //   name: 'PD-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '4000 ms',
-  //   te: '10 ms',
-  //   ta: '5 sec',
-  //   type: 'pulseq'
-  // },
+    },
 ];
 const API_ENDPOINT = import.meta.env.VITE_PIPELINE_ENDPOINT;
 
@@ -449,7 +334,7 @@ export default function JobForm() {
                     <Typography><strong>Description:</strong> {selectedSequence.description}</Typography>
                     <Typography><strong>TR:</strong> {selectedSequence.tr}</Typography>
                     <Typography><strong>TE:</strong> {selectedSequence.te}</Typography>
-                    <Typography><strong>FA:</strong> </Typography>
+                    <Typography><strong>FA:</strong> {selectedSequence.fa}</Typography>
                     <Typography><strong>ACC:</strong> 1x1</Typography>
                   </Box>
                 </CardContent>
