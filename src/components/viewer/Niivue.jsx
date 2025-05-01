@@ -650,7 +650,15 @@ export default function NiiVueport(props) {
         let rois = [];
         let layout = {
             barmode: "overlay",
-            title: 'ROI Histogram',  // Set your title here
+            // title: 'ROI Histogram',  // Set your title here
+            title: {
+                text: 'ROI Histogram',
+                x: 0.5,
+                xanchor: 'center',
+                font: {
+                  family: 'Inter, Roboto, Helvetica, Arial, sans-serif',
+                },
+            },
             // height: 100,
             margin: {
                 l: 50,   // left margin
@@ -661,13 +669,23 @@ export default function NiiVueport(props) {
             },
             xaxis: {
                 autoscale: true,
-                title: 'Voxel value',
+                title: {
+                    text: 'Voxel value',
+                    font: {
+                        family: 'Inter, Roboto, Helvetica, Arial, sans-serif',
+                      },
+                },
                 showgrid: true
                 // other x-axis properties
             },
             yaxis: {
                 autoscale: true,
-                title: 'Bin frequency',
+                title: {
+                    text: 'Bin frequency',
+                    font: {
+                        family: 'Inter, Roboto, Helvetica, Arial, sans-serif',
+                      },
+                },
                 showgrid: true
                 // other y-axis properties
             },

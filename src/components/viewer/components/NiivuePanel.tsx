@@ -164,6 +164,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
           flexDirection: "column",
         }}
       >
+        <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
         <LocationTable
           tableData={props.locationData}
           isVisible={true}
@@ -171,7 +172,8 @@ export function NiivuePanel(props: NiivuePanelProps) {
           showDistribution={displayVertical}
           style={{
             width: "100%",
-            height: "20pt",
+            marginTop: "15px",
+            height: "30pt",
             color: "white",
           }}
         />
@@ -188,7 +190,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
           flexDirection: "column",
         }}
       >
-        <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
 
         <Box
           ref={histogram}
