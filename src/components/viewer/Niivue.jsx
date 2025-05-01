@@ -660,7 +660,6 @@ export default function NiiVueport(props) {
                 }
             },
             margin: {
-                t: 100,
                 l: 50,   // left margin
                 r: 50,   // right margin
                 b: 50,   // bottom margin
