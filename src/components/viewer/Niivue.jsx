@@ -1426,7 +1426,7 @@ export default function NiiVueport(props) {
                 >
                 </Box>
 
-                <ROITable
+                {/* <ROITable
                     pipelineID={props.pipelineID}
                     rois={rois}
                     style={{
@@ -1438,7 +1438,7 @@ export default function NiiVueport(props) {
                     unpackROI={unpackROI}
                     zipAndSendROI={zipAndSendDrawingLayer}
                     setLabelAlias={setLabelAlias}
-                />
+                /> */}
             </Box>
         </Box>
     )
