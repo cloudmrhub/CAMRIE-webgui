@@ -1379,11 +1379,6 @@ export default function NiiVueport(props) {
                               defaultText={(props.rois[selectedROI] !== undefined ?
                                   props.rois[selectedROI].filename : undefined)}
             />
-            {verticalLayout &&
-                <Box style={{paddingLeft:'253px', width:'100%', marginBottom:'5pt'}}>
-                    <DrawToolkit {...drawToolkitProps}
-                                 style={{height:'30pt'}} />
-                </Box>}
             {props.niis[selectedVolume]!=undefined && <NiivuePanel
                 nv={nv}
                 key={`${selectedVolume}`}
