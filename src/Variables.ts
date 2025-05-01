@@ -4,7 +4,6 @@ const CAMRIE_URL= import.meta.env.VITE_CAMRIE_URL
 
 export const DATAAPI = `${CAMRIE_URL}/readdata`;
 
-export const DELETEDATAAPI =  `${CAMRIE_URL}/deletedata`;
 
 export const JOBSAPI = `${CAMRIE_URL}/downloads`;
 

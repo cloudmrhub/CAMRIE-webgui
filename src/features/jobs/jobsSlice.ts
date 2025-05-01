@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { getUpstreamJobs } from './jobActionCreation';
-import { deleteUpstreamJob } from './jobActionCreation';
 
 // ✅ Export Job interface for type usage elsewhere
 export interface Job {
@@ -94,13 +93,9 @@ export const jobsSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder
-      .addCase(getUpstreamJobs.fulfilled, (state, action: PayloadAction<{ jobs: Job[] }>) => {
-        state.jobs = action.payload.jobs;
-      })
-      .addCase(deleteUpstreamJob.fulfilled, (state, action: PayloadAction<string>) => {
-        state.jobs = state.jobs.filter(job => job.id !== Number(action.payload));
-      });
+    builder.addCase(getUpstreamJobs.fulfilled, (state, action: PayloadAction<{ jobs: Job[] }>) => {
+      state.jobs = action.payload.jobs;
+    });
   },
 });
 
