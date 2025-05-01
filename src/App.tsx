@@ -35,7 +35,7 @@ function App() {
         <Container maxWidth="sm" sx={{
           display: 'flex',
           flexDirection: 'column',
-          // minHeight: '100vh'
+          minHeight: '100vh'
         }}>
           <Login onLogin={() => setTabIndex(0)} />
           <Footer />
@@ -51,7 +51,7 @@ function App() {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        // minHeight: '100vh'
+        minHeight: '100vh'
       }}
     >
       <Container maxWidth="lg" 

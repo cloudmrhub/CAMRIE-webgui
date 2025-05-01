@@ -45,13 +45,13 @@ export function NiivuePanel(props: NiivuePanelProps) {
   const { mins, maxs, mms, nv, transformFactors, displayVertical } = props;
   const { a, b } = transformFactors;
 
-  // const [height, setHeight] = useState(Math.min(window.innerHeight * 0.75, 800));
+  const [height, setHeight] = useState(window.innerHeight * 0.75);
 
-  // useEffect(() => {
-  //   const handleResize = () => setHeight(Math.min(window.innerHeight * 0.75, 800));
-  //   window.addEventListener("resize", handleResize);
-  //   return () => window.removeEventListener("resize", handleResize);
-  // }, []);
+  useEffect(() => {
+    const handleResize = () => setHeight(window.innerHeight * 0.75);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     nv.attachTo("niiCanvas");
@@ -63,7 +63,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
     nv.setMultiplanarLayout(2);
     nv.setMultiplanarPadPixels(10);
     props.resampleImage();
-  }, [displayVertical]);
+  }, [displayVertical, height]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -78,8 +78,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
     <Box
       sx={{
         width: "100%",
-        maxHeight: "1500px",
-        overflow: "hidden",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
       }}
@@ -99,8 +98,8 @@ export function NiivuePanel(props: NiivuePanelProps) {
           <Card
             variant="outlined"
             sx={{
-              width: "100%", 
-              height: "100%",
+              width: "100%",  // ✅ fill full width of its 50% container
+              height: "100%", // ✅ fill height nicely if needed
               p: 2,
               boxSizing: "border-box",
             }}
@@ -212,7 +211,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         >
            <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt", marginBottom: "20px" }} />
 
-          <Box sx={{ height: "30pt", width: "100%" }}>
+          <Box sx={{ height: "20pt", width: "100%" }}>
             <LocationTable
               tableData={props.locationData}
               isVisible={true}
@@ -226,7 +225,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
             />
           </Box>
 
-          <Box sx={{ height: '400px' }}>
+          <Box sx={{ flexGrow: 1 }}>
             <canvas
               id="niiCanvas"
               ref={canvas}
@@ -252,7 +251,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
               width: "100%",
               height: "400px", // Size of histogram
               mt: 2,
-              mb: 4
             }}
           />
 
