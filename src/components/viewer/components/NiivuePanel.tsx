@@ -194,7 +194,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         <Box
           ref={histogram}
           id="histoplot"
-          sx={{ width: "100%", height: "44%" }}
+          sx={{ width: "100%", height: "44%", marginBottom: "20px" }}
         />
 
         <ROITable

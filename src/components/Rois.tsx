@@ -154,7 +154,12 @@ export const ROITable = (props: {
             <CmrTable
                 hideFooter
                 getRowId={(row) => row.label}
-                style={{ height: '70%', marginBottom: 10 }}
+                sx={{
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                    marginBottom: 0,
+                    paddingBottom: 0,
+                }}
                 dataSource={props.rois}
                 columns={roiColumns}
                 columnHeaderHeight={40}
@@ -227,7 +232,7 @@ export const ROITable = (props: {
                 </div>
             </div> */}
 
-            {/* Unified Toolbar: Group, Ungroup, Download, Delete, Upload */}
+            {/*Toolbar: Group, Ungroup, Download, Delete, Upload */}
             <Box
                 sx={{
                     display: 'flex',
@@ -235,9 +240,13 @@ export const ROITable = (props: {
                     alignItems: 'center',
                     flexWrap: 'wrap',
                     gap: 2,
-                    pt: 1,
-                    pb: 1,
-                    pl: 1
+                    mt: 0,
+                    px: 2,
+                    py: 1,
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid rgba(0, 0, 0, 0.12)',
+                    borderTop: 'none',
+                    borderRadius: '0 0 4px 4px',
                 }}
             >
                 <Tooltip title="Group">
@@ -256,7 +265,7 @@ export const ROITable = (props: {
                         props.nv.drawScene();
                         props.resampleImage();
                     }}>
-                        <FontAwesomeIcon icon={faObjectUngroup} style={{ fontSize: '16px' }}/>
+                        <FontAwesomeIcon icon={faObjectUngroup} style={{ fontSize: '16px' }} />
                     </IconButton>
                 </Tooltip>
 
@@ -266,7 +275,7 @@ export const ROITable = (props: {
                         if (!selectedLabels.length) return warnEmptySelection("No ROI selected for download");
                         await props.nv.saveImageByLabels(`label${selectedLabels.join('')}.nii`, selectedLabels);
                     }}>
-                        <FontAwesomeIcon icon={faDownload} style={{ fontSize: '16px' }}/>
+                        <FontAwesomeIcon icon={faDownload} style={{ fontSize: '16px' }} />
                     </IconButton>
                 </Tooltip>
 
@@ -276,7 +285,7 @@ export const ROITable = (props: {
                         props.resampleImage();
                         props.nv.drawScene();
                     }}>
-                        <FontAwesomeIcon icon={faTrash} style={{ fontSize: '16px' }}/>
+                        <FontAwesomeIcon icon={faTrash} style={{ fontSize: '16px' }} />
                     </IconButton>
                 </Tooltip>
 
