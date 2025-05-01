@@ -152,7 +152,7 @@ export default function Toolbar({
             </FormControl>
 
             <FormControl size="small" sx={{ m: 2, minWidth: 120 }}>
-              <InputLabel id="pixel-type-label">Pixel Type</InputLabel>
+              <InputLabel id="pixel-type-label">Format</InputLabel>
               <Select
                 labelId="pixel-type-label"
                 id="pixel-type"

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Box, Card, CardContent, Grid } from "@mui/material";
+import React, { useEffect, useRef } from "react";
+import { Box, Card, CardContent } from "@mui/material";
 
 import LocationTable from "./LocationTable";
 import { ROITable } from "../../Rois";
@@ -25,11 +25,9 @@ interface NiivuePanelProps {
   max: number;
   setMin: (min: number) => void;
   setMax: (max: number) => void;
-
   zipAndSendROI: (url: string, filename: string, blob: Blob) => Promise<void>;
   unzipAndRenderROI: (url: string) => Promise<void>;
   setLabelAlias: (label: string | number, alias: string) => void;
-
   transformFactors: { a: number; b: number };
   rangeKey: number;
 }
@@ -45,14 +43,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
   const { mins, maxs, mms, nv, transformFactors, displayVertical } = props;
   const { a, b } = transformFactors;
 
-  const [height, setHeight] = useState(window.innerHeight * 0.75);
-
-  useEffect(() => {
-    const handleResize = () => setHeight(window.innerHeight * 0.75);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   useEffect(() => {
     nv.attachTo("niiCanvas");
     nv.opts.dragMode = nv.dragModes.pan;
@@ -63,7 +53,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
     nv.setMultiplanarLayout(2);
     nv.setMultiplanarPadPixels(10);
     props.resampleImage();
-  }, [displayVertical, height]);
+  }, [displayVertical]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -78,21 +68,47 @@ export function NiivuePanel(props: NiivuePanelProps) {
     <Box
       sx={{
         width: "100%",
-        height: displayVertical ? undefined : height + 1,
         display: "flex",
         flexDirection: "row",
-        // justifyContent: "flex-end",
+        flex: 1,
+        minHeight: 0,
       }}
     >
-
-      {/* Control Panel */}
+      {/* Left Column: Canvas & Drawing */}
       <Box
         sx={{
-          marginRight: 1,
+          width: "60%",
           display: "flex",
-          flex: 1,
-          minWidth: "245px",
           flexDirection: "column",
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
+        <LocationTable
+          tableData={props.locationData}
+          isVisible={true}
+          decimalPrecision={props.decimalPrecision}
+          showDistribution={displayVertical}
+          style={{
+            width: "100%",
+            marginTop: "15px",
+            height: "30pt",
+            color: "white",
+          }}
+        />
+        <canvas id="niiCanvas" ref={canvas} style={{ flex: 1, width: "100%" }} />
+      </Box>
+
+      {/* Right Column: Controls + Histogram + ROI Table */}
+      <Box
+        sx={{
+          width: "40%",
+          display: "flex",
+          flexDirection: "column",
+          ml: 1,
+          flex: 1,
+          minHeight: 0,
         }}
       >
         <Card variant="outlined">
@@ -105,8 +121,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
             >
               Controls
             </Box>
-
-            {/* Axis Sliders */}
             {["X", "Y", "Slice"].map((axis, i) => (
               <Slider
                 key={axis}
@@ -115,7 +129,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
                 max={maxs[i]}
                 value={mms[i]}
                 setValue={(val: number) => {
-                  const pos = [...mms] as number[];
+                  const pos = [...mms];
                   pos[i] = val;
                   nv.scene.crosshairPos = [
                     toRatio(pos[0], mins[0], maxs[0]),
@@ -127,7 +141,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
               />
             ))}
 
-            {/* Value Range Slider */}
             <DualSlider
               name="Values"
               max={nv?.volumes?.[0]?.robust_max ?? 1}
@@ -155,74 +168,35 @@ export function NiivuePanel(props: NiivuePanelProps) {
           </CardContent>
         </Card>
 
-        {/* Opacity and Gradient */}
-        <Box sx={{ height: "70%", mt: 2 }}>{props.layerList}</Box>
+        <Box sx={{ height: "20%", mt: 2 }}>{props.layerList}</Box>
 
-      </Box>
+        <Box sx={{ flex: 1, mt: 2, minHeight: 0 }}>
+          <Box
+            ref={histogram}
+            id={displayVertical ? "histoplotv" : "histoplot"}
+            sx={{
+              width: "100%",
+              height: "44%",
+              marginBottom: "20px",
+            }}
+          />
 
-      {/* Canvas & Location & Drawing */}
-      <Box
-        sx={{
-          width: displayVertical ? "100%" : "60%",
-          height: displayVertical ? undefined : height + 1,
-          aspectRatio: displayVertical ? 1 : undefined,
-          maxHeight: height + 1,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
-        <LocationTable
-          tableData={props.locationData}
-          isVisible={true}
-          decimalPrecision={props.decimalPrecision}
-          showDistribution={displayVertical}
-          style={{
-            width: "100%",
-            marginTop: "15px",
-            height: "30pt",
-            color: "white",
-          }}
-        />
-        <canvas id="niiCanvas" ref={canvas} height="100%" width="100%" />
-      </Box>
-
-      {/* ROI Table */}
-      <Box
-        sx={{
-          width: "100%",
-          height: displayVertical ? "600pt" : "100%",
-          ml: displayVertical ? 0 : 1,
-          mt: displayVertical ? 2 : 0,
-          flexDirection: "column",
-          display: "flex",
-        }}
-      >
-        <Box
-          ref={histogram}
-          id={displayVertical ? "histoplotv" : "histoplot"}
-          sx={{
-            width: "100%",
-            height: "44%",
-            marginBottom: "20px",
-          }}
-        />
-
-        <ROITable
-          pipelineID={props.pipelineID}
-          rois={props.rois}
-          style={{
-            width: "100%",
-            height: "50%",
-            display: "flex",
-            flexDirection: "column",
-          }}
-          nv={props.nv}
-          resampleImage={props.resampleImage}
-          unpackROI={props.unzipAndRenderROI}
-          zipAndSendROI={props.zipAndSendROI}
-          setLabelAlias={props.setLabelAlias}
-        />
+          <ROITable
+            pipelineID={props.pipelineID}
+            rois={props.rois}
+            style={{
+              width: "100%",
+              height: "50%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            nv={props.nv}
+            resampleImage={props.resampleImage}
+            unpackROI={props.unzipAndRenderROI}
+            zipAndSendROI={props.zipAndSendROI}
+            setLabelAlias={props.setLabelAlias}
+          />
+        </Box>
       </Box>
     </Box>
   );

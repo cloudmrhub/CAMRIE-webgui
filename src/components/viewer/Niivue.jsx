@@ -96,8 +96,8 @@ export default function NiiVueport(props) {
     const [showCrosshair, setShowCrosshair] = React.useState(true);
 
     const [brushSize,setBrushSize] = useState(1);
-    const [complexMode, setComplexMode] = useState('real');
-    const [complexOptions, setComplexOptions] = useState(['real']);
+    const [complexMode, setComplexMode] = useState('absolute');
+    const [complexOptions, setComplexOptions] = useState(['absolute']);
     const [roiVisible, setROIVisible] = useState(true);
     const [drawingOpacity, setDrawingOpacity] = useState(0.8);
 
@@ -243,9 +243,9 @@ export default function NiiVueport(props) {
 
     function verifyComplex(volume) {
         volume.real = volume.img
-        setComplexMode('real')
+        setComplexMode('absolute')
         if (!volume.imaginary || volume.imaginary.length !== volume.img.length) {
-          setComplexOptions(['real', 'absolute'])
+          setComplexOptions(['absolute', 'real'])
           volume.absolute = new Float32Array(volume.img.length)
           for (let i = 0; i < volume.img.length; i++) {
             const realPart = volume.real[i]
@@ -262,7 +262,7 @@ export default function NiiVueport(props) {
             volume.phase[i] = Math.atan2(imaginaryPart, realPart)
             if (imaginaryPart !== 0) allZero = false
           }
-          setComplexOptions(allZero ? ['real', 'absolute'] : ['real', 'imaginary', 'absolute', 'phase'])
+          setComplexOptions(allZero ? ['absolute', 'real'] : ['absolute', 'real', 'imaginary','phase'])
         }
       }
 

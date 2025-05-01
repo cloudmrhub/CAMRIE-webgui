@@ -58,7 +58,8 @@ const ResultsTab = () => {
   const pipelineID = activeJob?.pipeline_id;
   const niis = pipelineID ? resultState?.niis?.[pipelineID] ?? [] : [];
   const rois = pipelineID && resultState?.rois?.[pipelineID] ? resultState.rois[pipelineID] : [];
-  const selectedVolume = resultState?.selectedVolume ?? 0;
+  const defaultVolumeIndex = niis.findIndex(nii => nii.name === "RSSRecon");
+  const selectedVolume = resultState?.selectedVolume ?? (defaultVolumeIndex >= 0 ? defaultVolumeIndex : 0);
   const [loading, setLoading] = useState(true);
 
   const fetchJobs = async () => {
@@ -96,21 +97,22 @@ const ResultsTab = () => {
       dispatch(resultActions.setOpenPanel([1, 2]));
       return;
     }
+
     if (token) {
       dispatch(loadResult({ accessToken: token, job })).then((response: any) => {
         const result = response.payload;
         const volumes = result.volumes;
         const niis = result.niis;
+
         if (niis?.length && volumes?.length) {
-          for (let i = 0; i < niis.length; i++) {
-            if (niis[i].id === 0) {
-              dispatch(resultActions.selectVolume(i));
-              nv.loadVolumes([volumes[i]]);
-              dispatch(resultActions.setOpenPanel([1, 2]));
-              nv.closeDrawing();
-              break;
-            }
-          }
+          const defaultIndex = niis.findIndex(nii => nii.name === "RSSRecon");
+          const volumeIndexToUse = defaultIndex >= 0 ? defaultIndex : 0;
+
+          dispatch(resultActions.selectVolume(volumeIndexToUse));
+          nv.loadVolumes([volumes[volumeIndexToUse]]);
+          dispatch(resultActions.setOpenPanel([1, 2]));
+          nv.closeDrawing();
+
           setTimeout(() => nv.resizeListener(), 300);
           dispatch(getPipelineROI({ pipeline: job.pipeline_id, accessToken: token }));
         }
