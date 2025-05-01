@@ -1,6 +1,6 @@
 import CmrTable from "./CmrTable/CmrTable";
 import { CSSProperties, useState } from "react";
-import { Button } from "@mui/material";
+import { Button, Tooltip, IconButton } from "@mui/material";
 import CMRUpload, { LambdaFile } from "./Cmr-components/upload/Upload";
 import { getFileExtension } from "../common/utilities";
 import { is_safe_twix } from "../common/utilities/file-transformation/anonymize";
@@ -12,9 +12,11 @@ import axios from "axios";
 import Box from "@mui/material/Box";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import IconButton from "@mui/material/IconButton";
 import Confirmation from "./Cmr-components/dialogue/Confirmation.tsx";
 import { getPipelineROI } from "../features/results/resultActionCreation.ts";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faObjectGroup, faObjectUngroup, faDownload, faTrash } from '@fortawesome/free-solid-svg-icons';
+
 
 export const ROITable = (props: {
     pipelineID: string,
@@ -161,7 +163,7 @@ export const ROITable = (props: {
             />
 
             {/* Group/Ungroup */}
-            <div className="row mt-2">
+            {/* <div className="row mt-2">
                 <div className="col-6">
                     <Button variant="contained" fullWidth onClick={() => {
                         props.nv.groupLabelsInto(selectedData.map(value => Number(value)));
@@ -176,10 +178,10 @@ export const ROITable = (props: {
                         props.resampleImage();
                     }}>Ungroup</Button>
                 </div>
-            </div>
+            </div> */}
 
             {/* Download/Delete/Upload */}
-            <div className="row mt-2">
+            {/* <div className="row mt-2">
                 <div className="col-4">
                     <Button variant="contained" fullWidth onClick={async () => {
                         const selectedLabels = selectedData.map(label => Number(label));
@@ -195,35 +197,114 @@ export const ROITable = (props: {
                     }}>Delete</Button>
                 </div>
                 <div className="col-4">
-                <CMRUpload
-  changeNameAfterUpload={false}
-  color="info"
-  key={uploadKey}
-  fullWidth
-  onUploaded={() => {}} // ✅ Fix here
-  uploadHandler={async (file) => {
-    const config = { headers: { Authorization: `Bearer ${accessToken}` } };
-    const response = await axios.post(ROI_UPLOAD, {
-      filename: file.name,
-      pipeline_id: props.pipelineID,
-      type: "image",
-      contentType: "application/octet-stream"
-    }, config);
-    await props.zipAndSendROI(response.data.upload_url, file.name, file);
-    await props.unpackROI(response.data.access_url);
+                    <CMRUpload
+                        changeNameAfterUpload={false}
+                        color="info"
+                        key={uploadKey}
+                        fullWidth
+                        onUploaded={() => { }} // ✅ Fix here
+                        uploadHandler={async (file) => {
+                            const config = { headers: { Authorization: `Bearer ${accessToken}` } };
+                            const response = await axios.post(ROI_UPLOAD, {
+                                filename: file.name,
+                                pipeline_id: props.pipelineID,
+                                type: "image",
+                                contentType: "application/octet-stream"
+                            }, config);
+                            await props.zipAndSendROI(response.data.upload_url, file.name, file);
+                            await props.unpackROI(response.data.access_url);
 
-    if (accessToken && pipeline) {
-      dispatch(getPipelineROI({ accessToken, pipeline }));
-    }
+                            if (accessToken && pipeline) {
+                                dispatch(getPipelineROI({ accessToken, pipeline }));
+                            }
 
-    return 200;
-  }}
-  createPayload={createPayload}
-  maxCount={1}
-/>
+                            return 200;
+                        }}
+                        createPayload={createPayload}
+                        maxCount={1}
+                    />
 
                 </div>
-            </div>
+            </div> */}
+
+            {/* Unified Toolbar: Group, Ungroup, Download, Delete, Upload */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 2,
+                    pt: 1,
+                    pb: 1,
+                    pl: 1
+                }}
+            >
+                <Tooltip title="Group">
+                    <IconButton onClick={() => {
+                        props.nv.groupLabelsInto(selectedData.map(value => Number(value)));
+                        props.nv.drawScene();
+                        props.resampleImage();
+                    }}>
+                        <FontAwesomeIcon icon={faObjectGroup} style={{ fontSize: '16px' }} />
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Ungroup">
+                    <IconButton onClick={() => {
+                        props.nv.ungroup();
+                        props.nv.drawScene();
+                        props.resampleImage();
+                    }}>
+                        <FontAwesomeIcon icon={faObjectUngroup} style={{ fontSize: '16px' }}/>
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Download">
+                    <IconButton onClick={async () => {
+                        const selectedLabels = selectedData.map(label => Number(label));
+                        if (!selectedLabels.length) return warnEmptySelection("No ROI selected for download");
+                        await props.nv.saveImageByLabels(`label${selectedLabels.join('')}.nii`, selectedLabels);
+                    }}>
+                        <FontAwesomeIcon icon={faDownload} style={{ fontSize: '16px' }}/>
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Delete">
+                    <IconButton onClick={() => {
+                        props.nv.deleteDrawingByLabel(selectedData.map(label => Number(label)));
+                        props.resampleImage();
+                        props.nv.drawScene();
+                    }}>
+                        <FontAwesomeIcon icon={faTrash} style={{ fontSize: '16px' }}/>
+                    </IconButton>
+                </Tooltip>
+
+                {/* Keep Upload Button the Same, Embedded in Toolbar */}
+                <CMRUpload
+                    changeNameAfterUpload={false}
+                    color="info"
+                    key={uploadKey}
+                    onUploaded={() => { }}
+                    uploadHandler={async (file) => {
+                        const config = { headers: { Authorization: `Bearer ${accessToken}` } };
+                        const response = await axios.post(ROI_UPLOAD, {
+                            filename: file.name,
+                            pipeline_id: props.pipelineID,
+                            type: "image",
+                            contentType: "application/octet-stream"
+                        }, config);
+                        await props.zipAndSendROI(response.data.upload_url, file.name, file);
+                        await props.unpackROI(response.data.access_url);
+                        if (accessToken && pipeline) {
+                            dispatch(getPipelineROI({ accessToken, pipeline }));
+                        }
+                        return 200;
+                    }}
+                    createPayload={createPayload}
+                    maxCount={1}
+                />
+            </Box>
 
             <Confirmation
                 name="Warning"
