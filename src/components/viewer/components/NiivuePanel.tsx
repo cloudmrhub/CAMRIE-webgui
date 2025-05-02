@@ -82,6 +82,8 @@ export function NiivuePanel(props: NiivuePanelProps) {
           flexDirection: "column",
           flex: 1,
           minHeight: 0,
+          alignItems: 'center',         // Center horizontally
+          justifyContent: 'flex-start', // Start from top
         }}
       >
         <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
@@ -92,12 +94,25 @@ export function NiivuePanel(props: NiivuePanelProps) {
           showDistribution={displayVertical}
           style={{
             width: "100%",
-            marginTop: "15px",
             height: "30pt",
-            color: "white",
+            background: "black"
           }}
         />
-        <canvas id="niiCanvas" ref={canvas} style={{ flex: 1, width: "100%" }} />
+
+        <Box sx={{ position: 'relative', width: '100%', paddingTop: '100%' }}>
+          <canvas
+            id="niiCanvas"
+            ref={canvas}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+            }}
+          />
+        </Box>
+
       </Box>
 
       {/* Right Column: Controls + Histogram + ROI Table */}
