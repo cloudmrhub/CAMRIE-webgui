@@ -86,7 +86,10 @@ export function NiivuePanel(props: NiivuePanelProps) {
           justifyContent: 'flex-start', // Start from top
         }}
       >
-        <DrawToolkit {...props.drawToolkitProps} style={{ height: "30pt" }} />
+        <DrawToolkit {...props.drawToolkitProps} style={{
+          height: "30pt", borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0
+        }} />
         <LocationTable
           tableData={props.locationData}
           isVisible={true}
@@ -95,6 +98,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
           style={{
             width: "100%",
             height: "30pt",
+            paddingTop: "15px",
             background: "black"
           }}
         />
@@ -126,64 +130,71 @@ export function NiivuePanel(props: NiivuePanelProps) {
           minHeight: 0,
         }}
       >
-        <Card variant="outlined">
-          <CardContent>
-            <Box
-              id="controlDock"
-              className="title"
-              sx={{ width: "100%" }}
-              ref={sliceControl}
-            >
-              Controls
-            </Box>
-            {["X", "Y", "Slice"].map((axis, i) => (
-              <Slider
-                key={axis}
-                name={axis}
-                min={mins[i]}
-                max={maxs[i]}
-                value={mms[i]}
-                setValue={(val: number) => {
-                  const pos = [...mms];
-                  pos[i] = val;
-                  nv.scene.crosshairPos = [
-                    toRatio(pos[0], mins[0], maxs[0]),
-                    toRatio(pos[1], mins[1], maxs[1]),
-                    toRatio(pos[2], mins[2], maxs[2]),
-                  ];
+
+        <Box sx={{ display: "flex", flexDirection: "row", gap: 2, width: "100%" }}>
+          {/* Controls Card */}
+          <Card variant="outlined" sx={{ flex: 1 }}>
+            <CardContent>
+              <Box
+                id="controlDock"
+                className="title"
+                sx={{ width: "100%" }}
+                ref={sliceControl}
+              >
+                Controls
+              </Box>
+              {["X", "Y", "Slice"].map((axis, i) => (
+                <Slider
+                  key={axis}
+                  name={axis}
+                  min={mins[i]}
+                  max={maxs[i]}
+                  value={mms[i]}
+                  setValue={(val: number) => {
+                    const pos = [...mms];
+                    pos[i] = val;
+                    nv.scene.crosshairPos = [
+                      toRatio(pos[0], mins[0], maxs[0]),
+                      toRatio(pos[1], mins[1], maxs[1]),
+                      toRatio(pos[2], mins[2], maxs[2]),
+                    ];
+                    nv.drawScene();
+                  }}
+                />
+              ))}
+
+              <DualSlider
+                name="Values"
+                max={nv?.volumes?.[0]?.robust_max ?? 1}
+                min={nv?.volumes?.[0]?.robust_min ?? 0}
+                key={props.rangeKey}
+                setMin={(min) => {
+                  const volume = nv.volumes?.[0];
+                  if (!volume) return;
+                  volume.cal_min = min;
+                  nv.refreshLayers(volume, 0, nv.volumes.length);
                   nv.drawScene();
+                  props.setMin(min);
                 }}
+                setMax={(max) => {
+                  const volume = nv.volumes?.[0];
+                  if (!volume) return;
+                  volume.cal_max = max;
+                  nv.refreshLayers(volume, 0, nv.volumes.length);
+                  nv.drawScene();
+                  props.setMax(max);
+                }}
+                transform={(x) => x / a + b}
+                inverse={(y) => a * y - a * b}
               />
-            ))}
+            </CardContent>
+          </Card>
 
-            <DualSlider
-              name="Values"
-              max={nv?.volumes?.[0]?.robust_max ?? 1}
-              min={nv?.volumes?.[0]?.robust_min ?? 0}
-              key={props.rangeKey}
-              setMin={(min) => {
-                const volume = nv.volumes?.[0];
-                if (!volume) return;
-                volume.cal_min = min;
-                nv.refreshLayers(volume, 0, nv.volumes.length);
-                nv.drawScene();
-                props.setMin(min);
-              }}
-              setMax={(max) => {
-                const volume = nv.volumes?.[0];
-                if (!volume) return;
-                volume.cal_max = max;
-                nv.refreshLayers(volume, 0, nv.volumes.length);
-                nv.drawScene();
-                props.setMax(max);
-              }}
-              transform={(x) => x / a + b}
-              inverse={(y) => a * y - a * b}
-            />
-          </CardContent>
-        </Card>
-
-        <Box sx={{ height: "20%", mt: 2 }}>{props.layerList}</Box>
+          {/* Layer List */}
+          <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {props.layerList}
+          </Box>
+        </Box>
 
         <Box sx={{ flex: 1, mt: 2, minHeight: 0 }}>
           <Box
