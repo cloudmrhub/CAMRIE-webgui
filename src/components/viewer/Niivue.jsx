@@ -650,7 +650,6 @@ export default function NiiVueport(props) {
         let rois = [];
         let layout = {
             barmode: "overlay",
-            // title: 'ROI Histogram',  // Set your title here
             title: {
                 text: 'ROI Histogram',
                 x: 0.5,

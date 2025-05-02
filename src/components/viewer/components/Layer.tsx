@@ -68,18 +68,8 @@ const Layer: React.FC<LayerProps> = ({
 
   return (
     <Box display="flex" flexDirection="column">
-      {/* <Card variant="outlined" sx={{ my: 1, p: 2 }}> */}
-        <Box
-          sx={{
-            m: 1,
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-          }}
-        >
-        </Box>
         <Box display="flex" flexDirection="column" width="100%">
-          <Typography ml={2}>{`Opacity: ${opacity.toFixed(2)}`}</Typography>
+          <Typography >{`Opacity: ${opacity.toFixed(2)}`}</Typography>
           <Slider
             sx={{ width: '80%', alignSelf: 'center', my: 2 }}
             value={opacity}
@@ -94,8 +84,8 @@ const Layer: React.FC<LayerProps> = ({
             flexDirection="row"
             justifyContent="space-between"
             width="100%"
-            m={2}
-          >
+            marginLeft={3.5}
+            >
             <FormControl>
               <InputLabel>Color</InputLabel>
               <Select

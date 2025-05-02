@@ -212,13 +212,13 @@ export function NiivuePanel(props: NiivuePanelProps) {
           {/* </Box> */}
         </Box>
 
-        <Box sx={{ flex: 1, mt: 2, minHeight: 0 }}>
+        <Box sx={{ flex: 1, mt: 2, mb: 3, minHeight: 0 }}>
           <Box
             ref={histogram}
             id={displayVertical ? "histoplotv" : "histoplot"}
             sx={{
               width: "100%",
-              height: "44%",
+              height: "45%",
               marginBottom: "20px",
             }}
           />
@@ -228,7 +228,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
             rois={props.rois}
             style={{
               width: "100%",
-              height: "50%",
+              height: "55%",
               display: "flex",
               flexDirection: "column",
             }}
