@@ -96,7 +96,7 @@ export const DualSlider: React.FC<DualSliderProps> = ({
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, pr: 0.5 }} height={20}>
       <Box
-        flex={0.322}
+        flex={0}
         fontSize={16}
         sx={{
           fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',

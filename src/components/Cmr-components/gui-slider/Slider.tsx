@@ -79,7 +79,7 @@ export const Slider: React.FC<SliderProps> = ({
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5, mb: 0.5 }} height={20}>
       <Box
-        flex={0.3}
+        flex={0}
         fontSize={14}
         fontFamily='"Inter", "Roboto", "Helvetica", "Arial", sans-serif'
         sx={{ textAlign: 'right', pr: 1 }}

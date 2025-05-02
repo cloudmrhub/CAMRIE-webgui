@@ -4,6 +4,7 @@ import {
   Typography,
   IconButton,
   Paper,
+  Card,
   FormControl,
   InputLabel,
   Select,
@@ -45,7 +46,7 @@ const Layer: React.FC<LayerProps> = ({
   onOpacityChange,
   getColorMapValues
 }) => {
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  // const [detailsOpen, setDetailsOpen] = useState(true);
   const [color, setColor] = useState(image.colormap);
   const [opacity, setOpacity] = useState(1.0);
 
@@ -67,13 +68,7 @@ const Layer: React.FC<LayerProps> = ({
 
   return (
     <Box display="flex" flexDirection="column">
-      <Paper
-        elevation={0}
-        sx={{
-          my: 0.5,
-          border: '1px solid gray'
-        }}
-      >
+      {/* <Card variant="outlined" sx={{ my: 1, p: 2 }}> */}
         <Box
           sx={{
             m: 1,
@@ -82,73 +77,64 @@ const Layer: React.FC<LayerProps> = ({
             flexWrap: 'wrap'
           }}
         >
-          <Typography sx={{ wordBreak: 'break-word', flexBasis: '75%' }}>
-            {nii.name}
-          </Typography>
-          <IconButton sx={{ ml: 'auto' }} onClick={() => setDetailsOpen(!detailsOpen)}>
-            {detailsOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
         </Box>
+        <Box display="flex" flexDirection="column" width="100%">
+          <Typography ml={2}>{`Opacity: ${opacity.toFixed(2)}`}</Typography>
+          <Slider
+            sx={{ width: '80%', alignSelf: 'center', my: 2 }}
+            value={opacity}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(_, value) => handleOpacityChanged(value)}
+          />
 
-        {detailsOpen && (
-          <Box display="flex" flexDirection="column" width="100%">
-            <Typography ml={2}>{`Opacity: ${opacity.toFixed(2)}`}</Typography>
-            <Slider
-              sx={{ width: '80%', alignSelf: 'center', my: 2 }}
-              value={opacity}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(_, value) => handleOpacityChanged(value)}
-            />
+          <Box
+            display="flex"
+            flexDirection="row"
+            justifyContent="space-between"
+            width="100%"
+            m={2}
+          >
+            <FormControl>
+              <InputLabel>Color</InputLabel>
+              <Select
+                value={color}
+                label="Color"
+                size="small"
+                onChange={handleColorChange}
+                sx={{ width: 200 }}
+              >
+                {colormapNames.map((name: string) => (
+                  <MenuItem key={name} value={name}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        width: '100%'
+                      }}
+                    >
+                      <Box>{name}</Box>
+                      <Box
+                        sx={{
+                          width: '30%',
+                          ml: 1,
+                          height: '1rem',
+                          background: makeColorGradient(getColorMapValues(name))
+                        }}
+                      />
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-            <Box
-              display="flex"
-              flexDirection="row"
-              justifyContent="space-between"
-              width="100%"
-              m={2}
-            >
-              <FormControl>
-                <InputLabel>Color</InputLabel>
-                <Select
-                  value={color}
-                  label="Color"
-                  size="small"
-                  onChange={handleColorChange}
-                  sx={{ width: 200 }}
-                >
-                  {colormapNames.map((name: string) => (
-  <MenuItem key={name} value={name}>
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        width: '100%'
-      }}
-    >
-      <Box>{name}</Box>
-      <Box
-        sx={{
-          width: '30%',
-          ml: 1,
-          height: '1rem',
-          background: makeColorGradient(getColorMapValues(name))
-        }}
-      />
-    </Box>
-  </MenuItem>
-))}
-                </Select>
-              </FormControl>
-
-              <IconButton onClick={() => onRemoveLayer(image)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
+            {/* <IconButton onClick={() => onRemoveLayer(image)}>
+              <DeleteIcon />
+            </IconButton> */}
           </Box>
-        )}
-      </Paper>
+        </Box>
+      {/* </Card> */}
     </Box>
   );
 };

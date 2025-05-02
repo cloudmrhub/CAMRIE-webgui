@@ -135,8 +135,13 @@ export function NiivuePanel(props: NiivuePanelProps) {
 
         <Box sx={{ display: "flex", flexDirection: "row", gap: 2, width: "100%" }}>
           {/* Controls Card */}
-          <Card variant="outlined" sx={{ flex: 1 }}>
-            <CardContent >
+          <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              height: '100%',
+            }}>
               <Box
                 id="controlDock"
                 className="title"
@@ -192,14 +197,19 @@ export function NiivuePanel(props: NiivuePanelProps) {
                   inverse={(y) => a * y - a * b}
                 />
               </Box>
+            </CardContent>
+          </Card>
 
+          <Card variant="outlined" sx={{ flex: 1 }}>
+            <CardContent>
+              {props.layerList}
             </CardContent>
           </Card>
 
           {/* Layer List */}
-          <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {props.layerList}
-          </Box>
+          {/* <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}> */}
+          {/* {props.layerList} */}
+          {/* </Box> */}
         </Box>
 
         <Box sx={{ flex: 1, mt: 2, minHeight: 0 }}>
