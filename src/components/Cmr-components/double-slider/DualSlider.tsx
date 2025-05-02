@@ -20,9 +20,9 @@ export const DualSlider: React.FC<DualSliderProps> = ({
   transform = x => x,
   inverse = x => x,
 }) => {
-  const [leftPos,  setLeftPos]  = React.useState(0);   // %
+  const [leftPos, setLeftPos] = React.useState(0);   // %
   const [rightPos, setRightPos] = React.useState(100); // %
-  const [hover,    setHover]    = React.useState(false);
+  const [hover, setHover] = React.useState(false);
 
   const [minOverride, setMinOverride] = React.useState<number>();
   const [maxOverride, setMaxOverride] = React.useState<number>();
@@ -30,9 +30,9 @@ export const DualSlider: React.FC<DualSliderProps> = ({
   if (minOverride !== undefined) min = minOverride;
   if (maxOverride !== undefined) max = maxOverride;
 
-  const a = transform((max - min) * leftPos  / 100 + min);
+  const a = transform((max - min) * leftPos / 100 + min);
   const b = transform((max - min) * rightPos / 100 + min);
-  const left  = Math.min(a, b);
+  const left = Math.min(a, b);
   const right = Math.max(a, b);
 
   /* ---------------- slider drag logic ---------------- */
@@ -45,12 +45,12 @@ export const DualSlider: React.FC<DualSliderProps> = ({
   ) => {
     e.preventDefault();
     const startX = e.clientX;
-    const width  = ref.current?.offsetWidth ?? 1;
+    const width = ref.current?.offsetWidth ?? 1;
 
     const move = (ev: MouseEvent) => {
       const delta = ((ev.clientX - startX) / width) * 100;
-      const raw   = (which === 'left' ? leftPos : rightPos) + delta;
-      const pos   = Math.min(100, Math.max(0, raw));
+      const raw = (which === 'left' ? leftPos : rightPos) + delta;
+      const pos = Math.min(100, Math.max(0, raw));
 
       if (which === 'left') {
         setLeftPos(pos);
@@ -61,7 +61,7 @@ export const DualSlider: React.FC<DualSliderProps> = ({
       } else {
         setRightPos(pos);
         const a = (max - min) * leftPos / 100 + min;
-        const b = (max - min) * pos     / 100 + min;
+        const b = (max - min) * pos / 100 + min;
         setMin?.(Math.min(a, b));
         setMax?.(Math.max(a, b));
       }
@@ -81,28 +81,29 @@ export const DualSlider: React.FC<DualSliderProps> = ({
   const fmt = (v: number) =>
     Math.abs(v) < 0.01 && v !== 0 ? v.toExponential(3).toUpperCase() : v.toFixed(3);
 
-  const [leftEdit,  setLeftEdit]  = React.useState('');
+  const [leftEdit, setLeftEdit] = React.useState('');
   const [rightEdit, setRightEdit] = React.useState('');
-  const [leftErr,   setLeftErr]   = React.useState(false);
-  const [rightErr,  setRightErr]  = React.useState(false);
+  const [leftErr, setLeftErr] = React.useState(false);
+  const [rightErr, setRightErr] = React.useState(false);
   const [leftFocus, setLeftFocus] = React.useState(false);
-  const [rightFocus,setRightFocus]= React.useState(false);
+  const [rightFocus, setRightFocus] = React.useState(false);
 
-  const leftBox  = leftFocus  ? leftEdit  : fmt(left);
+  const leftBox = leftFocus ? leftEdit : fmt(left);
   const rightBox = rightFocus ? rightEdit : fmt(right);
 
   /* ---------------- render ---------------- */
 
   return (
-    <Box sx={{ display: 'flex', pl: 0.5, pr: 0.5 }} height={20}>
+    <Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, pr: 0.5 }} height={20}>
       <Box
         flex={0.322}
         fontSize={16}
-        color="#3d3d3d"
-        display="flex"
-        alignItems="center"
-        mb="1pt"
-        sx={{ fontFamily: 'system-ui, sans-serif' }}
+        sx={{
+          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+          fontSize: 14,
+          textAlign: 'right', 
+          pr: 1
+        }}
       >
         {name}
       </Box>
