@@ -105,7 +105,7 @@ const ResultsTab = () => {
         const niis = result.niis;
 
         if (niis?.length && volumes?.length) {
-          const defaultIndex = niis.findIndex(nii => nii.name === "RSSRecon");
+          const defaultIndex = niis.findIndex((nii: { name: string }) => nii.name === "RSSRecon");
           const volumeIndexToUse = defaultIndex >= 0 ? defaultIndex : 0;
 
           dispatch(resultActions.selectVolume(volumeIndexToUse));
