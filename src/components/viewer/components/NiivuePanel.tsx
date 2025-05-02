@@ -80,7 +80,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
           width: "60%",
           display: "flex",
           flexDirection: "column",
-          flex: 1,
+          // flex: 1,
           minHeight: 0,
           alignItems: 'center',         // Center horizontally
           justifyContent: 'flex-start', // Start from top
@@ -128,7 +128,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
           display: "flex",
           flexDirection: "column",
           ml: 1,
-          flex: 1,
+          // flex: 1,
           minHeight: 0,
         }}
       >
@@ -205,11 +205,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
               {props.layerList}
             </CardContent>
           </Card>
-
-          {/* Layer List */}
-          {/* <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}> */}
-          {/* {props.layerList} */}
-          {/* </Box> */}
         </Box>
 
         <Box sx={{ flex: 1, mt: 2, mb: 3, minHeight: 0 }}>

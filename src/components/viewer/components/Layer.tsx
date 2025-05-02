@@ -84,7 +84,7 @@ const Layer: React.FC<LayerProps> = ({
             flexDirection="row"
             justifyContent="space-between"
             width="100%"
-            marginLeft={3.5}
+            marginLeft={1}
             >
             <FormControl>
               <InputLabel>Color</InputLabel>
@@ -93,7 +93,7 @@ const Layer: React.FC<LayerProps> = ({
                 label="Color"
                 size="small"
                 onChange={handleColorChange}
-                sx={{ width: 200 }}
+                sx={{ width: 150 }}
               >
                 {colormapNames.map((name: string) => (
                   <MenuItem key={name} value={name}>
