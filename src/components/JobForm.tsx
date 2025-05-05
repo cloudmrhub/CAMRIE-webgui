@@ -27,8 +27,11 @@ const fieldOptions = [
     channels: 16,
     coil: '16-Ch 3T Head Surface Coil',
     resolution: '2 mm isotropic',
-    emSimulator: 'MARIE',
-    date: '2024-09-01',
+    emSimulator: 'MARIE_version_Hybrid_VSIE',
+    numOfTissues: '22',
+    numOfElements: '1',
+    objectName: 'Duke_2mm',
+    frequency: '2.1714514044179997E+9',
     description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
     image: "https://erosmontin.s3.us-east-1.amazonaws.com/overlap.jpg"
   },
@@ -39,18 +42,26 @@ const fieldOptions = [
     channels: 1,
     coil: '3T Head Birdcage Coil',
     resolution: '2 mm isotropic',
-    date: '2024-09-01',
+    emSimulator: 'MARIE_version_Hybrid_VSIE',
+    numOfTissues: '22',
+    numOfElements: '1',
+    objectName: 'Duke_2mm',
+    frequency: '2.1714514044179997E+9',
     description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
     image: "https://erosmontin.s3.us-east-1.amazonaws.com/bird.jpg"
   },
   {
     id: 'cloudMR_triangularcoil-ismrm25.zip',
     name: '8-Ch 7T Head Triangular Coilr',
-    b0: '3T',
+    b0: '7T',
     channels: 1,
     coil: '8-Ch 7T Head Triangular Coilr',
     resolution: '2 mm isotropic',
-    date: '2024-09-01',
+    emSimulator: 'MARIE_version_Hybrid_VSIE',
+    numOfTissues: '23',
+    numOfElements: '1',
+    objectName: 'Duke_2mm',
+    frequency: '2.34176131849E+9',
     description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
     image: "https://erosmontin.s3.us-east-1.amazonaws.com/tri.jpg"
   },
@@ -58,194 +69,77 @@ const fieldOptions = [
 
 const sequenceOptions = [
   {
-    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 1',
+    id: 'PD-Weighted_Spin_Echo.mtrk',
+    name: 'PD Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'mtrk'
   },
   {
-    id: 'ISMRM25-t1w.seq',
-    name: 'Sequence 2',
+    id: 'PD-Weighted_Spin_Echo.seq',
+    name: 'PD Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'pulseq'
   },
   {
-    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 3',
+    id: 'T1-Weighted_Spin_Echo.mtrk',
+    name: 'T1 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 4',
-    description: 'ISMRM25',
-    tr: 'Sequence 4',
-    te: '',
-    ta: '',
+    tr: '600ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'mtrk'
   },
   {
-    id: 'ISMRM25-miniflash-01.seq',
-    name: 'Sequence 5',
+    id: 'T1-Weighted_Spin_Echo.seq',
+    name: 'T1 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '600ms',
+    te: '10ms',
+    fa: [90, 180],
     type: 'pulseq'
   },
   {
-    id: 'ISMRM25-t2w.seq',
-    name: 'Sequence 6',
+    id: 'T1-Weighted_Spoiled_GRE.mtrk',
+    name: 'T1 Weighted Spoiled GRE',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 7',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE80_TR4000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 8',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'ISMRM25-pdw.seq',
-    name: 'Sequence 9',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'ISMRM25-miniflash-00.seq',
-    name: 'Sequence 10',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR5000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 11',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '40ms',
+    te: '10ms',
+    fa: [15],
     type: 'mtrk'
   },
   {
-    id: 'ISMRM25-miniflasj-01.seq',
-    name: 'Sequence 12',
+    id: 'T1-Weighted_Spoiled_GRE.seq',
+    name: 'T1 Weighted Spoiled GRE',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '40ms',
+    te: '10ms',
+    fa: [15],
     type: 'pulseq'
   },
   {
-    id: 'se2d_TE400_TR5000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 13',
+    id: 'T2-Weighted_Spin_Echo.mtrk',
+    name: 'T2 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '80ms',
+    fa: [90, 180],
     type: 'mtrk'
   },
   {
-    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 14',
+    id: 'T2-Weighted_Spin_Echo.seq',
+    name: 'T2 Weighted Spin Echo',
     description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
+    tr: '4000ms',
+    te: '80ms',
+    fa: [90, 180],
     type: 'pulseq'
   },
-  {
-    id: 'se2d_TE10_TR500_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 15',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR600_os2_largeCrush_xSpoil.seq',
-    name: 'Sequence 16',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'pulseq'
-  },
-  {
-    id: 'se2d_TE10_TR4000_os2_largeCrush_xSpoil.mtrk',
-    name: 'Sequence 17',
-    description: 'ISMRM25',
-    tr: '',
-    te: '',
-    ta: '',
-    type: 'mtrk'
-  }  
-  // {
-  //   id: 'ISMRM25-miniflash-01.seq',
-  //   name: 'T1-Weighted Spoiled GRE',
-  //   description: 'ISMRM25',
-  //   tr: '20 ms',
-  //   te: '8 ms',
-  //   ta: '3 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-t1w.seq',
-  //   name: 'T1-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '600 ms',
-  //   te: '10 ms',
-  //   ta: '4 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-t2w.seq',
-  //   name: 'T2-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '4000 ms',
-  //   te: '80 ms',
-  //   ta: '6 sec',
-  //   type: 'pulseq'
-  // },
-  // {
-  //   id: 'ISMRM25-pdw.seq',
-  //   name: 'PD-Weighted Spin Echo',
-  //   description: 'ISMRM25',
-  //   tr: '4000 ms',
-  //   te: '10 ms',
-  //   ta: '5 sec',
-  //   type: 'pulseq'
-  // },
 ];
 const API_ENDPOINT = import.meta.env.VITE_PIPELINE_ENDPOINT;
 
@@ -329,11 +223,12 @@ export default function JobForm() {
           Setup Parameters
         </Typography>
       </Box>
-      <Paper elevation={0} sx={{ p: 4, border: '1px solid #ccc',
+      <Paper elevation={0} sx={{
+        p: 4, border: '1px solid #ccc',
       }}>
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={7}>
             <TextField
               label="Job Alias"
               fullWidth
@@ -342,7 +237,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={5}>
             <TextField
               label="Slice Number"
               type="number"
@@ -354,7 +249,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={7}>
             <FormControl fullWidth>
               <InputLabel id="field-id-label">Select Model</InputLabel>
               <Select
@@ -378,11 +273,11 @@ export default function JobForm() {
                     {/* First Column */}
                     <Grid item xs={12} sm={5}>
                       <Box textAlign="left" height="100%">
-                        <Typography><strong>Object Name:</strong></Typography>
-                        <Typography><strong>B0</strong> = {selectedField.b0}</Typography>
-                        <Typography><strong>Frequency:</strong></Typography>
-                        <Typography><strong>Resolution:</strong> {selectedField.resolution}</Typography>
-                        <Typography><strong>Number of Tissues:</strong></Typography>
+                        <Typography><strong>Object Name:</strong>&nbsp;{selectedField.objectName}</Typography>
+                        <Typography><strong>B0</strong>&nbsp;=&nbsp;{selectedField.b0}</Typography>
+                        <Typography><strong>Frequency:</strong>&nbsp;{selectedField.frequency}</Typography>
+                        <Typography><strong>Resolution:</strong>&nbsp;{selectedField.resolution}</Typography>
+                        <Typography><strong>Number of Tissues:</strong>&nbsp;{selectedField.numOfTissues}</Typography>
                       </Box>
                     </Grid>
 
@@ -394,9 +289,9 @@ export default function JobForm() {
                     {/* Second Column */}
                     <Grid item xs={12} sm={6}>
                       <Box textAlign="left" height="100%">
-                        <Typography><strong>Coil Name:</strong> {selectedField.coil}</Typography>
-                        <Typography><strong>Number of Elements:</strong></Typography>
-                        <Typography><strong>EM Simulator:</strong> {selectedField.emSimulator}</Typography>
+                        <Typography><strong>Coil Name:</strong>&nbsp;{selectedField.coil}</Typography>
+                        <Typography><strong>Number of Elements:</strong>&nbsp;{selectedField.numOfElements}</Typography>
+                        <Typography><strong>EM&nbsp;Simulator:</strong>&nbsp;{selectedField.emSimulator}</Typography>
                       </Box>
                     </Grid>
                   </Grid>
@@ -414,7 +309,7 @@ export default function JobForm() {
             )}
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={5}>
             <FormControl fullWidth>
               <InputLabel id="sequence-id-label">Select Sequence</InputLabel>
               <Select
@@ -425,7 +320,7 @@ export default function JobForm() {
                 MenuProps={{
                   PaperProps: {
                     style: {
-                      maxHeight: 37 * 5 + 8, // 5 items at 37px height + padding
+                      maxHeight: 30 * 5 + 8, // 4 items at 37px height + padding
                     },
                   },
                 }}
@@ -441,16 +336,13 @@ export default function JobForm() {
             {selectedSequence && (
               <Card variant="outlined" sx={{ mt: 2 }}>
                 <CardContent>
-                  {/* <Typography variant="subtitle1" gutterBottom>
-                    Sequence Details
-                  </Typography> */}
                   <Box textAlign="left" height="100%">
-                    <Typography><strong>ID:</strong> {selectedSequence.id}</Typography>
-                    <Typography><strong>Description:</strong> {selectedSequence.description}</Typography>
-                    <Typography><strong>TR:</strong> {selectedSequence.tr}</Typography>
-                    <Typography><strong>TE:</strong> {selectedSequence.te}</Typography>
-                    <Typography><strong>FA:</strong> </Typography>
-                    <Typography><strong>ACC:</strong> 1x1</Typography>
+                    <Typography><strong>ID:</strong>&nbsp;{selectedSequence.id}</Typography>
+                    <Typography><strong>Description:</strong>&nbsp;{selectedSequence.description}</Typography>
+                    <Typography><strong>TR:</strong>&nbsp;{selectedSequence.tr}</Typography>
+                    <Typography><strong>TE:</strong>&nbsp;{selectedSequence.te}</Typography>
+                    <Typography><strong>FA:</strong>&nbsp;{selectedSequence.fa}</Typography>
+                    <Typography><strong>ACC:</strong>&nbsp;1x1</Typography>
                   </Box>
                 </CardContent>
               </Card>
