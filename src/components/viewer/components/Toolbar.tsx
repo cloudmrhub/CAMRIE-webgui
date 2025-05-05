@@ -250,11 +250,12 @@ export default function Toolbar({
                   <ZoomInMapIcon />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={'Reset Contrast'} placement={'right'}>
+              {/* temporarily hide contrast */}
+              {/* <Tooltip title={'Reset Contrast'} placement={'right'}>
                 <IconButton onClick={() => nv.resetContrast()}>
                   <Brightness6Icon />
                 </IconButton>
-              </Tooltip>
+              </Tooltip> */}
             </Box>
           </Box>
         </Fragment>
