@@ -93,7 +93,7 @@ const Layer: React.FC<LayerProps> = ({
                 label="Color"
                 size="small"
                 onChange={handleColorChange}
-                sx={{ width: 150 }}
+                sx={{ width: 140 }}
               >
                 {colormapNames.map((name: string) => (
                   <MenuItem key={name} value={name}>

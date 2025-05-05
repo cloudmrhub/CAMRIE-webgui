@@ -70,20 +70,25 @@ export function NiivuePanel(props: NiivuePanelProps) {
         width: "100%",
         display: "flex",
         flexDirection: "row",
-        flex: 1,
+        // flex: 1,
+        flexWrap: "wrap",
         minHeight: 0,
       }}
     >
       {/* Left Column: Canvas & Drawing */}
       <Box
         sx={{
-          width: "60%",
+          width: {
+            sm: "100%",
+            md: "64%",
+          },
           display: "flex",
           flexDirection: "column",
           // flex: 1,
           minHeight: 0,
           alignItems: 'center',         // Center horizontally
           justifyContent: 'flex-start', // Start from top
+          marginBottom: "20px"
         }}
       >
         <DrawToolkit {...props.drawToolkitProps} style={{
@@ -124,10 +129,16 @@ export function NiivuePanel(props: NiivuePanelProps) {
       {/* Right Column: Controls + Histogram + ROI Table */}
       <Box
         sx={{
-          width: "40%",
+          width: {
+            sm: "100%",
+            md: "33%",
+          },
           display: "flex",
           flexDirection: "column",
-          ml: 1,
+          ml: { 
+            xs: 0, 
+            md: 1 
+          },
           // flex: 1,
           minHeight: 0,
         }}
@@ -223,7 +234,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
             rois={props.rois}
             style={{
               width: "100%",
-              height: "55%",
+              height: "53%",
               display: "flex",
               flexDirection: "column",
             }}
