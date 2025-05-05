@@ -18,7 +18,7 @@
     "@mui/icons-material": "^5.15.15",
     "@mui/material": "^5.17.1",
     "@mui/system": "^5.15.15",
-    "@mui/x-data-grid": "^7.28.3",
+    "@mui/x-data-grid": "^7.29.2",
     "@niivue/niivue": "^0.54.0",
     "@reduxjs/toolkit": "^2.6.1",
     "@types/react-color": "^3.0.13",
