@@ -145,7 +145,6 @@ export default function NiiVueport(props) {
     }, [props.selectedVolume, props.niis])
 
 
-
     const [rangeKey, setRangeKey] = useState(0);
     nv.onResetContrast = () => {
         setRangeKey(rangeKey + 1);
@@ -419,6 +418,9 @@ export default function NiiVueport(props) {
             case "contrast":
                 console.log('setting drag mode to contrast');
                 nv.opts.dragMode = nv.dragModes.contrast;
+
+
+                
                 break;
             case "measurement":
                 nv.opts.dragMode = nv.dragModes.measurement;

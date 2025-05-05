@@ -211,11 +211,11 @@ export function NiivuePanel(props: NiivuePanelProps) {
             </CardContent>
           </Card>
 
-          <Card variant="outlined" sx={{ flex: 1 }}>
+          {/* <Card variant="outlined" sx={{ flex: 1 }}>
             <CardContent>
               {props.layerList}
             </CardContent>
-          </Card>
+          </Card> */}
         </Box>
 
         <Box sx={{ flex: 1, mt: 2, mb: 3, minHeight: 0 }}>
