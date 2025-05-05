@@ -95,7 +95,6 @@ export const ROITable = (props: {
                     <div style={{
                         width: '14pt', height: '14pt',
                         borderRadius: '3pt',
-                        marginTop: '15px',
                         background: `${params.row.color}`
                     }} />
                 </Box>
@@ -131,7 +130,7 @@ export const ROITable = (props: {
                         props.nv.drawScene();
                         event.stopPropagation();
                     }}>
-                        {params.row.visibility ? <VisibilityIcon sx={{ color: '#aaa',  marginTop: '5px' }} /> : <VisibilityOffIcon sx={{ color: '#aaa' }} />}
+                        {params.row.visibility ? <VisibilityIcon sx={{ color: '#aaa' }} /> : <VisibilityOffIcon sx={{ color: '#aaa' }} />}
                     </IconButton>
                 </Box>
             )

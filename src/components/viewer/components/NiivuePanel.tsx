@@ -80,7 +80,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         sx={{
           width: {
             sm: "100%",
-            md: "64%",
+            md: "63%",
           },
           display: "flex",
           flexDirection: "column",
@@ -131,7 +131,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         sx={{
           width: {
             sm: "100%",
-            md: "33%",
+            md: "35%",
           },
           display: "flex",
           flexDirection: "column",
@@ -211,11 +211,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
             </CardContent>
           </Card>
 
-          {/* <Card variant="outlined" sx={{ flex: 1 }}>
-            <CardContent>
-              {props.layerList}
-            </CardContent>
-          </Card> */}
         </Box>
 
         <Box sx={{ flex: 1, mt: 2, mb: 3, minHeight: 0 }}>

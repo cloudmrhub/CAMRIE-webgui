@@ -1414,35 +1414,6 @@ export default function NiiVueport(props) {
                 zipAndSendROI={zipAndSendDrawingLayer}
                 setLabelAlias={setLabelAlias}
             />}
-            {/* <Box sx={{
-                width: '100%',
-                display: (!verticalLayout) ? 'none' : 'flex',
-                height: '600pt', marginLeft: 1, flexDirection: 'column'
-            }}>
-                <Box
-                    ref={histoRef}
-                    id={'histoplotv'}
-                    style={{
-                        width: '100%',
-                        height: '50%'
-                    }}
-                >
-                </Box>
-
-                <ROITable
-                    pipelineID={props.pipelineID}
-                    rois={rois}
-                    style={{
-                        width:'100%',
-                        height:'50%'
-                    }}
-                    nv={nv}
-                    resampleImage={resampleImage}
-                    unpackROI={unpackROI}
-                    zipAndSendROI={zipAndSendDrawingLayer}
-                    setLabelAlias={setLabelAlias}
-                />
-            </Box> */}
         </Box>
     )
 }

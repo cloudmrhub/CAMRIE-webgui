@@ -187,7 +187,7 @@ const ResultsTab = () => {
           )}
 
           <Box mt={4}>
-            <Card variant="outlined" sx={{ p: 2 }}>
+            <Card variant="outlined" sx={{ p: 0 }}>
               <CardContent>
                 {activeJob && token ? (
                   <NiiVue
