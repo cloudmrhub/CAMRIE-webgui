@@ -142,8 +142,7 @@ const ResultsTab = () => {
             <Box sx={{ height: 600, width: '100%' }}>
               <StyledDataGrid
                 disableRowSelectionOnClick
-                // updated to show only completed jobs
-                rows={jobs.filter((job: any) => job.status === 'completed').map((job: any) => ({
+                rows={jobs.map((job: any) => ({
                   id: job.id,
                   alias: job.alias,
                   status: job.status,
@@ -212,28 +211,6 @@ const ResultsTab = () => {
               </CardContent>
             </Card>
           </Box>
-          {/* <Box mt={4}>
-            {activeJob && token ? (
-              <NiiVue
-                niis={niis}
-                selectedVolume={selectedVolume ?? 0}
-                setSelectedVolume={(index: number) => dispatch(resultActions.selectVolume(index))}
-                warn={() => { }}
-                setWarning={() => { }}
-                setWarningOpen={() => { }}
-                rois={rois}
-                pipelineID={activeJob.pipeline_id}
-                saveROICallback={() => {
-                  if (activeJob.pipeline_id && token) {
-                    dispatch(getPipelineROI({ pipeline: activeJob.pipeline_id, accessToken: token }));
-                  }
-                }}
-                accessToken={token}
-              />
-            ) : (
-              <Typography color="text.secondary">Waiting for token...</Typography>
-            )}
-          </Box> */}
         </>
       )}
     </Box>
