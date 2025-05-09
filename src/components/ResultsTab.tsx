@@ -136,54 +136,51 @@ const ResultsTab = () => {
             <Button onClick={fetchJobs} startIcon={<RefreshIcon />}>Refresh</Button>
           </Box>
 
-          {loading ? (
-            <CircularProgress />
-          ) : (
-            <Box sx={{ height: 600, width: '100%' }}>
-              <StyledDataGrid
-                disableRowSelectionOnClick
-                rows={jobs.map((job: any) => ({
-                  id: job.id,
-                  alias: job.alias,
-                  status: job.status,
-                  createdAt: new Date(job.createdAt).toLocaleString(),
-                  files: job.files,
-                  job: job,
-                }))}
-                columns={[
-                  { field: 'id', headerName: 'Job ID', flex: 1 },
-                  { field: 'alias', headerName: 'Alias', flex: 1 },
-                  { field: 'status', headerName: 'Status', flex: 1 },
-                  { field: 'createdAt', headerName: 'Date Submitted', flex: 1 },
-                  {
-                    field: 'actions',
-                    headerName: 'Actions',
-                    sortable: false,
-                    flex: 1,
-                    renderCell: (params: GridRenderCellParams) => (
-                      <Box>
-                        <Tooltip title="Download Result Files">
-                          <IconButton onClick={() => downloadFiles(params.row.files)}>
-                            <GetAppIcon />
+          <Box sx={{ height: 600, width: '100%' }}>
+            <StyledDataGrid
+              disableRowSelectionOnClick
+              rows={jobs.map((job: any) => ({
+                id: job.id,
+                alias: job.alias,
+                status: job.status,
+                createdAt: new Date(job.createdAt).toLocaleString(),
+                files: job.files,
+                job: job,
+              }))}
+              columns={[
+                { field: 'id', headerName: 'Job ID', flex: 1 },
+                { field: 'alias', headerName: 'Alias', flex: 1 },
+                { field: 'status', headerName: 'Status', flex: 1 },
+                { field: 'createdAt', headerName: 'Date Submitted', flex: 1 },
+                {
+                  field: 'actions',
+                  headerName: 'Actions',
+                  sortable: false,
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams) => (
+                    <Box>
+                      <Tooltip title="Download Result Files">
+                        <IconButton onClick={() => downloadFiles(params.row.files)}>
+                          <GetAppIcon />
+                        </IconButton>
+                      </Tooltip>
+                      {params.row.status === 'completed' && (
+                        <Tooltip title={`View job ${params.row.alias}`}>
+                          <IconButton onClick={() => handleView(params.row.job)}>
+                            <PlayArrowIcon sx={{ color: '#580f8b', '&:hover': { color: '#580f8b' } }} />
                           </IconButton>
                         </Tooltip>
-                        {params.row.status === 'completed' && (
-                          <Tooltip title={`View job ${params.row.alias}`}>
-                            <IconButton onClick={() => handleView(params.row.job)}>
-                              <PlayArrowIcon sx={{ color: '#580f8b', '&:hover': { color: '#580f8b' } }} />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </Box>
-                    ),
-                  },
-                ]}
-                pageSizeOptions={[10, 15]}
-                initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
-                getRowId={(row) => row.id}
-              />
-            </Box>
-          )}
+                      )}
+                    </Box>
+                  ),
+                },
+              ]}
+              pageSizeOptions={[10, 15]}
+              initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
+              getRowId={(row) => row.id}
+            />
+          </Box>
+
 
           <Box mt={4}>
             <Card variant="outlined" sx={{ p: 0 }}>
