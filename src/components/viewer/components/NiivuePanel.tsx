@@ -371,7 +371,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
             height: {
               xs: 300,  // phones and very small devices
               sm: 400,  // tablets or small laptops
-              md: 710,  // desktops and up
+              md: 773,  // desktops and up
             },
           }}
         >
@@ -455,6 +455,8 @@ export function NiivuePanel(props: NiivuePanelProps) {
               transform={(x) => x / a + b}
               inverse={(y) => a * y - a * b}
             />
+
+            {props.layerList}
           </CardContent>
         </Card>
 
