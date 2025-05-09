@@ -295,20 +295,50 @@ export const ROITable = (props: {
                     color="info"
                     key={uploadKey}
                     onUploaded={() => { }}
+                    // uploadHandler={async (file) => {
+                    //     const config = { headers: { Authorization: `Bearer ${accessToken}` } };
+                    //     const response = await axios.post(ROI_UPLOAD, {
+                    //         filename: file.name,
+                    //         pipeline_id: props.pipelineID,
+                    //         type: "image",
+                    //         contentType: "application/octet-stream"
+                    //     }, config);
+                    //     await props.zipAndSendROI(response.data.upload_url, file.name, file);
+                    //     await props.unpackROI(response.data.access_url);
+                    //     if (accessToken && pipeline) {
+                    //         dispatch(getPipelineROI({ accessToken, pipeline }));
+                    //     }
+                    //     return 200;
+                    // }}
                     uploadHandler={async (file) => {
-                        const config = { headers: { Authorization: `Bearer ${accessToken}` } };
+                        const config = {
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                            }
+                        };
+
+                        const filename = file.name;
+
+                        // 1. POST metadata to get signed upload URL
                         const response = await axios.post(ROI_UPLOAD, {
-                            filename: file.name,
+                            filename: filename,
                             pipeline_id: props.pipelineID,
                             type: "image",
                             contentType: "application/octet-stream"
                         }, config);
-                        await props.zipAndSendROI(response.data.upload_url, file.name, file);
+
+                        // 2. Upload the actual file to the signed URL
+                        await props.zipAndSendROI(response.data.upload_url, filename, file);
+
+                        // 3. Trigger backend to unpack ROI and return access URL
                         await props.unpackROI(response.data.access_url);
+
+                        // 4. Refresh Redux state with updated ROIs
                         if (accessToken && pipeline) {
                             dispatch(getPipelineROI({ accessToken, pipeline }));
                         }
-                        return 200;
+
+                        return 200; // Let CMRUpload know it succeeded
                     }}
                     createPayload={createPayload}
                     maxCount={1}
