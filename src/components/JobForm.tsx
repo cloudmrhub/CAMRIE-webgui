@@ -228,7 +228,7 @@ export default function JobForm() {
       }}>
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={7}>
+          <Grid item xs={12} sm={12} md={8}>
             <TextField
               label="Job Alias"
               fullWidth
@@ -237,7 +237,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={5}>
+          <Grid item xs={12} sm={12} md={4}>
             <TextField
               label="Slice Number"
               type="number"
@@ -249,7 +249,7 @@ export default function JobForm() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={7}>
+          <Grid item xs={12} sm={12} md={8}>
             <FormControl fullWidth>
               <InputLabel id="field-id-label">Select Model</InputLabel>
               <Select
@@ -309,7 +309,7 @@ export default function JobForm() {
             )}
           </Grid>
 
-          <Grid item xs={12} sm={5}>
+          <Grid item xs={12} sm={12} md={4}>
             <FormControl fullWidth>
               <InputLabel id="sequence-id-label">Select Sequence</InputLabel>
               <Select
