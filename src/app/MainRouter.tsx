@@ -8,7 +8,7 @@ import About from "./about/About";
 import ContactUs from "./contact-us/ContactUs";
 import BugReport from "./bug-report/BugReport";
 import { useAppDispatch, useAppSelector } from "../features/hooks";
-import { getLoggedInToken } from "cloudmr-ux/core/features/authenticate/authenticateActionCreation";
+import { getLoggedInToken, signOut } from "cloudmr-ux/core/features/authenticate/authenticateActionCreation";
 import WebSignin from "./WebSignin";
 import { AuthenticatedHttpClient } from "cloudmr-ux/core/common/utilities/AuthenticatedRequests";
 import { store } from "../features/store";
@@ -33,10 +33,10 @@ const MainRouter = () => {
       <BrowserRouter>
         {debugging_or_logged_in && (
           <HeaderBar
-            siteTitle="MR Optimum"
+            siteTitle="App Logo"
             email={email}
             menuList={[]}
-            handleLogout={() => {}}
+            handleLogout={() => dispatch(signOut())}
           />
         )}
         <Routes>

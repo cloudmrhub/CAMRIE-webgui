@@ -67,22 +67,21 @@ const Header = ({
               style={{
                 // backgroundColor: 'white',
                 // borderRadius: '30%',
-                width: "60px",
-                height: "60px",
+                // width: "60px",
+                // height: "60px",
                 marginRight: "10px",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <img
+              {/* <img
                 src={logoUrl}
                 alt="Logo"
                 style={{ height: "50px", width: "50px" }}
-              />{" "}
-              {/* adjust height and width as needed */}
+              />{" "} */}
             </div>{" "}
-            {/* {siteTitle} */}
+            {siteTitle}
           </Link>
           <button
             className="navbar-toggler"

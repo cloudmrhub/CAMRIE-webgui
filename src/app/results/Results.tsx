@@ -28,7 +28,6 @@ import {
 import { CmrCheckbox } from "cloudmr-ux";
 import { Row } from "antd";
 import Box from "@mui/material/Box";
-import { SetupInspection } from "./SetupInspection";
 import { Logs } from "./Logs";
 import { CMRUpload } from "cloudmr-ux";
 import { AxiosRequestConfig } from "axios";
@@ -552,23 +551,6 @@ const Results = ({ visible }: { visible?: boolean }) => {
               }}
             >
               Please Select a Job Result
-            </Box>
-          )}
-        </CmrPanel>
-        <CmrPanel header={"Current Job Settings"} key={"2"}>
-          {activeJob?.status === "completed" ? (
-            <SetupInspection />
-          ) : (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                color: "rgba(0,0,0,0.4)",
-              }}
-            >
-              {!activeJob
-                ? "Please Select a Job Result"
-                : "Job is not completed"}
             </Box>
           )}
         </CmrPanel>

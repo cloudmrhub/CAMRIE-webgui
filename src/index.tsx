@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client";
 import "./index.scss";
 import reportWebVitals from "./reportWebVitals";
-import MROptimum from "./app/MR Optimum";
+import MROptimum from "./app/App";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
