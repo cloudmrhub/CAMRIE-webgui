@@ -3,13 +3,12 @@ frontend:
   phases:
     preBuild:
       commands:
-        - export NODE_OPTIONS="--max-old-space-size=4096"
-        - yarn install
+        - npm ci
     build:
       commands:
-        - yarn build
+        - npm run build
   artifacts:
-    baseDirectory: build
+    baseDirectory: dist
     files:
       - '**/*'
   cache:
