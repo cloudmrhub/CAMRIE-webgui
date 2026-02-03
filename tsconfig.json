@@ -19,7 +19,7 @@
     //   // Map module paths for easier imports
     //   "cloudmr-ux/*": ["../cloudmr-ux/*"]
     // },
-    "types": ["vite/client", "react", "react-dom"] // Include Vite-specific type definitions for import.meta.env, etc.
+    // "types": ["vite/client"] // Include Vite-specific type definitions for import.meta.env, etc.
   },
   "include": ["src"] // Only compile files in the src directory
 }
