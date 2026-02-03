@@ -192,8 +192,8 @@ const Home = () => {
     | undefined
   >(undefined);
   const [open, setOpen] = useState<boolean>(false);
-  const [confirmCallback, setConfirmCallback] = useState<() => void>(() => {});
-  const [cancelCallback, setCancelCallback] = useState<() => void>(() => {});
+  const [confirmCallback, setConfirmCallback] = useState<() => void>(() => { });
+  const [cancelCallback, setCancelCallback] = useState<() => void>(() => { });
 
   const [selectedData, setSelectedData] = useState<GridRowSelectionModel>([]);
 
@@ -258,6 +258,9 @@ const Home = () => {
               setSelectedData(rowSelectionModel);
             }}
             columns={uploadedFilesColumns}
+            headerBgColor="#E3F1F6"
+            headerTextColor="#333"
+            headerIconColor="#1578A1"
           />
           <div className="row mt-2">
             <div className="col-4">

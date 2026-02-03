@@ -39,10 +39,10 @@ store.dispatch(
 const theme = createTheme({
   palette: {
     info: {
-      main: "#580F8B",
+      main: "#1578A1",
     },
     primary: {
-      main: "#580f8b",
+      main: "#1578A1",
     },
   },
   typography: {
@@ -54,6 +54,19 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: "none",
+        },
+      },
+    },
+    MuiCheckbox: {
+      styleOverrides: {
+        root: {
+          color: "#1578A1",
+          "&.Mui-checked": {
+            color: "#1578A1",
+          },
+          "&.MuiCheckbox-indeterminate": {
+            color: "#1578A1",
+          },
         },
       },
     },

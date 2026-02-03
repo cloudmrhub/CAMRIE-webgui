@@ -3993,10 +3993,10 @@ cliui@^7.0.2:
     strip-ansi "^6.0.0"
     wrap-ansi "^7.0.0"
 
-cloudmr-ux@3.0.4:
-  version "3.0.4"
-  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-3.0.4.tgz"
-  integrity sha512-trIxsPZDdzTrbn7Mvao1jdg1P7zY7LzkKtOrWNV5WHFFm7Ug9fLgL6OAtpw7kqZ45rUovtZW5LtkYoVytHlyGg==
+cloudmr-ux@^4.0.3:
+  version "4.0.3"
+  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-4.0.3.tgz"
+  integrity sha512-s0A2bpxarkteKPPT6lFqQ79IMGXWkcUYCr0X70pQzu7zKsvwHA5ZnFd+DTt/aIxTzmWQuOW6je1x4t0n2kLlMQ==
   dependencies:
     "@fortawesome/fontawesome-svg-core" "^6.7.2"
     "@fortawesome/free-solid-svg-icons" "^6.7.2"

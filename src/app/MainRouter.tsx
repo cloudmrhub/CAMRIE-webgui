@@ -12,9 +12,9 @@ import { getLoggedInToken, signOut } from "cloudmr-ux/core/features/authenticate
 import WebSignin from "./WebSignin";
 import { AuthenticatedHttpClient } from "cloudmr-ux/core/common/utilities/AuthenticatedRequests";
 import { store } from "../features/store";
-import appIcon from "../assets/mrOptimum.png";
+import appIcon from "../assets/camrieColor.png";
 
-const debugging = false;
+const debugging = true;
 
 const MainRouter = () => {
   const dispatch = useAppDispatch();
@@ -33,7 +33,7 @@ const MainRouter = () => {
       <BrowserRouter>
         {debugging_or_logged_in && (
           <HeaderBar
-            siteTitle="App Logo"
+            siteTitle=""
             email={email}
             menuList={[]}
             handleLogout={() => dispatch(signOut())}
@@ -53,7 +53,7 @@ const MainRouter = () => {
                     dispatch(getLoggedInToken(credentials))
                   }
                   appIcon={appIcon}
-                  appTitle="Optimum"
+                  // appTitle="CAMRIE"
                 />
               )
             }

@@ -34,6 +34,8 @@ const Main = (props: any) => {
         onTabSelected={(tabIndex) => {
           setFocusedTab(tabIndex);
         }}
+        tabIndicatorColor="#1578A1"
+        tabSelectedTextColor="#1578A1"
       />
     </div>
   );

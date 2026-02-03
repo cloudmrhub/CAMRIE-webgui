@@ -96,10 +96,10 @@ const Results = ({ visible }: { visible?: boolean }) => {
   >(undefined);
   const [open, setOpen] = useState<boolean>(false);
   const [confirmCallbackjob, setConfirmCallbackjob] = useState<() => void>(
-    () => {},
+    () => { },
   );
   const [cancelCallbackjob, setCancelCallbackjob] = useState<() => void>(
-    () => {},
+    () => { },
   );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,7 +227,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
                   }}
                 >
                   {resultLoading === params.row.id ||
-                  params.row.status === "pending" ? (
+                    params.row.status === "pending" ? (
                     <div
                       className="spinner-border spinner-border-sm"
                       style={{ aspectRatio: "1 / 1" }}
@@ -490,6 +490,9 @@ const Results = ({ visible }: { visible?: boolean }) => {
             dataSource={results}
             columns={completedJobsColumns}
             showCheckbox={false} // This will hide the checkboxes
+            headerBgColor="#E3F1F6"
+            headerTextColor="#333"
+            headerIconColor="#1578A1"
           />
           <Button
             className={"mt-3"}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import "./Header.scss";
 import { Link, useNavigate } from "react-router-dom";
 import { Toolbar, Container } from "@mui/material";
-import logoUrl from "../../../assets/MR Optimum_final_white.png";
+import logoUrl from "../../../assets/camrieLogo.png";
 interface MenuItem {
   path: string;
   title: string;
@@ -47,7 +47,7 @@ const Header = ({
     <nav
       className="navbar navbar-expand-md navbar-dark bg-dark shadow-sm"
       style={{
-        background: "#390063",
+        background: "#1578A1",
         paddingTop: "10px",
         paddingBottom: "10px",
       }}
@@ -75,11 +75,11 @@ const Header = ({
                 alignItems: "center",
               }}
             >
-              {/* <img
+              <img
                 src={logoUrl}
                 alt="Logo"
-                style={{ height: "50px", width: "50px" }}
-              />{" "} */}
+                style={{ height: "65px", width: "65px" }}
+              />{" "}
             </div>{" "}
             {siteTitle}
           </Link>
