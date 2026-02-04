@@ -13,26 +13,26 @@ import {
 import { CLOUDMR_SERVER, API_TOKEN } from "../env";
 
 // Initialize CloudMR Core configuration
-const mrOptimumConfig = {
-  APP_NAME: "MR Optimum",
+const camrieConfig = {
+  APP_NAME: "CAMRIE",
   CLOUDMR_SERVER: CLOUDMR_SERVER,
   API_TOKEN: API_TOKEN,
   REQUESTS_TIMEOUT: 5000,
   FILE_CHUNK_SIZE: 10 * 1024 * 1024,
 };
 
-const endpoints = createEndpoints(mrOptimumConfig.CLOUDMR_SERVER);
+const endpoints = createEndpoints(camrieConfig.CLOUDMR_SERVER);
 
 initializeCloudMRCore({
-  appConfig: mrOptimumConfig,
+  appConfig: camrieConfig,
   endpoints: endpoints,
 });
 
 // Initialize authentication tokens
 store.dispatch(
   setInitialTokens({
-    uploadToken: mrOptimumConfig.API_TOKEN,
-    queueToken: mrOptimumConfig.API_TOKEN,
+    uploadToken: camrieConfig.API_TOKEN,
+    queueToken: camrieConfig.API_TOKEN,
   }),
 );
 
@@ -82,7 +82,7 @@ const theme = createTheme({
   },
 });
 
-function MrOptimum(props: any) {
+function CAMRIE(props: any) {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
@@ -96,4 +96,4 @@ function MrOptimum(props: any) {
   );
 }
 
-export default MrOptimum;
+export default CAMRIE;

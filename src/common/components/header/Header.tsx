@@ -116,7 +116,6 @@ const Header = ({
                             window.open(
                               "https://github.com/cloudmrhub-com/mroptimum/issues",
                             );
-                            // window.location.href='https://github.com/cloudmrhub-com/mroptimum/issues';
                             return;
                         }
                         event.preventDefault();
