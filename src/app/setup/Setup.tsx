@@ -11,43 +11,33 @@ import {
   setupGetters,
   setupSetters,
 } from "../../features/setup/setupSlice";
-import { CMRSelectUpload } from "cloudmr-ux";
+import { CMRSelectUpload, CmrInputNumber } from "cloudmr-ux";
 import { CmrLabel } from "cloudmr-ux";
 import { Col, Row } from "antd";
 import moment from "moment";
-
 import {
   Divider,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  RadioGroup,
-  Radio,
-  InputLabel,
-  Select,
-  MenuItem,
   Tooltip,
-  Snackbar,
-  Alert,
   Typography,
   Button,
   Box,
   Card,
   CardContent,
+  CardHeader,
   Grid,
-  Checkbox
+  Checkbox,
+  Alert,
+  TextField,
+  FormControl,
+  MenuItem,
+  Select,
+  FormHelperText
 } from "@mui/material";
-import { CmrCheckbox } from "cloudmr-ux";
-import {
-  DataGrid,
-  GridCellEditStopParams,
-  GridColDef,
-  GridRowId,
-  GridRowsProp,
-} from "@mui/x-data-grid";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import { CmrButton } from "cloudmr-ux";
-import { CmrInputNumber } from "cloudmr-ux";
-import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { UploadedFile } from "cloudmr-ux/core/features/data/dataSlice";
 import { formatBytes } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import { jobActions } from "cloudmr-ux/core/features/jobs/jobsSlice";
@@ -260,6 +250,72 @@ const Setup = () => {
 
   //end
 
+  // --- Edit Sequence Dialog ---
+  const [editSeqOpen, setEditSeqOpen] = useState(false);
+
+  const [editSeqDraft, setEditSeqDraft] = useState<{
+    trMs: number;
+    teMs: number;
+  }>({ trMs: 0, teMs: 0 });
+
+  const parseMs = (v: string) => {
+    const n = Number(String(v).replace(/[^\d.]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const formatMs = (n: number) => `${n}ms`;
+
+  const openEditSequenceDialog = () => {
+    if (!selectedSequence) return;
+
+    // prefill draft from current values
+    setEditSeqDraft({
+      trMs: parseMs(selectedSequence.tr),
+      teMs: parseMs(selectedSequence.te),
+    });
+
+    setEditSeqOpen(true);
+  };
+
+  const closeEditSequenceDialog = () => {
+    setEditSeqOpen(false);
+  };
+
+  const saveEditSequenceDialog = () => {
+    if (!selectedSequence) return;
+
+    // If not mtrk, just close (no edits allowed anyway)
+    if (selectedSequence.type !== "mtrk") {
+      setEditSeqOpen(false);
+      return;
+    }
+
+    // update selectedSequence locally
+    const updated = {
+      ...selectedSequence,
+      tr: formatMs(editSeqDraft.trMs),
+      te: formatMs(editSeqDraft.teMs),
+    };
+
+    setSelectedSequence(updated);
+
+    setProtocolSequences((prev) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, tr: updated.tr, te: updated.te } : s))
+    );
+
+    setEditSeqOpen(false);
+  };
+  // -- end Edit Sequence Dialog
+
+
+  // --- Protocol Dropdown ---
+  const [protocol, setProtocol] = React.useState('');
+
+  const handleChange = (event) => {
+    setProtocol(event.target.value);
+  };
+
+
   // placeholder remove later
   const noopUploadHandler = async (
     file: File,
@@ -274,7 +330,6 @@ const Setup = () => {
     // no real upload — just return a fake numeric id
     return 0;
   };
-
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -386,167 +441,157 @@ const Setup = () => {
 
 
   return (
-    <Box
-      className="page-content"
-      sx={{
-        minHeight: "100vh",
-        boxSizing: "border-box",
-        pb: "72px", // reserve space for footer overlap
-      }}
-    >
-      <CmrCollapse
-        accordion={false}
-        expandIconPosition="right"
-        activeKey={openModelPanel}
-        onChange={(keys: any) => setOpenModelPanel(keys)}
-      >
-        <CmrPanel key="1" header="Model" className="mb-2">
-          <Row>
-            <Col>
-              <Box display="flex" flexDirection="column">
-                {/* Inline row for label, upload, clear, checkbox */}
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CmrLabel style={{ marginRight: "10px" }}>
-                    Model:
-                  </CmrLabel>
+    <Grid container spacing={2} sx={{ minHeight: '100vh', alignItems: 'stretch' }}>
+      <Grid item xs={12} md={5} sx={{ minHeight: { xs: 0, sm: 0, md: 1430 } }}>
+        {/* Model */}
+        <CmrCollapse
+          accordion={false}
+          expandIconPosition="right"
+          activeKey={openModelPanel}
+          onChange={(keys: any) => setOpenModelPanel(keys)}
+        >
+          <CmrPanel key="1" header="Model" className="mb-2">
+            <Row>
+              <Col>
+                <Box display="flex" flexDirection="column">
+                  {/* Inline row for label, upload, clear, checkbox */}
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <CmrLabel style={{ marginRight: "10px" }}>
+                      Model:
+                    </CmrLabel>
 
-                  <CMRSelectUpload
-                    fileSelection={uploadedFiles}
-                    onSelected={handleModelSelected}
-                    onUploaded={() => { }}
-                    chosenFile={selectedModel?.name}
-                    maxCount={1}
-                    uploadHandler={noopUploadHandler}
-                    buttonText="Choose"
-                  />
-
-                  {/* Clear Button */}
-                  {selectedModel && (
-                    <Tooltip title="Clear Selected Model">
-                      <IconButton size="small" onClick={clearSelectedModel}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              </Box>
-            </Col>
-          </Row>
-
-          {selectedModel && (
-            <Grid container spacing={2} sx={{ mt: 2 }}>
-              {/* LEFT CARD: Image */}
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined">
-                  <CardContent
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={selectedModel.image}
-                      alt={selectedModel.name}
-                      sx={{
-                        maxWidth: "100%",
-                        maxHeight: 265,
-                        objectFit: "contain",
-                      }}
+                    <CMRSelectUpload
+                      fileSelection={uploadedFiles}
+                      onSelected={handleModelSelected}
+                      onUploaded={() => { }}
+                      chosenFile={selectedModel?.name}
+                      maxCount={1}
+                      uploadHandler={noopUploadHandler}
+                      buttonText="Choose"
                     />
-                  </CardContent>
-                </Card>
-              </Grid>
 
-              {/* RIGHT CARD: Description / Metadata */}
-              <Grid item xs={12} md={8}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 3, fontSize: "16px" }}>
-                      {selectedModel.name}
-                    </Typography>
+                    {/* Clear Button */}
+                    {selectedModel && (
+                      <Tooltip title="Clear Selected Model">
+                        <IconButton size="small" onClick={clearSelectedModel}>
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                </Box>
+              </Col>
+            </Row>
 
-                    <Grid container>
-                      {/* Column 1 */}
-                      <Grid item xs={12} sm={12}>
-                        <Typography>
-                          <strong>Object Name:</strong> {selectedModel.objectName}
-                        </Typography>
-                        <Typography>
-                          <strong>B0:</strong> {selectedModel.b0}
-                        </Typography>
-                        <Typography>
-                          <strong>Frequency:</strong> {selectedModel.frequency}
-                        </Typography>
-                        <Typography>
-                          <strong>Resolution:</strong> {selectedModel.resolution}
-                        </Typography>
-                        <Typography>
-                          <strong>Number of Tissues:</strong> {selectedModel.numOfTissues}
-                        </Typography>
-                        <Typography>
-                          <strong>Coil:</strong> {selectedModel.coil}
-                        </Typography>
-                        <Typography>
-                          <strong>Channels:</strong> {selectedModel.channels}
-                        </Typography>
-                        <Typography>
-                          <strong>Number of Elements:</strong> {selectedModel.numOfElements}
-                        </Typography>
-                        <Typography>
-                          <strong>EM&nbsp;Simulator:</strong>&nbsp;{selectedModel.emSimulator}
-                        </Typography>
-                      </Grid>
-
-                      {/* Column 2 */}
-                      {/* <Grid item xs={12} sm={7}>
-                        <Typography>
-                          <strong>Coil:</strong> {selectedModel.coil}
-                        </Typography>
-                        <Typography>
-                          <strong>Channels:</strong> {selectedModel.channels}
-                        </Typography>
-                        <Typography>
-                          <strong>Number of Elements:</strong> {selectedModel.numOfElements}
-                        </Typography>
-                        <Typography>
-                          <strong>EM&nbsp;Simulator:</strong>&nbsp;{selectedModel.emSimulator}
-                        </Typography>
-                      </Grid> */}
+            {selectedModel && (
+              <Card variant="outlined" sx={{ mt: 2 }}>
+                <CardHeader
+                  subheader="Model Details"
+                  sx={{
+                    backgroundColor: "#F7F7F9",
+                    borderBottom: "1px solid #E6E6EA",
+                    "& .MuiCardHeader-subheader": {
+                      color: "#333"
+                    }
+                  }}
+                />
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    {/* LEFT: Image */}
+                    <Grid item xs={12} md={4}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          height: "100%",
+                          minHeight: 220,
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={selectedModel.image}
+                          alt={selectedModel.name}
+                          sx={{
+                            maxWidth: "100%",
+                            maxHeight: 265,
+                            objectFit: "contain",
+                          }}
+                        />
+                      </Box>
                     </Grid>
 
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          )}
+                    {/* RIGHT: Details */}
+                    <Grid item xs={12} md={8}>
+                      {/* <Typography variant="h6" sx={{ mb: 2, fontSize: "16px" }}>
+                        {selectedModel.name}
+                      </Typography> */}
 
-          {/* a simple "Proceed" button that opens the pulse sequence panel*/}
-          {selectedModel && (
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <CmrButton
-                variant="contained"
-                onClick={handleProceedToPulseSequence}
-              >
-                Proceed
-              </CmrButton>
-            </Box>
-          )}
-        </CmrPanel>
-      </CmrCollapse>
+                      <Typography>
+                        <strong>Object Name:</strong> {selectedModel.objectName}
+                      </Typography>
 
-      {/* Pulse Sequence */}
-      <CmrCollapse
-        accordion={false}
-        expandIconPosition="right"
-        activeKey={openPulsePanel}
-        onChange={(keys: any) => setOpenPulsePanel(keys)}
-      >
-        <CmrPanel header="Pulse Sequence" className="mb-2">
-          <Row>
-            <Col>
-              <Typography variant="h6" sx={{ fontSize: "16px", mb: 2, }}> Pulse Sequence Selection</Typography>
+                      <Typography>
+                        <strong>B<sub>0</sub>:</strong> {selectedModel.b0}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Frequency:</strong> {selectedModel.frequency}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Resolution:</strong> {selectedModel.resolution}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Number of Tissues:</strong> {selectedModel.numOfTissues}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Coil:</strong> {selectedModel.coil}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Channels:</strong> {selectedModel.channels}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Number of Elements:</strong> {selectedModel.numOfElements}
+                      </Typography>
+
+                      <Typography>
+                        <strong>EM Simulator:</strong> {selectedModel.emSimulator}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* a simple "Proceed" button that opens the pulse sequence panel*/}
+            {selectedModel && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                <CmrButton
+                  variant="contained"
+                  onClick={handleProceedToPulseSequence}
+                >
+                  Proceed
+                </CmrButton>
+              </Box>
+            )}
+          </CmrPanel>
+        </CmrCollapse>
+
+        {/* Pulse Sequence */}
+        <CmrCollapse
+          accordion={false}
+          expandIconPosition="right"
+          activeKey={openPulsePanel}
+          onChange={(keys: any) => setOpenPulsePanel(keys)}
+        >
+          <CmrPanel header="Pulse Sequence and Protocol" className="mb-2">
+            {/* <Typography variant="h6" sx={{ fontSize: "16px", mb: 2, }}> Pulse Sequence Selection</Typography> */}
+            <Box sx={{ pb: 3 }}>
               <Box display="flex" flexDirection="column">
                 {/* Inline row for label, upload, clear, checkbox */}
                 <Box display="flex" alignItems="center" gap={1}>
@@ -579,6 +624,29 @@ const Setup = () => {
 
               {selectedSequence && (
                 <Card variant="outlined" sx={{ mt: 2 }}>
+                  <CardHeader
+                    subheader="Sequence Details"
+                    sx={{
+                      backgroundColor: "#F7F7F9",
+                      borderBottom: "1px solid #E6E6EA",
+                      "& .MuiCardHeader-subheader": {
+                        color: "#333"
+                      }
+                    }}
+                    action={
+                      <Tooltip title="Edit Sequence Details">
+                        <span>
+                          <IconButton
+                            aria-label="edit"
+                            onClick={openEditSequenceDialog}
+                            disabled={!selectedSequence}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    }
+                  />
                   <CardContent>
                     <Box textAlign="left" height="100%">
                       <Typography><strong>ID:</strong>&nbsp;{selectedSequence.id}</Typography>
@@ -592,6 +660,96 @@ const Setup = () => {
                 </Card>
               )}
 
+              <Dialog
+                open={editSeqOpen}
+                onClose={closeEditSequenceDialog}
+                fullWidth
+                maxWidth="sm"
+              >
+                <DialogTitle sx={{ fontFamily: "Inter, Roboto, Helvetica, Arial, sans-serif" }}>
+                  Edit Sequence Details
+                </DialogTitle>
+
+                <DialogContent dividers>
+                  {!selectedSequence ? (
+                    <Typography color="text.secondary">No sequence selected.</Typography>
+                  ) : (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+                      <Typography><strong>ID:</strong>&nbsp;{selectedSequence.id}</Typography>
+                      <Typography><strong>Description:</strong>&nbsp;{selectedSequence.description}</Typography>
+
+                      {/* TR */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography sx={{ minWidth: 44 }}><strong>TR:</strong></Typography>
+
+                        {selectedSequence.type === "mtrk" ? (
+                          <>
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={editSeqDraft.trMs}
+                              onChange={(e) =>
+                                setEditSeqDraft((d) => ({ ...d, trMs: Number(e.target.value) || 0 }))
+                              }
+                              inputProps={{ min: 0, step: 1 }}
+                              sx={{ width: 160 }}
+                            />
+                            <Typography color="text.secondary">ms</Typography>
+
+                          </>
+                        ) : (
+                          <Typography>{selectedSequence.tr}</Typography>
+                        )}
+                      </Box>
+
+                      {/* TE */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography sx={{ minWidth: 44 }}><strong>TE:</strong></Typography>
+
+                        {selectedSequence.type === "mtrk" ? (
+                          <>
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={editSeqDraft.teMs}
+                              onChange={(e) =>
+                                setEditSeqDraft((d) => ({ ...d, teMs: Number(e.target.value) || 0 }))
+                              }
+                              inputProps={{ min: 0, step: 1 }}
+                              sx={{ width: 160 }}
+                            />
+                            <Typography color="text.secondary">ms</Typography>
+                          </>
+                        ) : (
+                          <Typography>{selectedSequence.te}</Typography>
+                        )}
+                      </Box>
+
+                      <Typography><strong>FA:</strong>&nbsp;{selectedSequence.fa}</Typography>
+                      <Typography><strong>ACC:</strong>&nbsp;1x1</Typography>
+
+                      {selectedSequence.type !== "mtrk" && (
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                          TR/TE editing is available only for <strong>mtrk</strong> sequences.
+                        </Alert>
+                      )}
+                    </Box>
+                  )}
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                  <CmrButton variant="outlined" onClick={closeEditSequenceDialog}>Cancel</CmrButton>
+
+                  <CmrButton
+                    variant="contained"
+                    onClick={saveEditSequenceDialog}
+                    disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
+                  >
+                    Save
+                  </CmrButton>
+                </DialogActions>
+              </Dialog>
+
               {/* "Add Sequence" button (display only when selectedSequence is not null) */}
               {selectedSequence && (
                 <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end", pt: 2 }}>
@@ -600,27 +758,42 @@ const Setup = () => {
                   </CmrButton>
                 </Box>
               )}
-            </Col>
+            </Box>
 
-            <Col
-              xs="auto"
-              style={{
-                display: "flex",
-                alignItems: "stretch",
-              }}
-            >
-              <Divider orientation="vertical" flexItem sx={{
-                mx: 4, borderColor: "rgba(0, 0, 0, 0.35)",
-                borderRightWidth: 1.5,
-              }} />
-            </Col>
+            <Divider orientation="horizontal" flexItem sx={{
+              mx: 0, borderColor: "rgba(0, 0, 0, 0.35)",
+              borderRightWidth: 1.5,
+            }} />
 
-            <Col>
-              <Typography variant="h6" sx={{ fontSize: "16px", mb: 2, }}> Protocol </Typography>
+            <Box sx={{ pt: 3, pb: 3 }}>
+              {/* Inline row for label, upload, clear, checkbox */}
+              <Box display="flex" alignItems="center" gap={1} sx={{ pb: 2 }}>
+
+                <CmrLabel style={{ marginRight: "10px" }}>
+                  Protocol:
+                </CmrLabel>
+
+                <FormControl size="small" sx={{ m: 1, minWidth: 120 }}>
+                  <Select
+                    value={protocol}
+                    onChange={handleChange}
+                    displayEmpty
+                    inputProps={{ 'aria-label': 'Without label' }}
+                  >
+                    <MenuItem value="">
+                      <em>Select Protocol</em>
+                    </MenuItem>
+                    <MenuItem value={10}>Protocol 1</MenuItem>
+                    <MenuItem value={20}>Protocol 2</MenuItem>
+                    <MenuItem value={30}>Protocol 3</MenuItem>
+                  </Select>
+                </FormControl>
+
+              </Box>
 
               {protocolSequences.length === 0 ? (
-                <Typography color="text.secondary">
-                  No pulse sequence added
+                <Typography color="text.secondary" sx={{ pt: 2 }}>
+                  Select a protocol or add pulse sequences
                 </Typography>
               ) : (
                 <Box display="flex" flexDirection="column" gap={1}>
@@ -655,77 +828,77 @@ const Setup = () => {
                   }
                 </Box>
               )}
+            </Box>
 
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 1.5,          // spacing between buttons
-                  mt: 2,
-                  width: "100%",
-                }}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1.5,          // spacing between buttons
+                mt: 2,
+                width: "100%",
+              }}
+            >
+              <CmrButton
+                variant="contained"
+                color="error"
+                onClick={handleDeleteCheckedSequences}
+                disabled={protocolSequences.length === 0}
+                sx={{ flex: 1, width: "100%" }}
               >
-                <CmrButton
-                  variant="contained"
-                  color="error"
-                  onClick={handleDeleteCheckedSequences}
-                  disabled={protocolSequences.length === 0}
-                  sx={{ flex: 1, width: "100%" }}
-                >
-                  Delete
-                </CmrButton>
+                Delete
+              </CmrButton>
 
-                <CmrButton
-                  variant="contained"
-                  onClick={() => { }}
-                  sx={{ flex: 1, width: "100%"}}
-                  disabled={protocolSequences.length === 0}
-                >
-                  Save
-                </CmrButton>
+              <CmrButton
+                variant="contained"
+                onClick={() => { }}
+                sx={{ flex: 1, width: "100%" }}
+                disabled={protocolSequences.length === 0}
+              >
+                Save
+              </CmrButton>
 
-                <CmrButton
-                  variant="contained"
-                  onClick={() => { }}
-                  sx={{ flex: 1, width: "100%", }}
-                  disabled={protocolSequences.length === 0}
-                >
-                  Queue
-                </CmrButton>
-              </Box>
+              <CmrButton
+                variant="contained"
+                onClick={() => { }}
+                sx={{ flex: 1, width: "100%", }}
+                disabled={protocolSequences.length === 0}
+              >
+                Queue
+              </CmrButton>
+            </Box>
 
+          </CmrPanel>
 
-            </Col>
-          </Row>
-        </CmrPanel>
+        </CmrCollapse>
+      </Grid>
 
-      </CmrCollapse>
-
-      {/* Field of View */}
-      <CmrCollapse
-        accordion={false}
-        expandIconPosition="right"
-        activeKey={openFieldofViewPanel}
-        onChange={(keys: any) => setOpenFieldofViewPanel(keys)}
-      >
-        <CmrPanel header="Field of View" className="mb-2">
-          <Row>
-            <Col>
-              <Box display="flex" flexDirection="column">
-                {/* Inline row for label, upload, clear, checkbox */}
-                <Box display="flex" alignItems="center" gap={1}>
+      <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Field of View */}
+        <CmrCollapse
+          accordion={false}
+          expandIconPosition="right"
+          activeKey={openFieldofViewPanel}
+          onChange={(keys: any) => setOpenFieldofViewPanel(keys)}
+        >
+          <CmrPanel header="Field of View" className="mb-2">
+            <Row>
+              <Col>
+                <Box display="flex" flexDirection="column">
+                  {/* Inline row for label, upload, clear, checkbox */}
+                  <Box display="flex" alignItems="center" gap={1}>
 
 
+                  </Box>
                 </Box>
-              </Box>
-            </Col>
-          </Row>
+              </Col>
+            </Row>
 
-        </CmrPanel>
+          </CmrPanel>
 
-      </CmrCollapse>
-
-
-    </Box>
+        </CmrCollapse>
+      </Grid>
+    </Grid >
+    // </Box>
   );
 };
 

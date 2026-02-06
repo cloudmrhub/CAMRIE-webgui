@@ -14,7 +14,7 @@ import { AuthenticatedHttpClient } from "cloudmr-ux/core/common/utilities/Authen
 import { store } from "../features/store";
 import appIcon from "../assets/camrieColor.png";
 
-const debugging = true;
+const debugging = false;
 
 const MainRouter = () => {
   const dispatch = useAppDispatch();
@@ -28,6 +28,12 @@ const MainRouter = () => {
   AuthenticatedHttpClient.setDispatch(dispatch);
   const debugging_or_logged_in = debugging || logged_in_token;
 
+  const menuList = [
+    { title: 'About', path: '/about' },
+    // { title: 'Contact Us', path: '/contact' },
+    { title: 'Bug Report', path: '/bug-report' },
+  ];
+
   return (
     <React.Fragment>
       <BrowserRouter>
@@ -35,7 +41,7 @@ const MainRouter = () => {
           <HeaderBar
             siteTitle=""
             email={email}
-            menuList={[]}
+            menuList={menuList}
             handleLogout={() => dispatch(signOut())}
           />
         )}
@@ -53,7 +59,7 @@ const MainRouter = () => {
                     dispatch(getLoggedInToken(credentials))
                   }
                   appIcon={appIcon}
-                  // appTitle="CAMRIE"
+                // appTitle="CAMRIE"
                 />
               )
             }
