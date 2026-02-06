@@ -472,6 +472,34 @@ const Setup = () => {
     });
   };
 
+  // --- Save As New (DEMO only) ---
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [saveAsIdDraft, setSaveAsIdDraft] = useState("");
+
+  const openSaveAsDialog = () => {
+    if (!selectedSequence) return;
+
+    // suggestion only
+    const suggested = selectedSequence.id.replace(/(\.mtrk|\.seq)$/i, "_copy$1");
+    setSaveAsIdDraft(suggested);
+
+    setSaveAsOpen(true);
+
+    setEditSeqOpen(false);
+
+  };
+
+  const closeSaveAsDialog = () => {
+    setSaveAsOpen(false);
+  };
+
+  // demo: do nothing except close
+  const confirmSaveAsDemo = () => {
+    setSaveAsOpen(false);
+    // no changes, no additions, no edits
+  };
+
+
 
   return (
     <Grid container spacing={2} sx={{ minHeight: '100vh', alignItems: 'stretch' }}>
@@ -569,7 +597,7 @@ const Setup = () => {
                       </Typography>
 
                       <Typography>
-                        <strong>Frequency:</strong> {selectedModel.frequency}
+                        <strong>Frequency:</strong> {selectedModel.frequency} MHz
                       </Typography>
 
                       <Typography>
@@ -586,10 +614,6 @@ const Setup = () => {
 
                       <Typography>
                         <strong>Channels:</strong> {selectedModel.channels}
-                      </Typography>
-
-                      <Typography>
-                        <strong>Number of Elements:</strong> {selectedModel.numOfElements}
                       </Typography>
 
                       <Typography>
@@ -667,7 +691,7 @@ const Setup = () => {
                       }
                     }}
                     action={
-                      <Tooltip title="Edit Sequence Details">
+                      <Tooltip title="Edit Sequence">
                         <span>
                           <IconButton
                             aria-label="edit"
@@ -700,7 +724,7 @@ const Setup = () => {
                 maxWidth="sm"
               >
                 <DialogTitle sx={{ fontFamily: "Inter, Roboto, Helvetica, Arial, sans-serif" }}>
-                  Edit Sequence Details
+                  Edit Sequence
                 </DialogTitle>
 
                 <DialogContent dividers>
@@ -770,15 +794,88 @@ const Setup = () => {
                   )}
                 </DialogContent>
 
-                <DialogActions sx={{ px: 3, py: 2 }}>
+                <DialogActions
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <CmrButton variant="outlined" onClick={closeEditSequenceDialog}>Cancel</CmrButton>
+
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <CmrButton
+                      variant="contained"
+                      onClick={saveEditSequenceDialog}
+                      disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
+                    >
+                      Save Changes
+                    </CmrButton>
+
+                    <CmrButton
+                      variant="contained"
+                      onClick={openSaveAsDialog}
+                      disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
+                    >
+                      Save as New
+                    </CmrButton>
+                  </Box>
+                </DialogActions>
+              </Dialog>
+
+              <Dialog
+                open={saveAsOpen}
+                onClose={closeSaveAsDialog}
+                fullWidth
+                maxWidth="sm"
+              >
+                <DialogTitle sx={{ fontFamily: "Inter, Roboto, Helvetica, Arial, sans-serif" }}>
+                  Save As New Sequence
+                </DialogTitle>
+
+                <DialogContent dividers>
+                  {!selectedSequence ? (
+                    <Typography color="text.secondary">No sequence selected.</Typography>
+                  ) : (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                      <Typography>
+                        <strong>Original ID:</strong>&nbsp;{selectedSequence.id}
+                      </Typography>
+
+                      <TextField
+                        label="New ID"
+                        size="small"
+                        value={saveAsIdDraft}
+                        onChange={(e) => setSaveAsIdDraft(e.target.value)}
+                        fullWidth
+                      />
+
+                      {/* <Alert severity="info" sx={{ mt: 1 }}>
+                        Demo only: this will not create a new sequence yet.
+                      </Alert> */}
+                    </Box>
+                  )}
+                </DialogContent>
+
+                <DialogActions
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <CmrButton variant="outlined" onClick={closeSaveAsDialog}>
+                    Cancel
+                  </CmrButton>
 
                   <CmrButton
                     variant="contained"
-                    onClick={saveEditSequenceDialog}
-                    disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
+                    onClick={confirmSaveAsDemo}
+                    disabled={!saveAsIdDraft.trim()}
                   >
-                    Save
+                    Create
                   </CmrButton>
                 </DialogActions>
               </Dialog>
