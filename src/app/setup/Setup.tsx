@@ -24,6 +24,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CardActions,
   Grid,
   Checkbox,
   Alert,
@@ -215,6 +216,15 @@ const Setup = () => {
     },
   ];
 
+  const getSequenceById = (id: string) =>
+    sequenceOptions.find((s) => s.id === id) ?? null;
+
+  const PROTOCOL_1_SEQUENCE_IDS = [
+    "PD-Weighted_Spin_Echo.mtrk",
+    "T1-Weighted_Spin_Echo.seq",
+    "T1-Weighted_Spoiled_GRE.seq",
+  ];
+
   const uploadedFiles2: UploadedFile[] = sequenceOptions.map((opt, index) => ({
     id: index + 1,          // numeric ID for SelectUpload
     fileName: opt.name,    // what shows in dropdown
@@ -309,12 +319,35 @@ const Setup = () => {
 
 
   // --- Protocol Dropdown ---
-  const [protocol, setProtocol] = React.useState('');
+  // --- Protocol Dropdown ---
+  const [protocol, setProtocol] = useState<string | number>(""); // "" = New Protocol
 
-  const handleChange = (event) => {
-    setProtocol(event.target.value);
+  const handleChange = (event: any) => {
+    const value = event.target.value;
+    setProtocol(value);
+
+    // Reset check state when switching protocols
+    setProtocolChecked({});
+
+    if (value === "") {
+      // New Protocol => start empty
+      setProtocolSequences([]);
+      return;
+    }
+
+    if (value === 10) {
+      // Protocol 1 => load predefined sequences
+      const loaded = PROTOCOL_1_SEQUENCE_IDS
+        .map((id) => getSequenceById(id))
+        .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
+
+      setProtocolSequences(loaded);
+      return;
+    }
+
+    // Protocol 2/3 (placeholder for now)
+    setProtocolSequences([]);
   };
-
 
   // placeholder remove later
   const noopUploadHandler = async (
@@ -754,7 +787,7 @@ const Setup = () => {
               {selectedSequence && (
                 <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end", pt: 2 }}>
                   <CmrButton variant="contained" onClick={handleAddSequence}>
-                    Add Sequence
+                    Add Sequence to Protocol
                   </CmrButton>
                 </Box>
               )}
@@ -773,7 +806,7 @@ const Setup = () => {
                   Protocol:
                 </CmrLabel>
 
-                <FormControl size="small" sx={{ m: 1, minWidth: 120 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
                   <Select
                     value={protocol}
                     onChange={handleChange}
@@ -781,7 +814,7 @@ const Setup = () => {
                     inputProps={{ 'aria-label': 'Without label' }}
                   >
                     <MenuItem value="">
-                      <em>Select Protocol</em>
+                      <em>New Protocol</em>
                     </MenuItem>
                     <MenuItem value={10}>Protocol 1</MenuItem>
                     <MenuItem value={20}>Protocol 2</MenuItem>
@@ -793,79 +826,98 @@ const Setup = () => {
 
               {protocolSequences.length === 0 ? (
                 <Typography color="text.secondary" sx={{ pt: 2 }}>
-                  Select a protocol or add pulse sequences
+                  Add pulse sequence(s) to the protocol
                 </Typography>
               ) : (
-                <Box display="flex" flexDirection="column" gap={1}>
-                  {
-                    protocolSequences.map((seq) => (
-                      <Box key={seq.id} display="flex" alignItems="center" gap={1}>
-                        <Checkbox
-                          size="small"
-                          checked={!!protocolChecked[seq.id]}
-                          onChange={() => toggleProtocolChecked(seq.id)}
-                          sx={{
-                            p: 0,
-                            mr: 0.5,
-                            "&.Mui-checked": {
-                              color: "#1578A1 !important",
-                            },
-                          }}
-                        />
-                        <Typography>{seq.name}</Typography>
+                <Card variant="outlined" sx={{ mt: 2 }}>
+                  <CardHeader
+                    subheader="List of Sequences"
+                    sx={{
+                      backgroundColor: "#F7F7F9",
+                      borderBottom: "1px solid #E6E6EA",
+                      "& .MuiCardHeader-subheader": {
+                        color: "#333"
+                      }
+                    }}
+                  />
+                  <CardContent>
+                    <Box display="flex" flexDirection="column" gap={1}>
+                      {
+                        protocolSequences.map((seq) => (
+                          <Box key={seq.id} display="flex" alignItems="center" gap={1}>
+                            <Checkbox
+                              size="small"
+                              checked={!!protocolChecked[seq.id]}
+                              onChange={() => toggleProtocolChecked(seq.id)}
+                              sx={{
+                                p: 0,
+                                mr: 0.5,
+                                "&.Mui-checked": {
+                                  color: "#1578A1 !important",
+                                },
+                              }}
+                            />
+                            <Typography>{seq.name}</Typography>
 
-                        {/* Right: trash icon */}
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveSequenceFromProtocol(seq.id)}
-                          sx={{ ml: 1 }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                            {/* Right: trash icon */}
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveSequenceFromProtocol(seq.id)}
+                              sx={{ ml: 1 }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))
+                      }
+                    </Box>
+                  </CardContent>
+                  <CardActions sx={{
+                    borderTop: "1px solid #E6E6EA",
+                    px: 2,
+                    py: 2,
+                  }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1.5,          // spacing between buttons
+                        width: "100%",
+                      }}
+                    >
+                      <CmrButton
+                        variant="contained"
+                        color="error"
+                        onClick={handleDeleteCheckedSequences}
+                        disabled={protocolSequences.length === 0}
+                        sx={{ flex: 1, width: "100%" }}
+                      >
+                        Delete
+                      </CmrButton>
 
-                    ))
-                  }
-                </Box>
+                      <CmrButton
+                        variant="contained"
+                        onClick={() => { }}
+                        sx={{ flex: 1, width: "100%" }}
+                        disabled={protocolSequences.length === 0}
+                      >
+                        Save
+                      </CmrButton>
+
+                      <CmrButton
+                        variant="contained"
+                        onClick={() => { }}
+                        sx={{ flex: 1, width: "100%", }}
+                        disabled={protocolSequences.length === 0}
+                      >
+                        Queue
+                      </CmrButton>
+                    </Box>
+                  </CardActions>
+                </Card>
               )}
             </Box>
 
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1.5,          // spacing between buttons
-                mt: 2,
-                width: "100%",
-              }}
-            >
-              <CmrButton
-                variant="contained"
-                color="error"
-                onClick={handleDeleteCheckedSequences}
-                disabled={protocolSequences.length === 0}
-                sx={{ flex: 1, width: "100%" }}
-              >
-                Delete
-              </CmrButton>
 
-              <CmrButton
-                variant="contained"
-                onClick={() => { }}
-                sx={{ flex: 1, width: "100%" }}
-                disabled={protocolSequences.length === 0}
-              >
-                Save
-              </CmrButton>
-
-              <CmrButton
-                variant="contained"
-                onClick={() => { }}
-                sx={{ flex: 1, width: "100%", }}
-                disabled={protocolSequences.length === 0}
-              >
-                Queue
-              </CmrButton>
-            </Box>
 
           </CmrPanel>
 
