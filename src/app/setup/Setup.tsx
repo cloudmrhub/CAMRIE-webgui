@@ -47,6 +47,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ClearIcon from "@mui/icons-material/Clear";
+import SaveIcon from "@mui/icons-material/Save";
+import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { store } from "../../features/store";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadFromText";
@@ -63,16 +66,17 @@ const Setup = () => {
       id: 'cloudMR_overlap-ismrm25.zip',
       name: '16-Ch 3T Head Surface Coil',
       b0: '3T',
-      channels: 16,
+      receiveChannels: 16,
+      transmitChannels: 0,
       coil: '16-Ch 3T Head Surface Coil',
       resolution: '2 mm isotropic',
-      emSimulator: 'MARIE_version_Hybrid_VSIE',
-      numOfTissues: '22',
-      numOfElements: '16',
+      emSimulator: 'MARIE_3.0_WSVIE_version',
+      numOfTissues: '21',
       objectName: 'Duke_2mm',
-      frequency: '2.1714514044179997E+9',
-      description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/headSurface.png"
+      frequency: '127.73',
+      nucleus: '1 H',
+      // description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
+      image: "/models/headSurface1.png"
     },
     {
       id: 'cloudMR_birdcagecoil-ismrm25.zip',
@@ -144,8 +148,10 @@ const Setup = () => {
   const sequenceOptions = [
     {
       id: 'PD-Weighted_Spin_Echo.mtrk',
-      name: 'PD Weighted Spin Echo [type: mtrk]',
-      description: 'ISMRM25',
+      fileName: 'PD-Weighted_Spin_Echo.mtrk',
+      alias: 'PD Weighted Spin Echo [type: mtrk]',
+      // name:
+      // alias: 'ISMRM25',
       tr: '4000ms',
       te: '10ms',
       fa: [90, 180],
@@ -153,8 +159,9 @@ const Setup = () => {
     },
     {
       id: 'PD-Weighted_Spin_Echo.seq',
-      name: 'PD Weighted Spin Echo [type: pulseq]',
-      description: 'ISMRM25',
+      fileName: 'PD-Weighted_Spin_Echo.seq',
+      // name: 'PD Weighted Spin Echo [type: pulseq]',
+      alias: 'PD Weighted Spin Echo [type: pulseq]',
       tr: '4000ms',
       te: '10ms',
       fa: [90, 180],
@@ -162,8 +169,9 @@ const Setup = () => {
     },
     {
       id: 'T1-Weighted_Spin_Echo.mtrk',
-      name: 'T1 Weighted Spin Echo [type: mtrk]',
-      description: 'ISMRM25',
+      fileName: 'T1-Weighted_Spin_Echo.mtrk',
+      // name: 'T1 Weighted Spin Echo [type: mtrk]',
+      alias: 'T1 Weighted Spin Echo [type: mtrk]',
       tr: '600ms',
       te: '10ms',
       fa: [90, 180],
@@ -171,8 +179,8 @@ const Setup = () => {
     },
     {
       id: 'T1-Weighted_Spin_Echo.seq',
-      name: 'T1 Weighted Spin Echo [type: pulseq]',
-      description: 'ISMRM25',
+      fileName: 'T1-Weighted_Spin_Echo.seq',
+      alias: 'T1 Weighted Spin Echo [type: pulseq]',
       tr: '600ms',
       te: '10ms',
       fa: [90, 180],
@@ -180,8 +188,9 @@ const Setup = () => {
     },
     {
       id: 'T1-Weighted_Spoiled_GRE.mtrk',
-      name: 'T1 Weighted Spoiled GRE [type: mtrk]',
-      description: 'ISMRM25',
+      fileName: 'T1-Weighted_Spoiled_GRE.mtrk',
+      alias: 'T1 Weighted Spoiled GRE [type: mtrk]',
+      // name:
       tr: '40ms',
       te: '10ms',
       fa: [15],
@@ -189,8 +198,9 @@ const Setup = () => {
     },
     {
       id: 'T1-Weighted_Spoiled_GRE.seq',
-      name: 'T1 Weighted Spoiled GRE [type: pulseq]',
-      description: 'ISMRM25',
+      fileName: 'T1-Weighted_Spoiled_GRE.seq',
+      alias: 'T1 Weighted Spoiled GRE [type: pulseq]',
+      // name
       tr: '40ms',
       te: '10ms',
       fa: [15],
@@ -198,8 +208,9 @@ const Setup = () => {
     },
     {
       id: 'T2-Weighted_Spin_Echo.mtrk',
-      name: 'T2 Weighted Spin Echo [type: mtrk]',
-      description: 'ISMRM25',
+      fileName: 'T2-Weighted_Spin_Echo.mtrk',
+      alias: 'T2 Weighted Spin Echo [type: mtrk]',
+      // name
       tr: '4000ms',
       te: '80ms',
       fa: [90, 180],
@@ -207,8 +218,9 @@ const Setup = () => {
     },
     {
       id: 'T2-Weighted_Spin_Echo.seq',
-      name: 'T2 Weighted Spin Echo [type: pulseq]',
-      description: 'ISMRM25',
+      fileName: 'T2-Weighted_Spin_Echo.mtrk',
+      alias: 'T2 Weighted Spin Echo [type: pulseq]',
+      // name:
       tr: '4000ms',
       te: '80ms',
       fa: [90, 180],
@@ -216,8 +228,13 @@ const Setup = () => {
     },
   ];
 
+  // Duplicates / user-created sequences live here (NOT in sequenceOptions)
+  const [customSequences, setCustomSequences] = useState<typeof sequenceOptions>([]);
+
+  const allSequences = [...sequenceOptions, ...customSequences];
+
   const getSequenceById = (id: string) =>
-    sequenceOptions.find((s) => s.id === id) ?? null;
+    allSequences.find((s) => s.id === id) ?? null;
 
   const PROTOCOL_1_SEQUENCE_IDS = [
     "PD-Weighted_Spin_Echo.mtrk",
@@ -227,7 +244,7 @@ const Setup = () => {
 
   const uploadedFiles2: UploadedFile[] = sequenceOptions.map((opt, index) => ({
     id: index + 1,          // numeric ID for SelectUpload
-    fileName: opt.name,    // what shows in dropdown
+    fileName: opt.alias ?? opt.fileName ?? opt.id,   // what shows in dropdown
     link: opt.id,          // store real ID here
     location: 'local',
     database: 'local',
@@ -241,32 +258,43 @@ const Setup = () => {
     typeof sequenceOptions[number] | null
   >(null);
 
+  // true only when user picked from the master dropdown (library)
+  const [selectedFromLibrary, setSelectedFromLibrary] = useState(false);
+
   const handleSequenceSelected = (file?: UploadedFile) => {
+    setIsEditingSeq(false);
+
     if (!file) {
       setSelectedSequence(null);
+      setSelectedFromLibrary(false);
       return;
     }
 
-    const match = sequenceOptions.find(
-      (opt) => opt.id === file.link
-    );
-
+    const match = allSequences.find((opt) => opt.id === file.link);
     setSelectedSequence(match ?? null);
+
+    // IMPORTANT: dropdown is the master library selection
+    setSelectedFromLibrary(true);
+
+    // optional: un-highlight protocol selection when choosing from library
+    setSelectedProtocolSeqId(null);
   };
 
   const clearSelectedSequence = () => {
+    setIsEditingSeq(false);
     setSelectedSequence(null);
   };
-
   //end
 
-  // --- Edit Sequence Dialog ---
-  const [editSeqOpen, setEditSeqOpen] = useState(false);
+  // --- Inline Edit (TR/TE) ---
+  const [isEditingSeq, setIsEditingSeq] = useState(false);
 
   const [editSeqDraft, setEditSeqDraft] = useState<{
+    alias: string;
     trMs: number;
     teMs: number;
-  }>({ trMs: 0, teMs: 0 });
+  }>({ alias: "", trMs: 0, teMs: 0 });
+
 
   const parseMs = (v: string) => {
     const n = Number(String(v).replace(/[^\d.]/g, ""));
@@ -275,50 +303,64 @@ const Setup = () => {
 
   const formatMs = (n: number) => `${n}ms`;
 
-  const openEditSequenceDialog = () => {
+  const startInlineEdit = () => {
     if (!selectedSequence) return;
 
-    // prefill draft from current values
     setEditSeqDraft({
+      alias: selectedSequence.alias ?? "",
       trMs: parseMs(selectedSequence.tr),
       teMs: parseMs(selectedSequence.te),
     });
 
-    setEditSeqOpen(true);
+    setIsEditingSeq(true);
   };
 
-  const closeEditSequenceDialog = () => {
-    setEditSeqOpen(false);
+  const cancelInlineEdit = () => {
+    if (selectedSequence) {
+      setEditSeqDraft({
+        alias: selectedSequence.alias ?? "",
+        trMs: parseMs(selectedSequence.tr),
+        teMs: parseMs(selectedSequence.te),
+      });
+    }
+    setIsEditingSeq(false);
   };
 
-  const saveEditSequenceDialog = () => {
+  const saveInlineEdit = () => {
     if (!selectedSequence) return;
 
-    // If not mtrk, just close (no edits allowed anyway)
-    if (selectedSequence.type !== "mtrk") {
-      setEditSeqOpen(false);
-      return;
-    }
-
-    // update selectedSequence locally
-    const updated = {
-      ...selectedSequence,
-      tr: formatMs(editSeqDraft.trMs),
-      te: formatMs(editSeqDraft.teMs),
-    };
+    const updated =
+      selectedSequence.type === "mtrk"
+        ? {
+          ...selectedSequence,
+          alias: editSeqDraft.alias.trim(),
+          tr: formatMs(editSeqDraft.trMs),
+          te: formatMs(editSeqDraft.teMs),
+        }
+        : {
+          ...selectedSequence,
+          alias: editSeqDraft.alias.trim(),
+        };
 
     setSelectedSequence(updated);
 
+    // keep protocol list in sync if it contains this sequence
     setProtocolSequences((prev) =>
-      prev.map((s) => (s.id === updated.id ? { ...s, tr: updated.tr, te: updated.te } : s))
+      prev.map((s) => {
+        if (s.id !== updated.id) return s;
+
+        if (updated.type === "mtrk") {
+          return { ...s, alias: updated.alias, tr: updated.tr, te: updated.te };
+        }
+
+        return { ...s, alias: updated.alias };
+      })
     );
 
-    setEditSeqOpen(false);
+    setIsEditingSeq(false);
   };
-  // -- end Edit Sequence Dialog
+  // -- end inline edit --
 
-
-  // --- Protocol Dropdown ---
   // --- Protocol Dropdown ---
   const [protocol, setProtocol] = useState<string | number>(""); // "" = New Protocol
 
@@ -342,11 +384,22 @@ const Setup = () => {
         .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
 
       setProtocolSequences(loaded);
+
+      // auto-select first one (optional)
+      if (loaded.length > 0) {
+        handleSelectProtocolSequence(loaded[0]);
+      } else {
+        setSelectedSequence(null);
+        setSelectedProtocolSeqId(null);
+      }
       return;
     }
 
     // Protocol 2/3 (placeholder for now)
     setProtocolSequences([]);
+    setSelectedSequence(null);
+    setSelectedProtocolSeqId(null);
+    return
   };
 
   // placeholder remove later
@@ -472,26 +525,11 @@ const Setup = () => {
     });
   };
 
+
   // --- Save As New (DEMO only) ---
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [saveAsIdDraft, setSaveAsIdDraft] = useState("");
 
-  const openSaveAsDialog = () => {
-    if (!selectedSequence) return;
-
-    // suggestion only
-    const suggested = selectedSequence.id.replace(/(\.mtrk|\.seq)$/i, "_copy$1");
-    setSaveAsIdDraft(suggested);
-
-    setSaveAsOpen(true);
-
-    setEditSeqOpen(false);
-
-  };
-
-  const closeSaveAsDialog = () => {
-    setSaveAsOpen(false);
-  };
 
   // demo: do nothing except close
   const confirmSaveAsDemo = () => {
@@ -499,11 +537,88 @@ const Setup = () => {
     // no changes, no additions, no edits
   };
 
+  // -- make list of sequences clickable --
+  // which item is "active" in the protocol list UI
+  const [selectedProtocolSeqId, setSelectedProtocolSeqId] = useState<string | null>(null);
+
+  const handleSelectProtocolSequence = (seq: (typeof sequenceOptions)[number]) => {
+    setSelectedSequence(seq);
+    setSelectedProtocolSeqId(seq.id);
+
+    // IMPORTANT: this is not a "new pick from library"
+    setSelectedFromLibrary(false);
+
+    setIsEditingSeq(false);
+
+    setEditSeqDraft({
+      alias: seq.alias ?? "",
+      trMs: parseMs(seq.tr),
+      teMs: parseMs(seq.te),
+    });
+  };
+  // -- end ---
+
+  //-- handler for Duplicating Sequence in Protocol ---
+  const handleDuplicateSequenceInProtocol = (seq: (typeof sequenceOptions)[number]) => {
+    // build ids that already exist in protocol + customs (avoid collisions)
+    const takenIds = new Set([
+      ...protocolSequences.map((s) => s.id),
+      ...customSequences.map((s) => s.id),
+      ...sequenceOptions.map((s) => s.id),
+    ]);
+
+    const baseId = `${seq.id}__copy`;
+    let newId = baseId;
+    let i = 1;
+    while (takenIds.has(newId)) newId = `${baseId}${i++}`;
+
+    const takenAliases = new Set([
+      ...protocolSequences.map((s) => s.alias),
+      ...customSequences.map((s) => s.alias),
+    ]);
+
+    const baseAlias = `${seq.alias}_copy`;
+    let newAlias = baseAlias;
+    let j = 2;
+    while (takenAliases.has(newAlias)) newAlias = `${baseAlias}${j++}`;
+
+    const duplicated = {
+      ...seq,
+      id: newId,
+      alias: newAlias,
+    };
+
+    // 1) store it in the separate "custom" list (your caveat)
+    setCustomSequences((prev) => [...prev, duplicated]);
+
+    // 2) also insert it into the protocol list right after the original
+    setProtocolSequences((prev) => {
+      const idx = prev.findIndex((s) => s.id === seq.id);
+      if (idx === -1) return [...prev, duplicated];
+      const next = [...prev];
+      next.splice(idx + 1, 0, duplicated);
+      return next;
+    });
+
+    // 3) optionally auto-select it in the details card
+    handleSelectProtocolSequence(duplicated);
+  };
+  // --end --
+
+  const selectedIsCustom =
+    !!selectedSequence && customSequences.some((s) => s.id === selectedSequence.id);
+
+  const selectedAlreadyInProtocol =
+    !!selectedSequence && protocolSequences.some((s) => s.id === selectedSequence.id);
+
+  // Enable only when picked from master dropdown AND not already in protocol AND not custom
+  const canAddToProtocol =
+    !!selectedSequence && selectedFromLibrary && !selectedAlreadyInProtocol && !selectedIsCustom;
 
 
   return (
-    <Grid container spacing={2} sx={{ minHeight: '100vh', alignItems: 'stretch' }}>
-      <Grid item xs={12} md={5} sx={{ minHeight: { xs: 0, sm: 0, md: 1430 } }}>
+    <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+      <Grid item xs={12} md={5} >
         {/* Model */}
         <CmrCollapse
           accordion={false}
@@ -596,6 +711,11 @@ const Setup = () => {
                         <strong>B<sub>0</sub>:</strong> {selectedModel.b0}
                       </Typography>
 
+
+                      <Typography>
+                        <strong>Nucleus:</strong> {selectedModel.nucleus}
+                      </Typography>
+
                       <Typography>
                         <strong>Frequency:</strong> {selectedModel.frequency} MHz
                       </Typography>
@@ -613,7 +733,11 @@ const Setup = () => {
                       </Typography>
 
                       <Typography>
-                        <strong>Channels:</strong> {selectedModel.channels}
+                        <strong>Receive Channels:</strong> {selectedModel.receiveChannels}
+                      </Typography>
+
+                      <Typography>
+                        <strong>Transmit Channels:</strong> {selectedModel.transmitChannels}
                       </Typography>
 
                       <Typography>
@@ -661,7 +785,7 @@ const Setup = () => {
                     fileSelection={uploadedFiles2}
                     onSelected={handleSequenceSelected}
                     onUploaded={() => { }}
-                    chosenFile={selectedSequence?.name}
+                    chosenFile={selectedSequence?.alias}
                     maxCount={1}
                     uploadHandler={noopUploadHandler}
                     buttonText="Choose"
@@ -691,55 +815,63 @@ const Setup = () => {
                       }
                     }}
                     action={
-                      <Tooltip title="Edit Sequence">
-                        <span>
-                          <IconButton
-                            aria-label="edit"
-                            onClick={openEditSequenceDialog}
-                            disabled={!selectedSequence}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
+                      selectedSequence && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          {!isEditingSeq ? (
+                            <Tooltip title="Edit">
+                              <IconButton aria-label="edit" onClick={startInlineEdit}>
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <>
+                              <Tooltip title="Save">
+                                <IconButton aria-label="save" onClick={saveInlineEdit}>
+                                  <SaveIcon />
+                                </IconButton>
+                              </Tooltip>
+
+                              <Tooltip title="Cancel">
+                                <IconButton aria-label="cancel" onClick={cancelInlineEdit}>
+                                  <CloseIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Box>
+                      )
                     }
                   />
                   <CardContent>
                     <Box textAlign="left" height="100%">
-                      <Typography><strong>ID:</strong>&nbsp;{selectedSequence.id}</Typography>
-                      <Typography><strong>Description:</strong>&nbsp;{selectedSequence.description}</Typography>
-                      <Typography><strong>TR:</strong>&nbsp;{selectedSequence.tr}</Typography>
-                      <Typography><strong>TE:</strong>&nbsp;{selectedSequence.te}</Typography>
-                      <Typography><strong>FA:</strong>&nbsp;{selectedSequence.fa}</Typography>
-                      <Typography><strong>ACC:</strong>&nbsp;1x1</Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              )}
+                      <Typography><strong>File Name:</strong>&nbsp;{selectedSequence.id}</Typography>
+                      {/* Alias */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography>
+                          <strong>Alias:</strong>
+                        </Typography>
 
-              <Dialog
-                open={editSeqOpen}
-                onClose={closeEditSequenceDialog}
-                fullWidth
-                maxWidth="sm"
-              >
-                <DialogTitle sx={{ fontFamily: "Inter, Roboto, Helvetica, Arial, sans-serif" }}>
-                  Edit Sequence
-                </DialogTitle>
-
-                <DialogContent dividers>
-                  {!selectedSequence ? (
-                    <Typography color="text.secondary">No sequence selected.</Typography>
-                  ) : (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-                      <Typography><strong>ID:</strong>&nbsp;{selectedSequence.id}</Typography>
-                      <Typography><strong>Description:</strong>&nbsp;{selectedSequence.description}</Typography>
+                        {isEditingSeq ? (
+                          <TextField
+                            size="small"
+                            value={editSeqDraft.alias}
+                            onChange={(e) =>
+                              setEditSeqDraft((d) => ({ ...d, alias: e.target.value }))
+                            }
+                            sx={{ width: 300, mt: 1, mb: 0.5 }}
+                          />
+                        ) : (
+                          <Typography>{selectedSequence.alias}</Typography>
+                        )}
+                      </Box>
 
                       {/* TR */}
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography sx={{ minWidth: 44 }}><strong>TR:</strong></Typography>
+                        <Typography>
+                          <strong>TR:</strong>
+                        </Typography>
 
-                        {selectedSequence.type === "mtrk" ? (
+                        {isEditingSeq && selectedSequence.type === "mtrk" ? (
                           <>
                             <TextField
                               type="number"
@@ -749,10 +881,9 @@ const Setup = () => {
                                 setEditSeqDraft((d) => ({ ...d, trMs: Number(e.target.value) || 0 }))
                               }
                               inputProps={{ min: 0, step: 1 }}
-                              sx={{ width: 160 }}
+                              sx={{ width: 140, mt: 1, mb: 0.5 }}
                             />
                             <Typography color="text.secondary">ms</Typography>
-
                           </>
                         ) : (
                           <Typography>{selectedSequence.tr}</Typography>
@@ -761,9 +892,11 @@ const Setup = () => {
 
                       {/* TE */}
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography sx={{ minWidth: 44 }}><strong>TE:</strong></Typography>
+                        <Typography>
+                          <strong>TE:</strong>
+                        </Typography>
 
-                        {selectedSequence.type === "mtrk" ? (
+                        {isEditingSeq && selectedSequence.type === "mtrk" ? (
                           <>
                             <TextField
                               type="number"
@@ -773,7 +906,7 @@ const Setup = () => {
                                 setEditSeqDraft((d) => ({ ...d, teMs: Number(e.target.value) || 0 }))
                               }
                               inputProps={{ min: 0, step: 1 }}
-                              sx={{ width: 160 }}
+                              sx={{ width: 140, mt: 1, mb: 1 }}
                             />
                             <Typography color="text.secondary">ms</Typography>
                           </>
@@ -784,110 +917,24 @@ const Setup = () => {
 
                       <Typography><strong>FA:</strong>&nbsp;{selectedSequence.fa}</Typography>
                       <Typography><strong>ACC:</strong>&nbsp;1x1</Typography>
-
-                      {selectedSequence.type !== "mtrk" && (
-                        <Alert severity="info" sx={{ mt: 1 }}>
-                          TR/TE editing is available only for <strong>mtrk</strong> sequences.
-                        </Alert>
-                      )}
                     </Box>
-                  )}
-                </DialogContent>
-
-                <DialogActions
-                  sx={{
-                    px: 3,
-                    py: 2,
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <CmrButton variant="outlined" onClick={closeEditSequenceDialog}>Cancel</CmrButton>
-
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <CmrButton
-                      variant="contained"
-                      onClick={saveEditSequenceDialog}
-                      disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
-                    >
-                      Save Changes
-                    </CmrButton>
-
-                    <CmrButton
-                      variant="contained"
-                      onClick={openSaveAsDialog}
-                      disabled={!selectedSequence || selectedSequence.type !== "mtrk"}
-                    >
-                      Save as New
-                    </CmrButton>
-                  </Box>
-                </DialogActions>
-              </Dialog>
-
-              <Dialog
-                open={saveAsOpen}
-                onClose={closeSaveAsDialog}
-                fullWidth
-                maxWidth="sm"
-              >
-                <DialogTitle sx={{ fontFamily: "Inter, Roboto, Helvetica, Arial, sans-serif" }}>
-                  Save As New Sequence
-                </DialogTitle>
-
-                <DialogContent dividers>
-                  {!selectedSequence ? (
-                    <Typography color="text.secondary">No sequence selected.</Typography>
-                  ) : (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                      <Typography>
-                        <strong>Original ID:</strong>&nbsp;{selectedSequence.id}
-                      </Typography>
-
-                      <TextField
-                        label="New ID"
-                        size="small"
-                        value={saveAsIdDraft}
-                        onChange={(e) => setSaveAsIdDraft(e.target.value)}
-                        fullWidth
-                      />
-
-                      {/* <Alert severity="info" sx={{ mt: 1 }}>
-                        Demo only: this will not create a new sequence yet.
-                      </Alert> */}
-                    </Box>
-                  )}
-                </DialogContent>
-
-                <DialogActions
-                  sx={{
-                    px: 3,
-                    py: 2,
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <CmrButton variant="outlined" onClick={closeSaveAsDialog}>
-                    Cancel
-                  </CmrButton>
-
-                  <CmrButton
-                    variant="contained"
-                    onClick={confirmSaveAsDemo}
-                    disabled={!saveAsIdDraft.trim()}
-                  >
-                    Create
-                  </CmrButton>
-                </DialogActions>
-              </Dialog>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* "Add Sequence" button (display only when selectedSequence is not null) */}
               {selectedSequence && (
                 <Box sx={{ mt: "auto", display: "flex", justifyContent: "flex-end", pt: 2 }}>
-                  <CmrButton variant="contained" onClick={handleAddSequence}>
+                  <CmrButton
+                    variant="contained"
+                    onClick={handleAddSequence}
+                    disabled={!canAddToProtocol}
+                  >
                     Add Sequence to Protocol
                   </CmrButton>
                 </Box>
               )}
+
             </Box>
 
             <Divider orientation="horizontal" flexItem sx={{
@@ -940,32 +987,74 @@ const Setup = () => {
                   <CardContent>
                     <Box display="flex" flexDirection="column" gap={1}>
                       {
-                        protocolSequences.map((seq) => (
-                          <Box key={seq.id} display="flex" alignItems="center" gap={1}>
-                            <Checkbox
-                              size="small"
-                              checked={!!protocolChecked[seq.id]}
-                              onChange={() => toggleProtocolChecked(seq.id)}
+                        protocolSequences.map((seq) => {
+                          const isActive = selectedProtocolSeqId === seq.id;
+
+                          return (
+                            <Box
+                              key={seq.id}
+                              onClick={() => handleSelectProtocolSequence(seq)}
                               sx={{
-                                p: 0,
-                                mr: 0.5,
-                                "&.Mui-checked": {
-                                  color: "#1578A1 !important",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                px: 1,
+                                py: 0.75,
+                                borderRadius: 1,
+                                cursor: "pointer",
+                                border: isActive ? "1px solid #1578A1" : "1px solid transparent",
+                                backgroundColor: isActive ? "#E3F1F6" : "transparent",
+                                "&:hover": {
+                                  backgroundColor: isActive ? "#E3F1F6" : "rgba(0,0,0,0.04)",
                                 },
                               }}
-                            />
-                            <Typography>{seq.name}</Typography>
-
-                            {/* Right: trash icon */}
-                            <IconButton
-                              size="small"
-                              onClick={() => handleRemoveSequenceFromProtocol(seq.id)}
-                              sx={{ ml: 1 }}
                             >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ))
+                              {/* <Checkbox
+                                size="small"
+                                checked={!!protocolChecked[seq.id]}
+                                onChange={(e) => {
+                                  e.stopPropagation(); // don't select row when checking
+                                  toggleProtocolChecked(seq.id);
+                                }}
+                                sx={{
+                                  p: 0,
+                                  mr: 0.5,
+                                  "&.Mui-checked": { color: "#1578A1 !important" },
+                                }}
+                              /> */}
+
+                              <Typography sx={{ flex: 1 }}>
+                                {seq.alias}
+                              </Typography>
+
+
+                              <Tooltip title="Duplicate">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicateSequenceInProtocol(seq);
+                                  }}
+                                  sx={{ ml: 0.5 }}
+                                >
+                                  <ContentCopyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // don't select row when deleting
+                                  handleRemoveSequenceFromProtocol(seq.id);
+                                }}
+                                sx={{ ml: 0.5 }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+
+                            </Box>
+                          );
+                        })
                       }
                     </Box>
                   </CardContent>
@@ -1047,7 +1136,6 @@ const Setup = () => {
         </CmrCollapse>
       </Grid>
     </Grid >
-    // </Box>
   );
 };
 

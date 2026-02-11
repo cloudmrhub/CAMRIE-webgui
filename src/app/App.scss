@@ -55,3 +55,13 @@ p {
   margin-bottom: unset !important;
 }
 
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0; /* helps prevent weird overflow issues in flex layouts */
+}

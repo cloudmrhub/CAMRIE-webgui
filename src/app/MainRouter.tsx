@@ -36,71 +36,76 @@ const MainRouter = () => {
 
   return (
     <React.Fragment>
-      <BrowserRouter>
-        {debugging_or_logged_in && (
-          <HeaderBar
-            siteTitle=""
-            email={email}
-            menuList={menuList}
-            handleLogout={() => dispatch(signOut())}
-          />
-        )}
-        <Routes>
-          <Route path="/websignin/:token" element={<WebSignin />} />
-          <Route
-            path="/login"
-            element={
-              logged_in_token ? (
-                <Navigate to="/main" />
-              ) : (
-                <Signin
-                  //@ts-ignore
-                  signInCallback={(credentials) =>
-                    dispatch(getLoggedInToken(credentials))
-                  }
-                  appIcon={appIcon}
-                // appTitle="CAMRIE"
-                />
-              )
-            }
-          />
-          <Route
-            path="/"
-            element={
-              debugging_or_logged_in ? (
-                <Navigate to="/main" />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/main"
-            element={
-              debugging_or_logged_in ? <Main /> : <Navigate to="/login" />
-            }
-          />
-          <Route
-            path="/about"
-            element={
-              debugging_or_logged_in ? <About /> : <Navigate to="/login" />
-            }
-          />
-          <Route
-            path="/contact"
-            element={
-              debugging_or_logged_in ? <ContactUs /> : <Navigate to="/login" />
-            }
-          />
-          <Route
-            path="/bug-report"
-            element={
-              debugging_or_logged_in ? <BugReport /> : <Navigate to="/login" />
-            }
-          />
-        </Routes>
-        <FooterBar />
-      </BrowserRouter>
+      <div className="app-shell">
+        <BrowserRouter>
+          {debugging_or_logged_in && (
+            <HeaderBar
+              siteTitle=""
+              email={email}
+              menuList={menuList}
+              handleLogout={() => dispatch(signOut())}
+            />
+          )}
+
+          <main className="app-main">
+            <Routes>
+              <Route path="/websignin/:token" element={<WebSignin />} />
+              <Route
+                path="/login"
+                element={
+                  logged_in_token ? (
+                    <Navigate to="/main" />
+                  ) : (
+                    <Signin
+                      //@ts-ignore
+                      signInCallback={(credentials) =>
+                        dispatch(getLoggedInToken(credentials))
+                      }
+                      appIcon={appIcon}
+                    // appTitle="CAMRIE"
+                    />
+                  )
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  debugging_or_logged_in ? (
+                    <Navigate to="/main" />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
+              <Route
+                path="/main"
+                element={
+                  debugging_or_logged_in ? <Main /> : <Navigate to="/login" />
+                }
+              />
+              <Route
+                path="/about"
+                element={
+                  debugging_or_logged_in ? <About /> : <Navigate to="/login" />
+                }
+              />
+              <Route
+                path="/contact"
+                element={
+                  debugging_or_logged_in ? <ContactUs /> : <Navigate to="/login" />
+                }
+              />
+              <Route
+                path="/bug-report"
+                element={
+                  debugging_or_logged_in ? <BugReport /> : <Navigate to="/login" />
+                }
+              />
+            </Routes>
+          </main>
+          <FooterBar />
+        </BrowserRouter>
+      </div>
     </React.Fragment>
   );
 };
