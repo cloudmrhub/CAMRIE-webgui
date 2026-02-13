@@ -129,7 +129,7 @@ const Setup = () => {
 
   const is16chHeadSurface = selectedModel?.name === "16-Ch 3T Head Surface Coil";
 
-  const psiUrl = `${import.meta.env.BASE_URL}volumes/psi.nii.gz`;
+  const psiUrl = `${import.meta.env.BASE_URL}volumes/t1.nii.gz`;
   // hugo-tissuedensity.nii.gz
 
   console.log("psiUrl =", psiUrl);
