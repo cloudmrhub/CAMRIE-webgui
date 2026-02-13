@@ -181,7 +181,7 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
     (inst as any).onLocationChange = (data: any) => {
       const values = Array.isArray(data?.values) ? data.values : [];
       const p1 = values[0]
-        ? { id: 'param1', name: 'Model', ...values[0] }
+        ? { id: 'param1', name: 'Data', ...values[0] }
         : null;
       setLocationRows([p1].filter(Boolean) as any[]);
     };
@@ -342,7 +342,7 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
 
             <div className="row mb-2 align-items-center">
               <div className="col-auto" style={{ width: '100px' }}>
-                <CmrCheckbox
+                {/* <CmrCheckbox
                   defaultChecked={true}
                   checked={showTarget}
                   onChange={() => setShowTarget(v => !v)}
@@ -354,9 +354,10 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
                       color: "#1578A1!important",
                     },
                   }}
-                >
-                  Model:
-                </CmrCheckbox>
+                > */}
+                <CmrLabel>Data:</CmrLabel>
+                 
+                {/* </CmrCheckbox> */}
               </div>
 
               <div className="col-auto">
@@ -429,14 +430,14 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
             )}
 
             {/* View controls */}
-            <Divider variant="middle" sx={{ marginTop: '15pt', marginBottom: '10pt', color: 'gray' }} />
-
+            {/* <Divider variant="middle" sx={{ marginTop: '15pt', marginBottom: '10pt', color: 'gray' }} /> */}
+{/* 
             <div className="row align-items-center" style={{ marginBottom: '10px' }}>
               <CmrLabel><strong>Display Options</strong></CmrLabel>
-            </div>
+            </div> */}
 
             {/* contrast */}
-            {showTarget && tDomain && (
+            {/* {showTarget && tDomain && (
               <div className="row align-items-center" style={{ marginTop: 8, marginBottom: 8 }}>
                 <div className="col-10">
                   <CmrLabel> Contrast (Parameter 1): </CmrLabel>
@@ -453,7 +454,7 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
                   />
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* view and mouse wheel */}
             <div className="row align-items-center" style={{ marginTop: '20px', marginBottom: 8 }}>
@@ -626,7 +627,7 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
                   fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
                 }}
               >
-                Select Parameter Map
+                Select data to display
               </div>
             </div>
           )}

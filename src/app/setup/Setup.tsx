@@ -136,7 +136,7 @@ const Setup = () => {
 
   // force the type to be Record<string, string>
   const availableVolumes: Record<string, string> = is16chHeadSurface
-    ? { "Model": psiUrl }
+    ? { "T1": psiUrl }
     : {};
 
 
