@@ -31,7 +31,6 @@ import {
   TextField,
   FormControl,
   MenuItem,
-  Select,
   FormHelperText
 } from "@mui/material";
 import Dialog from "@mui/material/Dialog";
@@ -54,6 +53,8 @@ import { store } from "../../features/store";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadFromText";
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
+import Select from "react-select";
+import OpenMedView from "../../common/components/OpenMedView/OpenMedView";
 
 const Setup = () => {
   const [openModelPanel, setOpenModelPanel] = useState<Array<string | number>>([0]); // open by default
@@ -125,6 +126,19 @@ const Setup = () => {
   const [selectedModel, setSelectedModel] = useState<
     (typeof modelOptions)[number] | null
   >(null);
+
+  const is16chHeadSurface = selectedModel?.name === "16-Ch 3T Head Surface Coil";
+
+  const psiUrl = `${import.meta.env.BASE_URL}volumes/psi.nii.gz`;
+  // hugo-tissuedensity.nii.gz
+
+  console.log("psiUrl =", psiUrl);
+
+  // force the type to be Record<string, string>
+  const availableVolumes: Record<string, string> = is16chHeadSurface
+    ? { "Model": psiUrl }
+    : {};
+
 
   const handleModelSelected = (file?: UploadedFile) => {
     if (!file) {
@@ -261,22 +275,28 @@ const Setup = () => {
   // true only when user picked from the master dropdown (library)
   const [selectedFromLibrary, setSelectedFromLibrary] = useState(false);
 
+  // true when the user clicked a row from the protocol list
+  const [selectedFromProtocolList, setSelectedFromProtocolList] = useState(false);
+
   const handleSequenceSelected = (file?: UploadedFile) => {
     setIsEditingSeq(false);
 
     if (!file) {
       setSelectedSequence(null);
       setSelectedFromLibrary(false);
+      setSelectedFromProtocolList(false);
       return;
     }
 
     const match = allSequences.find((opt) => opt.id === file.link);
     setSelectedSequence(match ?? null);
 
-    // IMPORTANT: dropdown is the master library selection
+    // dropdown is the master library selection
     setSelectedFromLibrary(true);
 
-    // optional: un-highlight protocol selection when choosing from library
+    setSelectedFromProtocolList(false);
+
+    // un-highlight protocol selection when choosing from library
     setSelectedProtocolSeqId(null);
   };
 
@@ -326,6 +346,22 @@ const Setup = () => {
     setIsEditingSeq(false);
   };
 
+  const isMasterSequence = (id: string) => sequenceOptions.some((s) => s.id === id);
+
+  const makeUniqueId = (base: string) => {
+    const taken = new Set([
+      ...sequenceOptions.map((s) => s.id),
+      ...customSequences.map((s) => s.id),
+      ...protocolSequences.map((s) => s.id),
+    ]);
+
+    let id = base;
+    let i = 1;
+    while (taken.has(id)) id = `${base}${i++}`;
+    return id;
+  };
+
+
   const saveInlineEdit = () => {
     if (!selectedSequence) return;
 
@@ -342,6 +378,34 @@ const Setup = () => {
           alias: editSeqDraft.alias.trim(),
         };
 
+    // If we're editing a master library sequence, do not modify it.
+    // Create a new custom copy that contains the edited values.
+    if (isMasterSequence(selectedSequence.id)) {
+      const newId = makeUniqueId(`${selectedSequence.id}__edited`);
+
+      const customCopy = {
+        ...updated,
+        id: newId,
+        // keep the alias as user entered, OR if you prefer, suffix it:
+        // alias: `${updated.alias}_edited`,
+      };
+
+      // store as custom, not in master list
+      setCustomSequences((prev) => [...prev, customCopy]);
+
+      // show the edited copy in the details card
+      setSelectedSequence(customCopy);
+
+      // treat it as still coming from "library flow" so user can add it
+      setSelectedFromLibrary(true);
+      setSelectedFromProtocolList(false);
+      setSelectedProtocolSeqId(null);
+
+      setIsEditingSeq(false);
+      return;
+    }
+
+    // otherwise (already custom or protocol-created), allow updating it in place:
     setSelectedSequence(updated);
 
     // keep protocol list in sync if it contains this sequence
@@ -357,35 +421,58 @@ const Setup = () => {
       })
     );
 
+    // keep customSequences in sync if it's a custom item
+    setCustomSequences((prev) =>
+      prev.map((s) => {
+        if (s.id !== updated.id) return s;
+
+        if (updated.type === "mtrk") {
+          return { ...s, alias: updated.alias, tr: updated.tr, te: updated.te };
+        }
+
+        return { ...s, alias: updated.alias };
+      })
+    );
+
     setIsEditingSeq(false);
   };
+
   // -- end inline edit --
 
   // --- Protocol Dropdown ---
-  const [protocol, setProtocol] = useState<string | number>(""); // "" = New Protocol
+  const [protocol, setProtocol] = useState<string>("");
 
-  const handleChange = (event: any) => {
-    const value = event.target.value;
+  // add react-select options + a handler that reuses your existing logic
+  type ProtocolOption = { value: string; label: string };
+
+  const protocolOptions: ProtocolOption[] = [
+    { value: "", label: "New Protocol" },
+    { value: "10", label: "Protocol 1" },
+    { value: "20", label: "Protocol 2" },
+    { value: "30", label: "Protocol 3" },
+  ];
+
+  const handleProtocolChange = (opt: ProtocolOption | null) => {
+    const value = opt?.value ?? "";
     setProtocol(value);
 
     // Reset check state when switching protocols
     setProtocolChecked({});
 
     if (value === "") {
-      // New Protocol => start empty
       setProtocolSequences([]);
+      setSelectedSequence(null);
+      setSelectedProtocolSeqId(null);
       return;
     }
 
-    if (value === 10) {
-      // Protocol 1 => load predefined sequences
+    if (value === "10") {
       const loaded = PROTOCOL_1_SEQUENCE_IDS
         .map((id) => getSequenceById(id))
         .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
 
       setProtocolSequences(loaded);
 
-      // auto-select first one (optional)
       if (loaded.length > 0) {
         handleSelectProtocolSequence(loaded[0]);
       } else {
@@ -395,11 +482,10 @@ const Setup = () => {
       return;
     }
 
-    // Protocol 2/3 (placeholder for now)
+    // Protocol 2/3 placeholder
     setProtocolSequences([]);
     setSelectedSequence(null);
     setSelectedProtocolSeqId(null);
-    return
   };
 
   // placeholder remove later
@@ -471,6 +557,8 @@ const Setup = () => {
 
   const handleAddSequence = () => {
     if (!selectedSequence) return;
+
+    if (isEditingSeq) return;
 
     setProtocolSequences((prev) => {
       const alreadyAdded = prev.some((s) => s.id === selectedSequence.id);
@@ -545,8 +633,10 @@ const Setup = () => {
     setSelectedSequence(seq);
     setSelectedProtocolSeqId(seq.id);
 
-    // IMPORTANT: this is not a "new pick from library"
+    // this is not a "new pick from library"
     setSelectedFromLibrary(false);
+
+    setSelectedFromProtocolList(true);
 
     setIsEditingSeq(false);
 
@@ -605,16 +695,13 @@ const Setup = () => {
   };
   // --end --
 
-  const selectedIsCustom =
-    !!selectedSequence && customSequences.some((s) => s.id === selectedSequence.id);
-
   const selectedAlreadyInProtocol =
     !!selectedSequence && protocolSequences.some((s) => s.id === selectedSequence.id);
 
-  // Enable only when picked from master dropdown AND not already in protocol AND not custom
+  // Enable only when selection came from dropdown/master flow AND not already in protocol.
+  // (If user is just viewing items in protocol list, it's disabled.)
   const canAddToProtocol =
-    !!selectedSequence && selectedFromLibrary && !selectedAlreadyInProtocol && !selectedIsCustom;
-
+    !!selectedSequence && !isEditingSeq && selectedFromLibrary && !selectedFromProtocolList && !selectedAlreadyInProtocol;
 
   return (
     <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
@@ -950,21 +1037,20 @@ const Setup = () => {
                   Protocol:
                 </CmrLabel>
 
-                <FormControl size="small" sx={{ minWidth: 120 }}>
+                <Box sx={{ minWidth: 150 }}>
                   <Select
-                    value={protocol}
-                    onChange={handleChange}
-                    displayEmpty
-                    inputProps={{ 'aria-label': 'Without label' }}
-                  >
-                    <MenuItem value="">
-                      <em>New Protocol</em>
-                    </MenuItem>
-                    <MenuItem value={10}>Protocol 1</MenuItem>
-                    <MenuItem value={20}>Protocol 2</MenuItem>
-                    <MenuItem value={30}>Protocol 3</MenuItem>
-                  </Select>
-                </FormControl>
+                    value={protocolOptions.find((o) => o.value === protocol) ?? protocolOptions[0]}
+                    onChange={handleProtocolChange}
+                    options={protocolOptions}
+                    isSearchable={true}
+                    styles={{
+                      ...selectStyles,
+                      container: (base: any) => ({ ...base, width: "100%" }),
+                    }}
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                  />
+                </Box>
 
               </Box>
 
@@ -1112,28 +1198,17 @@ const Setup = () => {
 
       <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column' }}>
         {/* Field of View */}
-        <CmrCollapse
-          accordion={false}
-          expandIconPosition="right"
-          activeKey={openFieldofViewPanel}
-          onChange={(keys: any) => setOpenFieldofViewPanel(keys)}
-        >
-          <CmrPanel header="Field of View" className="mb-2">
-            <Row>
-              <Col>
-                <Box display="flex" flexDirection="column">
-                  {/* Inline row for label, upload, clear, checkbox */}
-                  <Box display="flex" alignItems="center" gap={1}>
+        {/* <Box sx={{ width: "100%" }}>
+          <OpenMedView availableVolumes={availableVolumes} />
+        </Box> */}
+        {Object.keys(availableVolumes).length > 0 ? (
+          <OpenMedView availableVolumes={availableVolumes} />
+        ) : (
+          <div style={{ padding: '1rem', fontStyle: 'italic', color: '#888' }}>
+            Select model to display
+          </div>
+        )}
 
-
-                  </Box>
-                </Box>
-              </Col>
-            </Row>
-
-          </CmrPanel>
-
-        </CmrCollapse>
       </Grid>
     </Grid >
   );

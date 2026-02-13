@@ -1,0 +1,9 @@
+/* Disable clicks on the header inside ONLY panels with this class */
+.openmedview-panel .card-header {
+  pointer-events: none;
+}
+
+/* Hide the arrow button inside ONLY panels with this class */
+.openmedview-panel .react-collapse {
+  display: none !important;
+}
