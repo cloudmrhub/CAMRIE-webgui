@@ -204,7 +204,8 @@ export default function Toolbar(props: ToolbarProps) {
               </Select>
             </FormControl>
 
-            <FormControl
+            {/* ROI Layer - commented out to hide from UI */}
+            {/* <FormControl
               size="small"
               sx={{
                 m: 2,
@@ -217,7 +218,6 @@ export default function Toolbar(props: ToolbarProps) {
                 id="slice-type"
                 value={props.selectedROI}
                 label="Opened ROIs"
-                // onChange={(e)=>}
               >
                 {props.rois.map((value, index) => {
                   return (
@@ -250,7 +250,7 @@ export default function Toolbar(props: ToolbarProps) {
               }}
             >
               Save Drawing Layer
-            </Button>
+            </Button> */}
             <IconButton
               onClick={props.toggleSettings}
               style={{ marginLeft: "auto" }}
@@ -287,6 +287,7 @@ export default function Toolbar(props: ToolbarProps) {
                 defaultChecked={false}
                 checked={!props.radiological}
                 onChange={props.toggleRadiological}
+                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
               />
             </Box>
             <Box
@@ -304,9 +305,10 @@ export default function Toolbar(props: ToolbarProps) {
                 Show Crosshair
               </Typography>
               <Switch
-                defaultChecked={true}
+                defaultChecked={false}
                 checked={props.showCrosshair}
                 onChange={props.toggleShowCrosshair}
+                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
               />
             </Box>
 
@@ -341,6 +343,7 @@ export default function Toolbar(props: ToolbarProps) {
               <Switch
                 checked={props.showColorBar}
                 onChange={props.toggleColorBar}
+                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
               />
             </Box>
 
@@ -362,6 +365,7 @@ export default function Toolbar(props: ToolbarProps) {
                 defaultChecked={false}
                 checked={props.labelsVisible}
                 onChange={props.toggleLabelsVisible}
+                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
               />
             </Box>
 

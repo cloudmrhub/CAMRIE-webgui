@@ -449,7 +449,7 @@ const OpenMedView: React.FC<OpenMedViewProps> = ({ availableVolumes, availableMe
                     valueHigh={tWindow[1]}
                     onChangeLow={(v) => setTWindow(([_, hi]) => [v, hi])}
                     onChangeHigh={(v) => setTWindow(([lo, _]) => [lo, v])}
-                    accentColor="#580F8B"
+                    accentColor="#1578A1"
                     precision={3}
                   />
                 </div>

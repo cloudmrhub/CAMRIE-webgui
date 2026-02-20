@@ -38,7 +38,7 @@ export default function TKDualRange({
   inverse = (y) => y,
   step,
   precision = 3,
-  accentColor = "#580f8b",
+  accentColor = "#1578A1",
 }: Props) {
   // Map domain & current values into RENDER space (like TestKarts)
   const tMin = transform(minDomain);

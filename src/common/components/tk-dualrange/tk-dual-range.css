@@ -52,7 +52,7 @@
   background: transparent;
   margin: 0;
   pointer-events: auto;
-  accent-color: var(--tkdr-accent, #580f8b);
+  accent-color: var(--tkdr-accent, #1578A1);
 }
 
 /* Put the top thumb above the low thumb for easier grabbing */
@@ -82,7 +82,7 @@
   top: 50%;
   height: 8px;
   transform: translateY(-50%);
-  background: var(--tkdr-accent, #580f8b);
+  background: var(--tkdr-accent, #1578A1);
   opacity: 1;
   border-radius: 5px;
   z-index: 1;
@@ -95,7 +95,7 @@
   appearance: none;
   width: 14px;
   height: 14px;
-  background: var(--tkdr-accent, #580f8b);
+  background: var(--tkdr-accent, #1578A1);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -103,7 +103,7 @@
 .tkdr__range::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: var(--tkdr-accent, #580f8b);
+  background: var(--tkdr-accent, #1578A1);
   border-radius: 50%;
   cursor: pointer;
 }
