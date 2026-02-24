@@ -1438,19 +1438,19 @@
   resolved "https://registry.npmjs.org/@eslint/js/-/js-8.57.1.tgz"
   integrity sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==
 
-"@floating-ui/core@^1.7.3":
-  version "1.7.3"
-  resolved "https://registry.npmjs.org/@floating-ui/core/-/core-1.7.3.tgz"
-  integrity sha512-sGnvb5dmrJaKEZ+LDIpguvdX3bDlEllmv4/ClQ9awcmCZrlx5jQyyMWFM5kBI+EyNOCDDiKk8il0zeuX3Zlg/w==
+"@floating-ui/core@^1.7.4":
+  version "1.7.4"
+  resolved "https://registry.npmjs.org/@floating-ui/core/-/core-1.7.4.tgz"
+  integrity sha512-C3HlIdsBxszvm5McXlB8PeOEWfBhcGBTZGkGlWc2U0KFY5IwG5OQEuQ8rq52DZmcHDlPLd+YFBK+cZcytwIFWg==
   dependencies:
     "@floating-ui/utils" "^0.2.10"
 
 "@floating-ui/dom@^1.0.1":
-  version "1.7.4"
-  resolved "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.7.4.tgz"
-  integrity sha512-OOchDgh4F2CchOX94cRVqhvy7b3AFb+/rQXyswmzmGakRfkMgoWVjfnLWkRirfLEfuD4ysVW16eXzwt3jHIzKA==
+  version "1.7.5"
+  resolved "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.7.5.tgz"
+  integrity sha512-N0bD2kIPInNHUHehXhMke1rBGs1dwqvC9O9KYMyyjK7iXt7GAhnro7UlcuYcGdS/yYOlq0MAVgrow8IbWJwyqg==
   dependencies:
-    "@floating-ui/core" "^1.7.3"
+    "@floating-ui/core" "^1.7.4"
     "@floating-ui/utils" "^0.2.10"
 
 "@floating-ui/utils@^0.2.10":
@@ -3531,12 +3531,12 @@ axe-core@^4.10.0:
   integrity sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==
 
 axios@^1.10.0:
-  version "1.10.0"
-  resolved "https://registry.npmjs.org/axios/-/axios-1.10.0.tgz"
-  integrity sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==
+  version "1.13.5"
+  resolved "https://registry.npmjs.org/axios/-/axios-1.13.5.tgz"
+  integrity sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==
   dependencies:
-    follow-redirects "^1.15.6"
-    form-data "^4.0.0"
+    follow-redirects "^1.15.11"
+    form-data "^4.0.5"
     proxy-from-env "^1.1.0"
 
 axobject-query@^4.1.0:
@@ -3993,10 +3993,10 @@ cliui@^7.0.2:
     strip-ansi "^6.0.0"
     wrap-ansi "^7.0.0"
 
-cloudmr-ux@4.1.5:
-  version "4.1.5"
-  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-4.1.5.tgz"
-  integrity sha512-e1WXMYwZSUazRyFM6Qf39q9n9yow+bSqspAyLVyUdu1GMUdaAYyTCioZLs8DPum28S96S5o191Kebxq9p17xOg==
+cloudmr-ux@^4.2.3:
+  version "4.2.3"
+  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-4.2.3.tgz"
+  integrity sha512-NpX7775zafw4BbVhYv9B8MDm9+oNhZE0adHzZAnY6hx+lcsa0x0X3fJMGHfNZXtVOdjjj09jbQkr3AGsIox6hA==
   dependencies:
     "@fortawesome/fontawesome-svg-core" "^6.7.2"
     "@fortawesome/free-solid-svg-icons" "^6.7.2"
@@ -4295,18 +4295,18 @@ css-loader@^6.5.1:
     semver "^7.5.4"
 
 css-loader@^7.1.2:
-  version "7.1.2"
-  resolved "https://registry.npmjs.org/css-loader/-/css-loader-7.1.2.tgz"
-  integrity sha512-6WvYYn7l/XEGN8Xu2vWFt9nVzrCn39vKyTEFf/ExEyoksJjjSZV/0/35XPlMbpnr6VGhZIUg5yJrL8tGfes/FA==
+  version "7.1.4"
+  resolved "https://registry.npmjs.org/css-loader/-/css-loader-7.1.4.tgz"
+  integrity sha512-vv3J9tlOl04WjiMvHQI/9tmIrCxVrj6PFbHemBB1iihpeRbi/I4h033eoFIhwxBBqLhI0KYFS7yvynBFhIZfTw==
   dependencies:
     icss-utils "^5.1.0"
-    postcss "^8.4.33"
+    postcss "^8.4.40"
     postcss-modules-extract-imports "^3.1.0"
     postcss-modules-local-by-default "^4.0.5"
     postcss-modules-scope "^3.2.0"
     postcss-modules-values "^4.0.0"
     postcss-value-parser "^4.2.0"
-    semver "^7.5.4"
+    semver "^7.6.3"
 
 css-minimizer-webpack-plugin@^3.2.0:
   version "3.4.1"
@@ -5686,10 +5686,10 @@ flatted@^3.2.9:
   resolved "https://registry.npmjs.org/flatted/-/flatted-3.3.3.tgz"
   integrity sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==
 
-follow-redirects@^1.0.0, follow-redirects@^1.15.6:
-  version "1.15.9"
-  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.9.tgz"
-  integrity sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==
+follow-redirects@^1.0.0, follow-redirects@^1.15.11:
+  version "1.15.11"
+  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.11.tgz"
+  integrity sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==
 
 for-each@^0.3.3, for-each@^0.3.5:
   version "0.3.5"
@@ -5736,10 +5736,10 @@ form-data@^3.0.0:
     hasown "^2.0.2"
     mime-types "^2.1.35"
 
-form-data@^4.0.0:
-  version "4.0.4"
-  resolved "https://registry.npmjs.org/form-data/-/form-data-4.0.4.tgz"
-  integrity sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==
+form-data@^4.0.5:
+  version "4.0.5"
+  resolved "https://registry.npmjs.org/form-data/-/form-data-4.0.5.tgz"
+  integrity sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==
   dependencies:
     asynckit "^0.4.0"
     combined-stream "^1.0.8"
@@ -8809,7 +8809,7 @@ postcss-value-parser@^4.0.0, postcss-value-parser@^4.1.0, postcss-value-parser@^
   resolved "https://registry.npmjs.org/postcss-value-parser/-/postcss-value-parser-4.2.0.tgz"
   integrity sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==
 
-"postcss@^7.0.0 || ^8.0.1", postcss@^8, postcss@^8.0.0, postcss@^8.0.3, postcss@^8.0.9, postcss@^8.1.0, postcss@^8.1.4, postcss@^8.2, postcss@^8.2.14, postcss@^8.2.15, postcss@^8.2.2, postcss@^8.3, postcss@^8.3.5, postcss@^8.4, postcss@^8.4.21, postcss@^8.4.33, postcss@^8.4.4, postcss@^8.4.47, postcss@^8.4.6, postcss@^8.5.6, "postcss@>= 8", postcss@>=8, postcss@>=8.0.9:
+"postcss@^7.0.0 || ^8.0.1", postcss@^8, postcss@^8.0.0, postcss@^8.0.3, postcss@^8.0.9, postcss@^8.1.0, postcss@^8.1.4, postcss@^8.2, postcss@^8.2.14, postcss@^8.2.15, postcss@^8.2.2, postcss@^8.3, postcss@^8.3.5, postcss@^8.4, postcss@^8.4.21, postcss@^8.4.33, postcss@^8.4.4, postcss@^8.4.40, postcss@^8.4.47, postcss@^8.4.6, postcss@^8.5.6, "postcss@>= 8", postcss@>=8, postcss@>=8.0.9:
   version "8.5.6"
   resolved "https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz"
   integrity sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==
@@ -9936,9 +9936,9 @@ sass-loader@^12.3.0:
     neo-async "^2.6.2"
 
 sass-loader@^16.0.3:
-  version "16.0.6"
-  resolved "https://registry.npmjs.org/sass-loader/-/sass-loader-16.0.6.tgz"
-  integrity sha512-sglGzId5gmlfxNs4gK2U3h7HlVRfx278YK6Ono5lwzuvi1jxig80YiuHkaDBVsYIKFhx8wN7XSCI0M2IDS/3qA==
+  version "16.0.7"
+  resolved "https://registry.npmjs.org/sass-loader/-/sass-loader-16.0.7.tgz"
+  integrity sha512-w6q+fRHourZ+e+xA1kcsF27iGM6jdB8teexYCfdUw0sYgcDNeZESnDNT9sUmmPm3ooziwUJXGwZJSTF3kOdBfA==
   dependencies:
     neo-async "^2.6.2"
 
@@ -10065,9 +10065,14 @@ semver@^7.5.3:
   integrity sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==
 
 semver@^7.5.4:
-  version "7.7.3"
-  resolved "https://registry.npmjs.org/semver/-/semver-7.7.3.tgz"
-  integrity sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==
+  version "7.7.2"
+  resolved "https://registry.npmjs.org/semver/-/semver-7.7.2.tgz"
+  integrity sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==
+
+semver@^7.6.3:
+  version "7.7.4"
+  resolved "https://registry.npmjs.org/semver/-/semver-7.7.4.tgz"
+  integrity sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==
 
 send@0.19.0:
   version "0.19.0"

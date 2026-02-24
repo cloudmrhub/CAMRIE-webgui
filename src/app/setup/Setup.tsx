@@ -58,10 +58,12 @@ import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadF
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import Select from "react-select";
 
-// Add volumes from public/volumes here: display name -> filename
+// Add volumes from public/volumes here: display name -> filename (order matches info.json data array)
 const SETUP_VOLUME_MAP: Record<string, string> = {
   "T1": "t1.nii.gz",
   "T2": "t2.nii.gz",
+  "T2_star": "t2star.nii.gz",
+  "Noise Covariance Matrix": "psi.nii.gz",
   "Magnetic Receive Field 1": "b1m_001.nii.gz",
   "Magnetic Receive Field 2": "b1m_002.nii.gz",
   "Magnetic Receive Field 3": "b1m_003.nii.gz",
@@ -78,9 +80,16 @@ const SETUP_VOLUME_MAP: Record<string, string> = {
   "Magnetic Receive Field 14": "b1m_014.nii.gz",
   "Magnetic Receive Field 15": "b1m_015.nii.gz",
   "Magnetic Receive Field 16": "b1m_016.nii.gz",
-  "c": "c.nii.gz",
-  "dw": "dw.nii.gz",
- 
+  "Proton_Density": "rhoh.nii.gz",
+  "Mass_Density": "rhom.nii.gz",
+  "Chemical_Shift": "dw.nii.gz",
+  "Relative_Permittivity": "epsilon_r.nii.gz",
+  "Conductivity": "sigma_e.nii.gz",
+  "Relative_Permeability": "mur.nii.gz",
+  "Heat_Capacity": "c.nii.gz",
+  "Thermal_Conductivity": "k.nii.gz",
+  "Perfusion": "w.nii.gz",
+  "Heat Generation Rate": "q.nii.gz",
 };
 
 const Setup = () => {
@@ -88,7 +97,7 @@ const Setup = () => {
 
   const [openModelPanel, setOpenModelPanel] = useState<Array<string | number>>([0]); // open by default
   const [openPulsePanel, setOpenPulsePanel] = useState<Array<string | number>>([]); // closed by default
-  const [openFieldofViewPanel, setOpenFieldofViewPanel] = useState<Array<string | number>>([]); // closed by default
+  const [openFieldofViewPanel, setOpenFieldofViewPanel] = useState<Array<string | number>>([0]); // closed by default
 
   // temporarily use local data for models
   const modelOptions = [
@@ -234,7 +243,7 @@ const Setup = () => {
     {
       id: 'PD-Weighted_Spin_Echo.mtrk',
       fileName: 'PD-Weighted_Spin_Echo.mtrk',
-      alias: 'PD Weighted Spin Echo [type: mtrk]',
+      alias: 'PD-Weighted_Spin_Echo',
       // name:
       // alias: 'ISMRM25',
       tr: '4000ms',
@@ -246,7 +255,7 @@ const Setup = () => {
       id: 'PD-Weighted_Spin_Echo.seq',
       fileName: 'PD-Weighted_Spin_Echo.seq',
       // name: 'PD Weighted Spin Echo [type: pulseq]',
-      alias: 'PD Weighted Spin Echo [type: pulseq]',
+      alias: 'PD-Weighted_Spin_Echo',
       tr: '4000ms',
       te: '10ms',
       fa: [90, 180],
@@ -256,7 +265,7 @@ const Setup = () => {
       id: 'T1-Weighted_Spin_Echo.mtrk',
       fileName: 'T1-Weighted_Spin_Echo.mtrk',
       // name: 'T1 Weighted Spin Echo [type: mtrk]',
-      alias: 'T1 Weighted Spin Echo [type: mtrk]',
+      alias: 'T1-Weighted_Spin_Echo',
       tr: '600ms',
       te: '10ms',
       fa: [90, 180],
@@ -265,7 +274,7 @@ const Setup = () => {
     {
       id: 'T1-Weighted_Spin_Echo.seq',
       fileName: 'T1-Weighted_Spin_Echo.seq',
-      alias: 'T1 Weighted Spin Echo [type: pulseq]',
+      alias: 'T1-Weighted_Spin_Echo',
       tr: '600ms',
       te: '10ms',
       fa: [90, 180],
@@ -274,7 +283,7 @@ const Setup = () => {
     {
       id: 'T1-Weighted_Spoiled_GRE.mtrk',
       fileName: 'T1-Weighted_Spoiled_GRE.mtrk',
-      alias: 'T1 Weighted Spoiled GRE [type: mtrk]',
+      alias: 'T1-Weighted_Spoiled_GRE',
       // name:
       tr: '40ms',
       te: '10ms',
@@ -284,7 +293,7 @@ const Setup = () => {
     {
       id: 'T1-Weighted_Spoiled_GRE.seq',
       fileName: 'T1-Weighted_Spoiled_GRE.seq',
-      alias: 'T1 Weighted Spoiled GRE [type: pulseq]',
+      alias: 'T1 Weighted Spoiled GRE',
       // name
       tr: '40ms',
       te: '10ms',
@@ -294,7 +303,7 @@ const Setup = () => {
     {
       id: 'T2-Weighted_Spin_Echo.mtrk',
       fileName: 'T2-Weighted_Spin_Echo.mtrk',
-      alias: 'T2 Weighted Spin Echo [type: mtrk]',
+      alias: 'T2 Weighted Spin Echo',
       // name
       tr: '4000ms',
       te: '80ms',
@@ -304,7 +313,7 @@ const Setup = () => {
     {
       id: 'T2-Weighted_Spin_Echo.seq',
       fileName: 'T2-Weighted_Spin_Echo.mtrk',
-      alias: 'T2 Weighted Spin Echo [type: pulseq]',
+      alias: 'T2 Weighted Spin Echo',
       // name:
       tr: '4000ms',
       te: '80ms',
@@ -450,8 +459,20 @@ const Setup = () => {
         };
 
     // If we're editing a master library sequence, do not modify it.
-    // Create a new custom copy that contains the edited values.
+    // Create a new custom copy only when something actually changed.
     if (isMasterSequence(selectedSequence.id)) {
+      const aliasUnchanged = updated.alias === (selectedSequence.alias ?? "").trim();
+      const trUnchanged =
+        selectedSequence.type !== "mtrk" || updated.tr === selectedSequence.tr;
+      const teUnchanged =
+        selectedSequence.type !== "mtrk" || updated.te === selectedSequence.te;
+
+      if (aliasUnchanged && trUnchanged && teUnchanged) {
+        // No changes: just exit edit mode, do not create a copy
+        setIsEditingSeq(false);
+        return;
+      }
+
       const newId = makeUniqueId(`${selectedSequence.id}__edited`);
 
       const customCopy = {
@@ -747,6 +768,7 @@ const Setup = () => {
       ...seq,
       id: newId,
       alias: newAlias,
+      fileName: seq.fileName, // keep original file name; only alias gets _copy
     };
 
     // 1) store it in the separate "custom" list (your caveat)
@@ -1018,7 +1040,7 @@ const Setup = () => {
                     />
                     <CardContent>
                       <Box textAlign="left" height="100%">
-                        <Typography><strong>File Name:</strong>&nbsp;{selectedSequence.id}</Typography>
+                        <Typography><strong>File Name:</strong>&nbsp;{selectedSequence.fileName ?? selectedSequence.id}</Typography>
                         {/* Alias */}
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                           <Typography>
@@ -1286,7 +1308,7 @@ const Setup = () => {
         <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column' }}>
           {/* Field of View - NiiVue viewer (same as Results) */}
           {Object.keys(availableVolumes).length > 0 ? (
-            <CmrCollapse activeKey={[0]}>
+            <CmrCollapse activeKey={openFieldofViewPanel}>
               <CmrPanel header="Field of View" >
                 <NiiVue
                   niis={setupNiis}

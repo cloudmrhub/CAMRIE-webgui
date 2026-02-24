@@ -478,6 +478,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
             </CMRUpload>
             <CmrCheckbox
               defaultChecked={true}
+              checkedColor="#1578a1"
               onChange={(e) => {
                 //@ts-ignore
                 setAutoRefresh(e.target.value);
