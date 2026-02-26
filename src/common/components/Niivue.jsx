@@ -7,6 +7,12 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { LayersPanel } from './LayersPanel.jsx';
 import { NiivuePanel } from './NiivuePanel.tsx';
 import { Niivue } from './NiivuePatcher';
+import { cmapper } from '@niivue/niivue';
+import lipariNaviaColormaps from './colormaps-lipari-navia.json';
+
+// Register custom MR relaxometry colormaps (lipari, navia) at app init
+cmapper.addColormap('lipari', lipariNaviaColormaps.lipari);
+cmapper.addColormap('navia', lipariNaviaColormaps.navia);
 import NVSwitch from './Switch.jsx';
 import Toolbar from './Toolbar.tsx';
 import Layer from './Layer.jsx';

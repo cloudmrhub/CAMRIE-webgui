@@ -36,6 +36,8 @@ export default function Layer(props) {
     "hot",
     "hsv",
     "jet",
+    "lipari",
+    "navia",
     "plasma",
     "turbo",
     "viridis"
