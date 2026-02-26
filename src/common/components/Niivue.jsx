@@ -19,6 +19,7 @@ import JSZip from "jszip";
 import { getMax, getMin } from "cloudmr-ux/core/common/utilities";
 import { AuthenticatedHttpClient, getPipelineROI, getEndpoints } from "cloudmr-ux/core";
 import { useAppDispatch, useAppSelector } from "../../features/hooks";
+
 export const nv = new Niivue({
   loadingText: '',
   isColorbar: true,
@@ -170,7 +171,10 @@ export default function NiiVueport(props) {
       nv.loadVolumes([niiToVolume(props.niis[props.selectedVolume])]);
       setWarning("Error loading results, please check internet connectivity");
       setWarningOpen(true);
-      setTimeout(() => { setWarningOpen(false); setWarning(""); }, 2500);
+      setTimeout(() => {
+        setWarningOpen(false);
+      }, 2500)
+      setWarning("");
       return;
     }
     // console.log(nv.volumes);

@@ -63,7 +63,7 @@ const SETUP_VOLUME_MAP: Record<string, string> = {
   "T1": "t1.nii.gz",
   "T2": "t2.nii.gz",
   "T2_star": "t2star.nii.gz",
-  "Noise Covariance Matrix": "psi_float32.nii.gz",
+  "Noise Covariance Matrix": "psi.nii.gz",
   "Magnetic Receive Field 1": "b1m_001.nii.gz",
   "Magnetic Receive Field 2": "b1m_002.nii.gz",
   "Magnetic Receive Field 3": "b1m_003.nii.gz",

@@ -211,12 +211,12 @@ export function NiivuePanel(props: NiivuePanelProps) {
         }}
       >
         {/* Slice Position */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box id={"controlDock"} className={'title'} style={{ width: '100%' }} ref={sliceControl}>
             Slice Position
           </Box>
-          <Card variant="outlined" sx={{ flex: 1, display: 'flex', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Card variant="outlined" sx={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+          <CardContent>
             <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
 
               <div style={{ marginBottom: 20 }}>
@@ -368,12 +368,12 @@ export function NiivuePanel(props: NiivuePanelProps) {
         </Box>
 
         {/* Contrast Adjustments */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box id={"controlDock"} className={'title'} style={{ width: '100%' }}>
             Contrast Adjustments
           </Box>
-          <Card variant="outlined" sx={{ flex: 1, display: 'flex', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Card variant="outlined" sx={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+          <CardContent>
             <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
 
               <TKDualRange
