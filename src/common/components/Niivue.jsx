@@ -26,6 +26,7 @@ export const nv = new Niivue({
   textHeight: 0.04,
   colorbarHeight: 0.02,
   dragMode: 'pan',
+  crosshairWidth: 0,
   // crosshairColor: [0.098,0.453,0.824]
   crosshairColor: [1, 1, 0],
   fontColor: [0.00, 0.94, 0.37, 1],
@@ -194,6 +195,7 @@ export default function NiiVueport(props) {
     nv.scene.crosshairPos = [...oldCrosshairPos]
     // keep display mode consistent after resets
     nvUpdateSliceType(sliceType);
+    nv.opts.crosshairWidth = showCrosshair ? 1 : 0;
     setMMs(nv.frac2mm(nv.scene.crosshairPos));
   }
 
@@ -827,7 +829,7 @@ export default function NiiVueport(props) {
       nvUpdateSliceType(sliceType);
       setShowCrosshair(false);
       setTextsVisible(false);
-      nv.opts.crosshairWidth = 1;
+      nv.opts.crosshairWidth = 0;
       nv.hideText = true;
     }
   }
@@ -854,6 +856,7 @@ export default function NiiVueport(props) {
 
         // ensure engine mode matches the remembered selection
         nvUpdateSliceType(sliceType);
+        nv.opts.crosshairWidth = showCrosshair ? 1 : 0;
       } catch (e) {
         setWarning("Error loading results, please check internet connectivity");
         setWarningOpen(true);
