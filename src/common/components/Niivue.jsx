@@ -184,6 +184,32 @@ export default function NiiVueport(props) {
       return;
     }
     // console.log(nv.volumes);
+
+    // Restore zoom, gamma, opacity and colormap if switching channels, otherwise reset to defaults.
+    // Do this BEFORE setLayers so that Layer mounts with the correct opacity already on the volume object.
+    const saved = savedViewStateRef.current;
+    if (saved) {
+      nv.scene.pan2Dxyzmm = [...saved.pan2Dxyzmm];
+
+      nv.setGamma(saved.gamma);
+      setGamma(saved.gamma);
+      setGammaKey(k => k + 1);
+
+      const vol = nv.volumes[0];
+      if (vol) {
+        nv.setColorMap(vol.id, saved.colormap);
+        vol.opacity = saved.opacity;
+        nv.updateGLVolume();
+      }
+      setopacity(saved.opacity);
+
+      savedViewStateRef.current = null;
+    } else {
+      nv.setGamma(1.0);
+      nv.onResetGamma?.();
+      nv.resetScene();
+    }
+
     setLayers([...nv.volumes]);
     setBoundMins(nv.frac2mm([0, 0, 0]));
     setBoundMaxs(nv.frac2mm([1, 1, 1]));
@@ -191,19 +217,6 @@ export default function NiiVueport(props) {
     if (verifyComplex(nv.volumes[0]))//Check if there are complex components
       nvSetDisplayedVoxels('absolute');
     else nvSetDisplayedVoxels('absolute');
-    // let volume = nv.volumes[0];
-
-    nv.setGamma(1.0);
-    nv.onResetGamma?.();
-
-    // Restore zoom if we saved it before this channel switch, otherwise do a full reset
-    const saved = savedViewStateRef.current;
-    if (saved) {
-      nv.scene.pan2Dxyzmm = [...saved.pan2Dxyzmm];
-      savedViewStateRef.current = null;
-    } else {
-      nv.resetScene();
-    }
 
     nvSetDragMode(dragMode); // keep engine behavior in sync with dropdown
     // Re-apply world/voxel mode and last crosshair after resets
@@ -374,6 +387,7 @@ export default function NiiVueport(props) {
         onColorMapChange={nvUpdateColorMap}
         onRemoveLayer={nvRemoveLayer}
         onOpacityChange={nvUpdateLayerOpacity}
+        opacity={opacity}
         colorMapValues={nv.colormapFromKey(layer.colormap)}
         getColorMapValues={(colorMapName) => {
           return nv.colormapFromKey(colorMapName)
@@ -816,6 +830,7 @@ export default function NiiVueport(props) {
   }
 
   function nvUpdateLayerOpacity(a) {
+    setopacity(a)
     nv.updateGLVolume()
   }
 
@@ -862,9 +877,14 @@ export default function NiiVueport(props) {
       if (drawingEnabled)
         nvUpdateDrawingEnabled();
 
-      // Snapshot current zoom so onImageLoaded can restore it
+      // Snapshot zoom, gamma, opacity and colormap so onImageLoaded can restore them
+      // Read gamma and opacity from React state — they are always kept in sync with the engine
+      const vol = nv.volumes[0];
       savedViewStateRef.current = {
         pan2Dxyzmm: [...nv.scene.pan2Dxyzmm],
+        gamma,           // React state variable, mirrors cmapper.gamma
+        opacity,         // React state variable, mirrors vol.opacity
+        colormap: vol?.colormap ?? 'gray',
       };
 
       if (props.niis[selectVolume] !== undefined) {
