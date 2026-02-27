@@ -94,6 +94,9 @@ export default function NiiVueport(props) {
   const histoRef = React.useRef(null);
   const [rois, setROIs] = React.useState([]);
 
+  // Persists zoom + contrast across channel switches so they are not reset on load
+  const savedViewStateRef = React.useRef(null);
+
   const [showCrosshair, setShowCrosshair] = React.useState(false);
 
   const [brushSize, setBrushSize] = useState(1);
@@ -193,7 +196,15 @@ export default function NiiVueport(props) {
     nv.setGamma(1.0);
     nv.onResetGamma?.();
 
-    nv.resetScene();
+    // Restore zoom if we saved it before this channel switch, otherwise do a full reset
+    const saved = savedViewStateRef.current;
+    if (saved) {
+      nv.scene.pan2Dxyzmm = [...saved.pan2Dxyzmm];
+      savedViewStateRef.current = null;
+    } else {
+      nv.resetScene();
+    }
+
     nvSetDragMode(dragMode); // keep engine behavior in sync with dropdown
     // Re-apply world/voxel mode and last crosshair after resets
     nv.setSliceMM(worldSpace);
@@ -850,6 +861,12 @@ export default function NiiVueport(props) {
       setDrawingChanged(false);
       if (drawingEnabled)
         nvUpdateDrawingEnabled();
+
+      // Snapshot current zoom so onImageLoaded can restore it
+      savedViewStateRef.current = {
+        pan2Dxyzmm: [...nv.scene.pan2Dxyzmm],
+      };
+
       if (props.niis[selectVolume] !== undefined) {
         nv.removeVolume(niiToVolume(props.niis[selectedVolume]));
       }

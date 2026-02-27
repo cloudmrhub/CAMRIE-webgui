@@ -137,4 +137,6 @@
 /* small, subtle caption */
 .tkdr__hint {
   font-size: 0.85rem;
+  font-weight: 400;
+  font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
 }
