@@ -25,6 +25,8 @@ import { getPipelineROI } from "cloudmr-ux/core";
 import HomeIcon from "@mui/icons-material/Home";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ZoomInMapIcon from "@mui/icons-material/ZoomInMap";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import Brightness6Icon from "@mui/icons-material/Brightness6";
 
 interface ToolbarProps {
@@ -186,7 +188,7 @@ export default function Toolbar(props: ToolbarProps) {
                 minWidth: 120,
               }}
             >
-              <InputLabel id="slice-type-label">Pixel Type</InputLabel>
+              <InputLabel id="slice-type-label">Pixel Value</InputLabel>
               <Select
                 labelId="slice-type-label"
                 id="slice-type"
@@ -370,26 +372,86 @@ export default function Toolbar(props: ToolbarProps) {
             </Box>
 
             <Stack flexDirection={"row"} sx={{ m: 2 }}>
-              <Tooltip title={"Reset Views"} placement={"right"}>
+              <Tooltip title={"Reset Views"} placement={"top"}>
                 <IconButton onClick={() => props.nv.resetScene()}>
                   <HomeIcon />
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title={"Recenter Views"} placement={"right"}>
+              <Tooltip title={"Recenter Views"} placement={"top"}>
                 <IconButton onClick={() => props.nv.recenter()}>
                   <CenterFocusStrongIcon />
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title={"Reset Zooms"} placement={"right"}>
+              <Tooltip title={"Reset Zoom"} placement={"top"}>
                 <IconButton onClick={() => props.nv.resetZoom()}>
                   <ZoomInMapIcon />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={"Reset Contrast"} placement={"right"}>
+
+              <Tooltip title={"Reset Contrast"} placement={"top"}>
                 <IconButton onClick={() => props.nv.resetContrast()}>
                   <Brightness6Icon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            {/* Spacer pushes zoom buttons to the far right */}
+            <Box sx={{ flex: 1 }} />
+
+            <Stack
+              flexDirection={"row"}
+              alignItems={"center"}
+              sx={{ m: 2, gap: 0.5 }}
+            >
+              <Tooltip title={"Zoom Out"} placement={"top"}>
+                <IconButton
+                  onClick={() => {
+                    const scene = props.nv.scene;
+                    const current = scene.pan2Dxyzmm[3];
+                    const next = Math.max(0.1, current - 0.1);
+                    const delta = current - next;
+                    scene.pan2Dxyzmm[3] = next;
+                    const mm = props.nv.frac2mm(scene.crosshairPos);
+                    scene.pan2Dxyzmm[0] += delta * mm[0];
+                    scene.pan2Dxyzmm[1] += delta * mm[1];
+                    scene.pan2Dxyzmm[2] += delta * mm[2];
+                    props.nv.drawScene();
+                  }}
+                  size="small"
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <ZoomOutIcon />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title={"Zoom In"} placement={"top"}>
+                <IconButton
+                  onClick={() => {
+                    const scene = props.nv.scene;
+                    const current = scene.pan2Dxyzmm[3];
+                    const next = current + 0.1;
+                    const delta = current - next;
+                    scene.pan2Dxyzmm[3] = next;
+                    const mm = props.nv.frac2mm(scene.crosshairPos);
+                    scene.pan2Dxyzmm[0] += delta * mm[0];
+                    scene.pan2Dxyzmm[1] += delta * mm[1];
+                    scene.pan2Dxyzmm[2] += delta * mm[2];
+                    props.nv.drawScene();
+                  }}
+                  size="small"
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <ZoomInIcon />
                 </IconButton>
               </Tooltip>
             </Stack>

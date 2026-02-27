@@ -7,6 +7,7 @@ import { DrawToolkit, DrawToolkitProps } from "./DrawToolKit";
 import "./Toolbar.scss";
 // import { DualSlider } from "../../Cmr-components/double-slider/DualSlider";
 import TKDualRange from "./tk-dualrange/TKDualRange";
+import { CmrLabel } from "cloudmr-ux";
 interface NiivuePanelProps {
   nv: any;
   // displayVertical:boolean;
@@ -222,9 +223,9 @@ export function NiivuePanel(props: NiivuePanelProps) {
               <div style={{ marginBottom: 20 }}>
                 {/* Label and text field */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <label htmlFor="xSlice">
+                  <CmrLabel>
                     X:
-                  </label>
+                  </CmrLabel>
                   <input
                     type="number"
                     value={xVal}
@@ -269,9 +270,9 @@ export function NiivuePanel(props: NiivuePanelProps) {
               <div style={{ marginBottom: 20 }}>
                 {/* Label + editable field  */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <label htmlFor="ySlice">
+                  <CmrLabel>
                     Y:
-                  </label>
+                  </CmrLabel>
                   <input
                     type="number"
                     // keep the input's value as a number for smooth dragging,
@@ -319,9 +320,9 @@ export function NiivuePanel(props: NiivuePanelProps) {
               <div>
                 {/* Label + editable field */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <label htmlFor="zSlice">
+                  <CmrLabel>
                     Z:
-                  </label>
+                  </CmrLabel>
                   <input
                     type="number"
                     value={zVal.toFixed(3)}   // show up to 3 decimals
@@ -416,9 +417,9 @@ export function NiivuePanel(props: NiivuePanelProps) {
 
               {/* Gamma */}
               <div style={{ marginTop: 20, marginBottom: 15 }}>
-                <label htmlFor="gamma" style={{ display: 'block', marginBottom: 6 }}>
+                <CmrLabel style={{ display: 'block', marginBottom: 6 }}>
                   Gamma: {props.gamma.toFixed(2)}
-                </label>
+                </CmrLabel>
                 <input
                   id="gamma"
                   type="range"
