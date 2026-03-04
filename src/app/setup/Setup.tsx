@@ -189,6 +189,8 @@ const Setup = () => {
     link: url,
   }));
 
+  const [successToastOpen, setSuccessToastOpen] = useState(false);
+
   const warn = (message: string) => {
     setWarning(message);
     setWarningOpen(true);
@@ -534,14 +536,50 @@ const Setup = () => {
   // --- Protocol Dropdown ---
   const [protocol, setProtocol] = useState<string>("");
 
-  // add react-select options + a handler that reuses your existing logic
+  // Saved protocols (user-created). Persisted to localStorage.
+  type SavedProtocol = { id: string; label: string; sequenceIds: string[] };
+  const SAVED_PROTOCOLS_KEY = "camrie-saved-protocols";
+
+  const loadSavedProtocols = (): SavedProtocol[] => {
+    try {
+      const raw = localStorage.getItem(SAVED_PROTOCOLS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (p: unknown): p is SavedProtocol =>
+          p != null &&
+          typeof p === "object" &&
+          typeof (p as SavedProtocol).id === "string" &&
+          typeof (p as SavedProtocol).label === "string" &&
+          Array.isArray((p as SavedProtocol).sequenceIds)
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  const [savedProtocols, setSavedProtocols] = useState<SavedProtocol[]>(loadSavedProtocols);
+
+  useEffect(() => {
+    if (savedProtocols.length > 0) {
+      localStorage.setItem(SAVED_PROTOCOLS_KEY, JSON.stringify(savedProtocols));
+    } else {
+      localStorage.removeItem(SAVED_PROTOCOLS_KEY);
+    }
+  }, [savedProtocols]);
+
   type ProtocolOption = { value: string; label: string };
 
-  const protocolOptions: ProtocolOption[] = [
+  const baseProtocolOptions: ProtocolOption[] = [
     { value: "", label: "New Protocol" },
     { value: "10", label: "Protocol 1" },
     { value: "20", label: "Protocol 2" },
     { value: "30", label: "Protocol 3" },
+  ];
+  const protocolOptions: ProtocolOption[] = [
+    ...baseProtocolOptions,
+    ...savedProtocols.map((p) => ({ value: p.id, label: p.label })),
   ];
 
   const handleProtocolChange = (opt: ProtocolOption | null) => {
@@ -560,6 +598,24 @@ const Setup = () => {
 
     if (value === "10") {
       const loaded = PROTOCOL_1_SEQUENCE_IDS
+        .map((id) => getSequenceById(id))
+        .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
+
+      setProtocolSequences(loaded);
+
+      if (loaded.length > 0) {
+        handleSelectProtocolSequence(loaded[0]);
+      } else {
+        setSelectedSequence(null);
+        setSelectedProtocolSeqId(null);
+      }
+      return;
+    }
+
+    // Saved (user-created) protocol
+    const saved = savedProtocols.find((p) => p.id === value);
+    if (saved) {
+      const loaded = saved.sequenceIds
         .map((id) => getSequenceById(id))
         .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
 
@@ -706,15 +762,106 @@ const Setup = () => {
   };
 
 
-  // --- Save As New (DEMO only) ---
-  const [saveAsOpen, setSaveAsOpen] = useState(false);
-  const [saveAsIdDraft, setSaveAsIdDraft] = useState("");
+  // --- Save Protocol Dialog ---
+  const [saveProtocolOpen, setSaveProtocolOpen] = useState(false);
+  const [saveProtocolNameDraft, setSaveProtocolNameDraft] = useState("");
+  const [saveProtocolError, setSaveProtocolError] = useState("");
 
+  const handleSaveProtocolClick = () => {
+    // Saved protocol: update in place, no dialog
+    if (protocol.startsWith("saved-")) {
+      setSavedProtocols((prev) =>
+        prev.map((p) =>
+          p.id === protocol ? { ...p, sequenceIds: protocolSequences.map((s) => s.id) } : p
+        )
+      );
+      setSuccessToastOpen(true);
+      return;
+    }
+    // New Protocol or built-in: open dialog to create new protocol
+    setSaveProtocolError("");
+    const currentLabel = protocolOptions.find((o) => o.value === protocol)?.label ?? "";
+    setSaveProtocolNameDraft(protocol ? `Copy of ${currentLabel}` : "");
+    setSaveProtocolOpen(true);
+  };
 
-  // demo: do nothing except close
-  const confirmSaveAsDemo = () => {
-    setSaveAsOpen(false);
-    // no changes, no additions, no edits
+  const confirmSaveProtocol = () => {
+    const name = saveProtocolNameDraft.trim();
+    if (!name) {
+      setSaveProtocolError("Please enter a protocol name.");
+      return;
+    }
+    if (savedProtocols.some((p) => p.label.toLowerCase() === name.toLowerCase())) {
+      setSaveProtocolError("A protocol with this name already exists.");
+      return;
+    }
+
+    const newProtocol: SavedProtocol = {
+      id: `saved-${Date.now()}`,
+      label: name,
+      sequenceIds: protocolSequences.map((s) => s.id),
+    };
+
+    setSavedProtocols((prev) => [...prev, newProtocol]);
+    setProtocol(newProtocol.id);
+    setSaveProtocolOpen(false);
+    setSaveProtocolNameDraft("");
+    setSaveProtocolError("");
+  };
+
+  const cancelSaveProtocol = () => {
+    setSaveProtocolOpen(false);
+    setSaveProtocolNameDraft("");
+    setSaveProtocolError("");
+  };
+
+  // --- Edit Protocol Name (saved protocols only) ---
+  const [isEditingProtocolName, setIsEditingProtocolName] = useState(false);
+  const [editProtocolNameDraft, setEditProtocolNameDraft] = useState("");
+  const [editProtocolNameError, setEditProtocolNameError] = useState("");
+
+  const isSavedProtocol = protocol.startsWith("saved-");
+
+  const startEditProtocolName = () => {
+    if (!isSavedProtocol) return;
+    const label = protocolOptions.find((o) => o.value === protocol)?.label ?? "";
+    setEditProtocolNameDraft(label);
+    setEditProtocolNameError("");
+    setIsEditingProtocolName(true);
+  };
+
+  const saveEditProtocolName = () => {
+    const name = editProtocolNameDraft.trim();
+    if (!name) return;
+    const otherNames = savedProtocols
+      .filter((p) => p.id !== protocol)
+      .map((p) => p.label.toLowerCase());
+    if (otherNames.includes(name.toLowerCase())) {
+      setEditProtocolNameError("A protocol with this name already exists.");
+      return;
+    }
+    setEditProtocolNameError("");
+    setSavedProtocols((prev) =>
+      prev.map((p) => (p.id === protocol ? { ...p, label: name } : p))
+    );
+    setIsEditingProtocolName(false);
+  };
+
+  const cancelEditProtocolName = () => {
+    setIsEditingProtocolName(false);
+    setEditProtocolNameDraft("");
+    setEditProtocolNameError("");
+  };
+
+  const handleDeleteProtocol = (id: string) => {
+    if (!id.startsWith("saved-")) return;
+    setSavedProtocols((prev) => prev.filter((p) => p.id !== id));
+    if (protocol === id) {
+      setProtocol("");
+      setProtocolSequences([]);
+      setSelectedSequence(null);
+      setSelectedProtocolSeqId(null);
+    }
   };
 
   // -- make list of sequences clickable --
@@ -811,6 +958,21 @@ const Setup = () => {
           sx={{ width: "100%" }}
         >
           {warning}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        TransitionComponent={(props: any) => <Slide {...props} direction="right" />}
+        open={successToastOpen}
+        autoHideDuration={3000}
+        onClose={() => setSuccessToastOpen(false)}
+      >
+        <Alert
+          onClose={() => setSuccessToastOpen(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Protocol changes saved.
         </Alert>
       </Snackbar>
       <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
@@ -1152,6 +1314,26 @@ const Setup = () => {
                       onChange={handleProtocolChange}
                       options={protocolOptions}
                       isSearchable={true}
+                      formatOptionLabel={(option: ProtocolOption) => (
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                          <span>{option.label}</span>
+                          {option.value.startsWith("saved-") && (
+                            <Tooltip title="Delete protocol">
+                              <IconButton
+                                size="small"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  handleDeleteProtocol(option.value);
+                                }}
+                                sx={{ p: 0.25, "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" } }}
+                              >
+                                <DeleteIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      )}
                       styles={{
                         ...selectStyles,
                         container: (base: any) => ({ ...base, width: "100%" }),
@@ -1170,7 +1352,50 @@ const Setup = () => {
                 ) : (
                   <Card variant="outlined" sx={{ mt: 2 }}>
                     <CardHeader
-                      subheader="List of Sequences"
+                      subheader={
+                        isEditingProtocolName ? (
+                          <TextField
+                            size="small"
+                            value={editProtocolNameDraft}
+                            onChange={(e) => {
+                              setEditProtocolNameDraft(e.target.value);
+                              setEditProtocolNameError("");
+                            }}
+                            error={!!editProtocolNameError}
+                            helperText={editProtocolNameError}
+                            sx={{ width: 220 }}
+                            autoFocus
+                          />
+                        ) : (
+                          protocolOptions.find((o) => o.value === protocol)?.label ?? "New Protocol"
+                        )
+                      }
+                      action={
+                        isSavedProtocol && (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            {!isEditingProtocolName ? (
+                              <Tooltip title="Edit">
+                                <IconButton aria-label="edit protocol" size="small" onClick={startEditProtocolName}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <>
+                                <Tooltip title="Save">
+                                  <IconButton aria-label="save" size="small" onClick={saveEditProtocolName}>
+                                    <SaveIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Cancel">
+                                  <IconButton aria-label="cancel" size="small" onClick={cancelEditProtocolName}>
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
+                          </Box>
+                        )
+                      }
                       sx={{
                         backgroundColor: "#F7F7F9",
                         borderBottom: "1px solid #E6E6EA",
@@ -1277,7 +1502,7 @@ const Setup = () => {
 
                         <CmrButton
                           variant="contained"
-                          onClick={() => { }}
+                          onClick={handleSaveProtocolClick}
                           sx={{ flex: 1, width: "100%" }}
                           disabled={protocolSequences.length === 0}
                         >
@@ -1341,6 +1566,35 @@ const Setup = () => {
           )}
         </Grid>
       </Grid>
+
+      {/* Save Protocol Dialog */}
+      <Dialog open={saveProtocolOpen} onClose={cancelSaveProtocol} maxWidth="xs" fullWidth>
+        <DialogTitle>Save Protocol</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Protocol name"
+            fullWidth
+            variant="outlined"
+            value={saveProtocolNameDraft}
+            onChange={(e) => setSaveProtocolNameDraft(e.target.value)}
+            error={!!saveProtocolError}
+            helperText={saveProtocolError}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmSaveProtocol();
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <CmrButton variant="outlined" onClick={cancelSaveProtocol}>
+            Cancel
+          </CmrButton>
+          <CmrButton variant="contained" onClick={confirmSaveProtocol}>
+            Save
+          </CmrButton>
+        </DialogActions>
+      </Dialog>
     </Fragment>
   );
 };
