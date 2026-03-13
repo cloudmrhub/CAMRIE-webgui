@@ -75,9 +75,9 @@ export default function Toolbar(props: ToolbarProps) {
   // let dragModes = ["Pan","Measurement","Contrast",'None'];
   let dragModes = [
     { value: "pan", label: "Pan and Zoom" },
-    { value: "measurement", label: "Measurement" },
+    { value: "measurement", label: "Slice and Measurement" },
     { value: "contrast", label: "Contrast" },
-    { value: "none", label: "None" },
+    { value: "none", label: "Slice and None" },
   ];
   let pipeline = useAppSelector((state) => state.result.activeJob?.pipeline_id);
 
@@ -111,12 +111,12 @@ export default function Toolbar(props: ToolbarProps) {
                 minWidth: 120,
               }}
             >
-              <InputLabel id="slice-type-label">Current Plot</InputLabel>
+              <InputLabel id="slice-type-label">Opened Volume</InputLabel>
               <Select
                 labelId="slice-type-label"
                 id="slice-type"
                 value={props.selectedVolume}
-                label="Current Plot"
+                label="Opened Volume"
                 onChange={(e) =>
                   props.setSelectedVolume(Number(e.target.value))
                 }
@@ -133,12 +133,12 @@ export default function Toolbar(props: ToolbarProps) {
                 minWidth: 120,
               }}
             >
-              <InputLabel id="slice-type-label">Display mode</InputLabel>
+              <InputLabel id="slice-type-label">Orientation</InputLabel>
               <Select
                 labelId="slice-type-label"
                 id="slice-type"
                 value={props.sliceType}
-                label="Display Mode"
+                label="Orientation"
                 onChange={handleSliceTypeChange}
               >
                 <MenuItem value={"axial"}>Axial</MenuItem>
@@ -156,12 +156,12 @@ export default function Toolbar(props: ToolbarProps) {
                 minWidth: 120,
               }}
             >
-              <InputLabel id="drag-mode-label">Right Button</InputLabel>
+              <InputLabel id="drag-mode-label">Scroll and Right Click</InputLabel>
               <Select
                 labelId="drag-mode-label"
                 id="drag-mode"
                 value={props.dragMode}
-                label="Display mode"
+                label="Scroll and Right Click"
                 onChange={(e) => {
                   console.log(e.target.value);
                   props.setDragMode(e.target.value);
@@ -188,12 +188,12 @@ export default function Toolbar(props: ToolbarProps) {
                 minWidth: 120,
               }}
             >
-              <InputLabel id="slice-type-label">Pixel Value</InputLabel>
+              <InputLabel id="slice-type-label">Display Mode</InputLabel>
               <Select
                 labelId="slice-type-label"
                 id="slice-type"
                 value={props.complexMode}
-                label="Opened ROIs"
+                label="Display Mode"
                 onChange={(e) => props.setComplexMode(e.target.value)}
               >
                 {props.complexOptions.map((value) => {
@@ -391,7 +391,13 @@ export default function Toolbar(props: ToolbarProps) {
               </Tooltip>
 
               <Tooltip title={"Reset Contrast"} placement={"top"}>
-                <IconButton onClick={() => props.nv.resetContrast()}>
+                <IconButton onClick={() => {
+                    props.nv.setGamma(1.0); // engine reset
+                    props.nv.onResetGamma?.(); // UI reset: bumps gammaKey + sets gamma=1.0
+                    props.nv.resetContrast();
+                    props.nv.setOpacity(props.selectedVolume, 1.0); // engine reset opacity
+                    props.nv.onResetOpacity?.(); // UI reset: sets opacity slider to 1.0
+                  }}>
                   <Brightness6Icon />
                 </IconButton>
               </Tooltip>

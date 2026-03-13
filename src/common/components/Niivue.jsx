@@ -123,6 +123,10 @@ export default function NiiVueport(props) {
     setGammaKey(k => k + 1); // re-mounts the slider to reflect the reset
   };
 
+  nv.onResetOpacity = () => {
+    setopacity(1.0);
+  };
+
   React.useEffect(() => {
     resampleImage();
     // histogram.current?.addEventListener('resize',()=>props.resampleImage());

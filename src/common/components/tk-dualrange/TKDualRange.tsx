@@ -60,8 +60,15 @@ export default function TKDualRange({
     onChangeHigh(nextReal);
   };
 
-  // Editable inputs show RENDER values (like the article)
-  const fmt = (v: number) => (Number.isFinite(v) ? v.toFixed(precision) : "");
+  // Display REAL-space values (matching the color bar); use scientific notation for
+  // small non-zero values so they don't display as "0.000". Use type="text" because
+  // type="number" can show "0" for very small values instead of scientific notation.
+  const fmt = (v: number) =>
+    Number.isFinite(v)
+      ? v !== 0 && Math.abs(v) < 0.01
+        ? Number(v).toExponential(precision)
+        : v.toFixed(precision)
+      : "";
   const parse = (s: string) => {
     const n = Number(s);
     return Number.isFinite(n) ? n : NaN;
@@ -75,18 +82,18 @@ export default function TKDualRange({
           <span className="tkdr__hint">Min</span>
           <input
             className="tkdr__num"
-            type="number"
-            step={s}
-            value={fmt(tLow)}
+            type="text"
+            inputMode="decimal"
+            value={fmt(valueLow)}
             onChange={(e) => {
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              handleLowRender(n);
+              onChangeLow(clamp(n, minDomain, valueHigh));
             }}
             onBlur={(e) => {
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              handleLowRender(n);
+              onChangeLow(clamp(n, minDomain, valueHigh));
             }}
           />
         </div>
@@ -95,18 +102,18 @@ export default function TKDualRange({
           <span className="tkdr__hint">Max</span>
           <input
             className="tkdr__num"
-            type="number"
-            step={s}
-            value={fmt(tHigh)}
+            type="text"
+            inputMode="decimal"
+            value={fmt(valueHigh)}
             onChange={(e) => {
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              handleHighRender(n);
+              onChangeHigh(clamp(n, valueLow, maxDomain));
             }}
             onBlur={(e) => {
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              handleHighRender(n);
+              onChangeHigh(clamp(n, valueLow, maxDomain));
             }}
           />
         </div>
