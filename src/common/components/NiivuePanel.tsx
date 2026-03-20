@@ -7,7 +7,7 @@ import { DrawToolkit, DrawToolkitProps } from "./DrawToolKit";
 import "./Toolbar.scss";
 // import { DualSlider } from "../../Cmr-components/double-slider/DualSlider";
 import TKDualRange from "./tk-dualrange/TKDualRange";
-import { CmrLabel } from "cloudmr-ux";
+import { CmrLabel, CmrCheckbox } from "cloudmr-ux";
 interface NiivuePanelProps {
   nv: any;
   // displayVertical:boolean;
@@ -37,6 +37,9 @@ interface NiivuePanelProps {
   gamma: number;
   gammaKey: number;
   setGamma: (val: number) => void;
+
+  contrastLocked: boolean;
+  setContrastLocked: (locked: boolean) => void;
 }
 
 
@@ -409,43 +412,63 @@ export function NiivuePanel(props: NiivuePanelProps) {
           <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
 
-              <TKDualRange
-                name="Values:"
-                /* Domain in REAL space: robust range for the track */
-                minDomain={props.nv.volumes[0]?.robust_min ?? 0}
-                maxDomain={props.nv.volumes[0]?.robust_max ?? 1}
-
-                /* Current window in REAL space: cal_min / cal_max mirrored in React */
-                valueLow={props.min}
-                valueHigh={props.max}
-
-                /* When user drags either thumb or edits the inputs */
-                onChangeLow={(min) => {
-                  const v = props.nv.volumes[0];
-                  if (!v) return;
-                  v.cal_min = min;
-                  props.nv.refreshLayers(v, 0, props.nv.volumes.length);
-                  props.nv.drawScene();
-                  props.setMin(min);
-                }}
-                onChangeHigh={(max) => {
-                  const v = props.nv.volumes[0];
-                  if (!v) return;
-                  v.cal_max = max;
-                  props.nv.refreshLayers(v, 0, props.nv.volumes.length);
-                  props.nv.drawScene();
-                  props.setMax(max);
-                }}
-
-                /* Preserve your value masking (scientific notation pair) */
-                transform={(x) => x / a + b}
-                inverse={(y) => a * y - a * b}
-
-                /* Optional tuning to feel closer to TestKarts */
-                step={0.001}
-                precision={3}
-                accentColor="#1578A1"
-              />
+              <Box sx={{ width: "100%" }}>
+                <TKDualRange
+                  name="Values:"
+                  minDomain={props.nv.volumes[0]?.robust_min ?? 0}
+                  maxDomain={props.nv.volumes[0]?.robust_max ?? 1}
+                  valueLow={props.min}
+                  valueHigh={props.max}
+                  onChangeLow={(min) => {
+                    if (props.contrastLocked) return;
+                    const v = props.nv.volumes[0];
+                    if (!v) return;
+                    v.cal_min = min;
+                    props.nv.refreshLayers(v, 0, props.nv.volumes.length);
+                    props.nv.drawScene();
+                    props.setMin(min);
+                  }}
+                  onChangeHigh={(max) => {
+                    if (props.contrastLocked) return;
+                    const v = props.nv.volumes[0];
+                    if (!v) return;
+                    v.cal_max = max;
+                    props.nv.refreshLayers(v, 0, props.nv.volumes.length);
+                    props.nv.drawScene();
+                    props.setMax(max);
+                  }}
+                  transform={(x) => x / a + b}
+                  inverse={(y) => a * y - a * b}
+                  precision={3}
+                  accentColor="#1578A1"
+                  disabled={props.contrastLocked}
+                />
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    width: "100%",
+                    mt: 0.5,
+                    userSelect: "none",
+                    "& .MuiFormControlLabel-root": { margin: 0 },
+                    "& .MuiCheckbox-root": {
+                      padding: "6px",
+                      color: "#1578A1 !important",
+                    },
+                    "& .MuiCheckbox-root.Mui-checked": {
+                      color: "#1578A1 !important",
+                    },
+                  }}
+                >
+                  <CmrCheckbox
+                    checked={props.contrastLocked}
+                    checkedColor="#1578A1"
+                    onChange={(e) => props.setContrastLocked(e.target.checked)}
+                  >
+                    Lock Value
+                  </CmrCheckbox>
+                </Box>
+              </Box>
 
               {/* Gamma */}
               <div style={{ marginTop: 20, marginBottom: 15 }}>

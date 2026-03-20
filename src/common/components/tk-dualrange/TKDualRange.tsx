@@ -22,6 +22,7 @@ type Props = {
   step?: number;                     // step in RENDER space
   precision?: number;                // input boxes precision (render-space)
   accentColor?: string;              // slider color
+  disabled?: boolean;
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -39,16 +40,26 @@ export default function TKDualRange({
   step,
   precision = 3,
   accentColor = "#1578A1",
+  disabled = false,
 }: Props) {
   // Map domain & current values into RENDER space (like TestKarts)
   const tMin = transform(minDomain);
   const tMax = transform(maxDomain);
-  const tLow = transform(valueLow);
-  const tHigh = transform(valueHigh);
+  const tLowRaw = transform(valueLow);
+  const tHighRaw = transform(valueHigh);
 
   const span = Math.max(1e-12, tMax - tMin);
+  // A fixed step (e.g. 0.001 from the panel) is for ~O(1) intensities. Coil sensitivity maps use
+  // checkRange() so the rendered span can be ~1e-6; step >= span leaves only one valid value → stuck thumbs.
+  const useAnyStep =
+    step == null || !Number.isFinite(step) || step <= 0 || step >= span;
+  const discreteStep = useAnyStep ? null : step;
+  const tLo = Math.min(tLowRaw, tHighRaw);
+  const tHi = Math.max(tLowRaw, tHighRaw);
+  const tLow = clamp(tLo, tMin, tMax);
+  const tHigh = clamp(tHi, tMin, tMax);
+
   const pct = (t: number) => ((t - tMin) / span) * 100;
-  const s = step ?? Math.max(span * 0.001, Number.EPSILON);
 
   // Keep ends from crossing; clamp in REAL space against the other end
   const handleLowRender = (nextRender: number) => {
@@ -60,12 +71,17 @@ export default function TKDualRange({
     onChangeHigh(nextReal);
   };
 
-  // Display REAL-space values (matching the color bar); use scientific notation for
-  // small non-zero values so they don't display as "0.000". Use type="text" because
-  // type="number" can show "0" for very small values instead of scientific notation.
+  // Show values in the same space as the slider (transform(real)): for volumes that use
+  // checkRange() scaling (e.g. coil sensitivity), "real" min/max are in scaled T-space
+  // while transform maps to physical/display values where scientific notation is needed.
+  const displayLow = transform(valueLow);
+  const displayHigh = transform(valueHigh);
+  const domainLow = transform(minDomain);
+  const domainHigh = transform(maxDomain);
+
   const fmt = (v: number) =>
     Number.isFinite(v)
-      ? v !== 0 && Math.abs(v) < 0.01
+      ? v !== 0 && (Math.abs(v) < 0.01 || Math.abs(v) >= 1e6)
         ? Number(v).toExponential(precision)
         : v.toFixed(precision)
       : "";
@@ -84,16 +100,21 @@ export default function TKDualRange({
             className="tkdr__num"
             type="text"
             inputMode="decimal"
-            value={fmt(valueLow)}
+            disabled={disabled}
+            value={fmt(displayLow)}
             onChange={(e) => {
+              if (disabled) return;
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              onChangeLow(clamp(n, minDomain, valueHigh));
+              const p = clamp(n, domainLow, Math.min(displayHigh, domainHigh));
+              onChangeLow(clamp(inverse(p), minDomain, valueHigh));
             }}
             onBlur={(e) => {
+              if (disabled) return;
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              onChangeLow(clamp(n, minDomain, valueHigh));
+              const p = clamp(n, domainLow, Math.min(displayHigh, domainHigh));
+              onChangeLow(clamp(inverse(p), minDomain, valueHigh));
             }}
           />
         </div>
@@ -104,16 +125,21 @@ export default function TKDualRange({
             className="tkdr__num"
             type="text"
             inputMode="decimal"
-            value={fmt(valueHigh)}
+            disabled={disabled}
+            value={fmt(displayHigh)}
             onChange={(e) => {
+              if (disabled) return;
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              onChangeHigh(clamp(n, valueLow, maxDomain));
+              const p = clamp(n, Math.max(displayLow, domainLow), domainHigh);
+              onChangeHigh(clamp(inverse(p), valueLow, maxDomain));
             }}
             onBlur={(e) => {
+              if (disabled) return;
               const n = parse(e.target.value);
               if (!Number.isFinite(n)) return;
-              onChangeHigh(clamp(n, valueLow, maxDomain));
+              const p = clamp(n, Math.max(displayLow, domainLow), domainHigh);
+              onChangeHigh(clamp(inverse(p), valueLow, maxDomain));
             }}
           />
         </div>
@@ -134,8 +160,9 @@ export default function TKDualRange({
           type="range"
           min={tMin}
           max={tMax}
-          step={s}
+          {...(useAnyStep || discreteStep == null ? { step: "any" as const } : { step: discreteStep })}
           value={tLow}
+          disabled={disabled}
           onChange={(e) => handleLowRender(Number(e.target.value))}
         />
         <input
@@ -143,8 +170,9 @@ export default function TKDualRange({
           type="range"
           min={tMin}
           max={tMax}
-          step={s}
+          {...(useAnyStep || discreteStep == null ? { step: "any" as const } : { step: discreteStep })}
           value={tHigh}
+          disabled={disabled}
           onChange={(e) => handleHighRender(Number(e.target.value))}
         />
       </div>

@@ -1338,6 +1338,9 @@ Niivue.prototype.setCenteredZoom = function(zoom){
 }
 
 Niivue.prototype.resetContrast = function(){
+    if (this.contrastLocked || !this.volumes?.[0]) {
+        return;
+    }
     this.volumes[0].cal_min = this.volumes[0].robust_min;
     this.volumes[0].cal_max = this.volumes[0].robust_max;
     this.onIntensityChange(this.volumes[0]);

@@ -58,12 +58,9 @@ import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadF
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import Select from "react-select";
 
-// Add volumes from public/volumes here: display name -> filename (order matches info.json data array)
+// Add volumes from public/volumes here: display name -> filename (order by ascending numeric id in info.json data)
 const SETUP_VOLUME_MAP: Record<string, string> = {
-  "T1": "t1.nii.gz",
-  "T2": "t2.nii.gz",
-  "T2*": "t2star.nii.gz",
-  "Noise Covariance Matrix": "psi_float32.nii.gz",
+  "Noise Coefficient Matrix": "psi.nii.gz",
   "Coil Sensitivity 1": "b1m_001.nii.gz",
   "Coil Sensitivity 2": "b1m_002.nii.gz",
   "Coil Sensitivity 3": "b1m_003.nii.gz",
@@ -80,6 +77,9 @@ const SETUP_VOLUME_MAP: Record<string, string> = {
   "Coil Sensitivity 14": "b1m_014.nii.gz",
   "Coil Sensitivity 15": "b1m_015.nii.gz",
   "Coil Sensitivity 16": "b1m_016.nii.gz",
+  "T1": "t1.nii.gz",
+  "T2": "t2.nii.gz",
+  "T2*": "t2star.nii.gz",
   "Proton Density": "rhoh.nii.gz",
   "Mass Density": "rhom.nii.gz",
   "Chemical Shift": "dw.nii.gz",

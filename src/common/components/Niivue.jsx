@@ -107,6 +107,16 @@ export default function NiiVueport(props) {
 
   const [min, setMin] = useState(0);
   const [max, setMax] = useState(1);
+  const [contrastLocked, setContrastLocked] = useState(false);
+  const minRef = React.useRef(0);
+  const maxRef = React.useRef(1);
+  React.useEffect(() => {
+    minRef.current = min;
+    maxRef.current = max;
+  }, [min, max]);
+  React.useEffect(() => {
+    nv.contrastLocked = contrastLocked;
+  }, [contrastLocked]);
   const [textsVisible, setTextsVisible] = useState(false);
 
   const [transformFactors, setTransformFactors] = useState({ a: 1, b: 0 });
@@ -338,6 +348,10 @@ export default function NiiVueport(props) {
         break;
     }
     volume.calMinMax();
+    if (contrastLocked) {
+      volume.cal_min = minRef.current;
+      volume.cal_max = maxRef.current;
+    }
     setMin(volume.cal_min);
     setMax(volume.cal_max);
     volume.vox_min = getMin(volume.img);
@@ -374,6 +388,14 @@ export default function NiiVueport(props) {
    */
   nv.onIntensityChange = () => {
     let volume = nv.volumes[0];
+    if (!volume) return;
+    if (contrastLocked) {
+      volume.cal_min = minRef.current;
+      volume.cal_max = maxRef.current;
+      nv.refreshLayers(volume, 0, nv.volumes.length);
+      nv.drawScene();
+      return;
+    }
     setMin(volume.cal_min);
     setMax(volume.cal_max);
   }
@@ -841,6 +863,13 @@ export default function NiiVueport(props) {
   function nvUpdateColorMap(id, clr) {
     nv.setColorMap(id, clr)
     let volume = nv.volumes[0];
+    if (contrastLocked && volume) {
+      volume.cal_min = minRef.current;
+      volume.cal_max = maxRef.current;
+      nv.refreshLayers(volume, 0, nv.volumes.length);
+      nv.drawScene();
+      return;
+    }
     setMin(volume.cal_min);
     setMax(volume.cal_max);
   }
@@ -1554,6 +1583,9 @@ export default function NiiVueport(props) {
         gamma={gamma}
         gammaKey={gammaKey}
         setGamma={setGamma}
+
+        contrastLocked={contrastLocked}
+        setContrastLocked={setContrastLocked}
       />}
     </Box>
   )
