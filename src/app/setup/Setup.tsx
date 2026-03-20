@@ -1,7 +1,13 @@
-import React, { Fragment, useEffect, useState, useRef } from "react";
+import React, { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import "./Setup.scss";
 import { CmrCollapse, CmrPanel, CmrConfirmation } from "cloudmr-ux";
 import NiiVue, { nv } from "../../common/components/Niivue";
+import {
+  removeFovBoundingBoxMesh,
+  FOV_BOX_SCALE_MAX,
+  FOV_BOX_SCALE_MIN,
+  clampFovBoxScale,
+} from "../../common/utilities/fovBoundingBoxMesh";
 import {
   getUploadedData,
   uploadData,
@@ -170,14 +176,21 @@ const Setup = () => {
   const baseUrl = `${import.meta.env.BASE_URL}volumes/`;
   const availableVolumes: Record<string, string> = is16chHeadSurface
     ? Object.fromEntries(
-        Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [name, baseUrl + filename])
-      )
+      Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [name, baseUrl + filename])
+    )
     : {};
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
   const [warning, setWarning] = useState("");
   const [warningOpen, setWarningOpen] = useState(false);
+  /** 1 = volume AABB; below 1 = inset; up to FOV_BOX_SCALE_MAX = extra margin (e.g. Niivue slice/mesh vs strict AABB). */
+  const [fovBoxScale, setFovBoxScale] = useState(1);
+  const setupFovBoxOptions = useMemo(
+    () => ({ scale: clampFovBoxScale(fovBoxScale) }),
+    [fovBoxScale],
+  );
+  const effectiveFovScale = useMemo(() => clampFovBoxScale(fovBoxScale), [fovBoxScale]);
 
   // Convert availableVolumes to niis format expected by NiiVue
   const setupNiis = Object.entries(availableVolumes).map(([name, url], index) => ({
@@ -215,9 +228,11 @@ const Setup = () => {
       setSelectedVolume(0);
       setTimeout(() => nv.resizeListener(), 700);
     } else {
+      removeFovBoundingBoxMesh(nv as any);
       nv.loadVolumes([]);
     }
     return () => {
+      removeFovBoundingBoxMesh(nv as any);
       nv.loadVolumes([]);
     };
   }, [is16chHeadSurface]);
@@ -1129,9 +1144,56 @@ const Setup = () => {
             onChange={(keys: any) => setOpenPulsePanel(keys)}
           >
             <CmrPanel header="Pulse Sequence and Protocol" className="mb-2">
+
+              {Object.keys(availableVolumes).length > 0 && (
+                <Box
+                  sx={{
+                    pb: 1.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    maxWidth: 560,
+                  }}
+                >
+                  <CmrLabel style={{ flexShrink: 0, marginBottom: 0 }}>Field of View:</CmrLabel>
+                  <input
+                    id="fov-box-scale"
+                    type="range"
+                    min={FOV_BOX_SCALE_MIN}
+                    max={FOV_BOX_SCALE_MAX}
+                    step={0.05}
+                    value={effectiveFovScale}
+                    onChange={(e) =>
+                      setFovBoxScale(clampFovBoxScale(Number(e.target.value)))
+                    }
+                    style={{ flex: 1, minWidth: 120, accentColor: "#1578A1" }}
+                    aria-label="Field of view box size relative to volume bounds"
+                    aria-valuemin={FOV_BOX_SCALE_MIN}
+                    aria-valuemax={FOV_BOX_SCALE_MAX}
+                    aria-valuenow={effectiveFovScale}
+                    aria-valuetext={`${effectiveFovScale.toFixed(2)}× volume bounds`}
+                  />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ flexShrink: 0, minWidth: "7.5rem", textAlign: "right" }}
+                    component="span"
+                  >
+                    {effectiveFovScale.toFixed(2)}× volume bounds
+                  </Typography>
+                </Box>
+              )}
+
+              <Divider orientation="horizontal" flexItem sx={{
+                mx: 0, borderColor: "rgba(0, 0, 0, 0.35)",
+                borderRightWidth: 1.5,
+              }} />
+
               {/* <Typography variant="h6" sx={{ fontSize: "16px", mb: 2, }}> Pulse Sequence Selection</Typography> */}
-              <Box sx={{ pb: 3 }}>
+              <Box sx={{ pt:3, pb: 3 }}>
                 <Box display="flex" flexDirection="column">
+
+
                   {/* Inline row for label, upload, clear, checkbox */}
                   <Box display="flex" alignItems="center" gap={1}>
 
@@ -1547,6 +1609,8 @@ const Setup = () => {
                   pipelineID="setup"
                   saveROICallback={() => { }}
                   accessToken={accessToken ?? ""}
+                  showFovBoundingBox
+                  fovBoxOptions={setupFovBoxOptions}
                 />
               </CmrPanel>
             </CmrCollapse>

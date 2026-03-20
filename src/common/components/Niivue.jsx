@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { NVImage } from '@niivue/niivue';
+import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh } from '../utilities/fovBoundingBoxMesh';
 import { SettingsPanel } from './SettingsPanel.jsx';
 import { NumberPicker } from './NumberPicker.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -117,6 +118,22 @@ export default function NiiVueport(props) {
   React.useEffect(() => {
     nv.contrastLocked = contrastLocked;
   }, [contrastLocked]);
+
+  const defaultFovOpts = React.useMemo(() => ({ opacity: 0.4, rgba255: [21, 120, 161, 100] }), []);
+  const mergedFovOpts = React.useMemo(() => {
+    return { ...defaultFovOpts, ...props.fovBoxOptions };
+  }, [defaultFovOpts, props.fovBoxOptions]);
+  React.useEffect(() => {
+    if (!nv.gl || !nv.volumes[0]) return;
+    if (props.showFovBoundingBox) {
+      nv.setSliceMM(true);
+      setWorldSpace(true);
+      attachFovBoundingBoxMesh(nv, mergedFovOpts);
+    } else {
+      removeFovBoundingBoxMesh(nv);
+    }
+  }, [props.showFovBoundingBox, props.selectedVolume, mergedFovOpts]);
+
   const [textsVisible, setTextsVisible] = useState(false);
 
   const [transformFactors, setTransformFactors] = useState({ a: 1, b: 0 });
@@ -241,6 +258,18 @@ export default function NiiVueport(props) {
     nvUpdateSliceType(sliceType);
     nv.opts.crosshairWidth = showCrosshair ? 1 : 0;
     setMMs(nv.frac2mm(nv.scene.crosshairPos));
+
+    if (props.showFovBoundingBox) {
+      try {
+        nv.setSliceMM(true);
+        setWorldSpace(true);
+        attachFovBoundingBoxMesh(nv, mergedFovOpts);
+      } catch (e) {
+        console.warn('FOV bounding box:', e);
+      }
+    } else {
+      removeFovBoundingBoxMesh(nv);
+    }
   }
 
 
