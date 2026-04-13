@@ -209,14 +209,14 @@ const Setup = () => {
       objectName: 'Duke_2mm',
       b0: '7T',
       nucleus: '1 H',
-      frequency: '298.04', 
+      frequency: '298.04',
       resolution: '2 mm isotropic',
       numOfTissues: '22',
       coil: '8-Ch 7T Head Triangular Coil',
       receiveChannels: 8,
       transmitChannels: 8,
       emSimulator: 'MARIE_3.0_WSVIE_version',
-      
+
       // description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
       image: "/models/headtriangular.png"
     },
@@ -1799,7 +1799,7 @@ const Setup = () => {
                             setFovPixelsX(commitFovPixels(fovPixelsXDraft ?? "", fovPixelsX));
                             setFovPixelsXDraft(null);
                           }}
-                          sx={{ width: 140 }}
+                          sx={{ width: 180 }}
                         />
                         <TextField
                           label="Resolution (mm / pixel)"
@@ -1813,7 +1813,7 @@ const Setup = () => {
                             setFovResXMM(commitFovResMm(fovResXMMDraft ?? "", fovResXMM));
                             setFovResXMMDraft(null);
                           }}
-                          sx={{ width: 160 }}
+                          sx={{ width: 180 }}
                         />
                         <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
                           FoVx = {sequenceFovXMM.toFixed(2)} mm
@@ -1837,7 +1837,7 @@ const Setup = () => {
                             setFovPixelsY(commitFovPixels(fovPixelsYDraft ?? "", fovPixelsY));
                             setFovPixelsYDraft(null);
                           }}
-                          sx={{ width: 140 }}
+                          sx={{ width: 180 }}
                         />
                         <TextField
                           label="Resolution (mm / pixel)"
@@ -1851,7 +1851,7 @@ const Setup = () => {
                             setFovResYMM(commitFovResMm(fovResYMMDraft ?? "", fovResYMM));
                             setFovResYMMDraft(null);
                           }}
-                          sx={{ width: 160 }}
+                          sx={{ width: 180 }}
                         />
                         <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
                           FoVy = {sequenceFovYMM.toFixed(2)} mm
@@ -1860,7 +1860,7 @@ const Setup = () => {
                     </Box>
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Sagittal stack
+                        Parallel Ranges
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
                         <TextField
@@ -1875,7 +1875,7 @@ const Setup = () => {
                             setSagittalNumSlices(commitSliceCount(sagittalNumSlicesDraft ?? "", sagittalNumSlices));
                             setSagittalNumSlicesDraft(null);
                           }}
-                          sx={{ width: 150 }}
+                          sx={{ width: 180 }}
                         />
                         <TextField
                           label="Slice thickness (mm)"
@@ -1891,7 +1891,7 @@ const Setup = () => {
                             );
                             setSagittalThicknessDraft(null);
                           }}
-                          sx={{ width: 170 }}
+                          sx={{ width: 180 }}
                         />
                         <TextField
                           label="Slice gap (mm)"
@@ -1905,34 +1905,10 @@ const Setup = () => {
                             setSagittalSliceGapMm(commitNonNegMm(sagittalGapDraft ?? "", sagittalSliceGapMm));
                             setSagittalGapDraft(null);
                           }}
-                          sx={{ width: 140 }}
+                          sx={{ width: 180 }}
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5, maxWidth: 340 }}>
-                          Slice spacing (center-to-center) ≈ {sagittalCenterToCenterMm.toFixed(2)} mm · stack extent ≈{" "}
-                          {sagittalStackExtentMm.toFixed(2)} mm
-                        </Typography>
                       </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, lineHeight: 1.45 }}>
-                        Slice gap = center-to-center distance − slice thickness (0 when slices abut). Equivalently,
-                        center-to-center = thickness + gap.
-                      </Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-                      Prescribed FoVx/FoVy come from pixels × mm/pixel (sequence field of view in mm). The neon green outline is fixed at the volume center (isocenter) on the axial plane through that point. Its size is your FoVx × FoVy unless the rectangle would extend outside the loaded volume — then it shrinks equally on both axes to stay inside.
-                      {loadedVolumeExtentMm != null && (
-                        <>
-                          {" "}
-                          Loaded model extent (bounding box, approx.):{" "}
-                          {loadedVolumeExtentMm.dx.toFixed(0)} × {loadedVolumeExtentMm.dy.toFixed(0)} ×{" "}
-                          {loadedVolumeExtentMm.dz.toFixed(0)} mm. Choose FoVx/FoVy near those in-plane numbers if you want the outline to span most of the anatomy.
-                        </>
-                      )}{" "}
-                      Sagittal stack: with gap = C–C − thickness, total coverage along the stack is
-                      N×thickness + (N−1)×gap. Each slice uses a solid bright yellow fill for the prescribed
-                      thickness (visible in sagittal/coronal/3D) plus thin neon green line outlines on the top and
-                      bottom of each slab — no vertical “walls,” so gaps stay clear while thickness reads from the
-                      fill.
-                    </Typography>
                   </Box>
                   <Box
                     sx={{
@@ -1960,6 +1936,12 @@ const Setup = () => {
                     </CmrCheckbox>
                   </Box>
                 </Box>
+
+                <Divider orientation="horizontal" flexItem sx={{
+                  mx: 0, mb: 2, mt: 1, borderColor: "rgba(0, 0, 0, 0.35)",
+                  borderRightWidth: 1.5,
+                }} />
+
                 <NiiVue
                   niis={setupNiis}
                   warn={warn}
@@ -1974,7 +1956,7 @@ const Setup = () => {
                   accessToken={accessToken ?? ""}
                   showFovBoundingBox={showFieldOfViewOverlay}
                   fovBoxOptions={setupFovBoxOptions}
-                  initialSliceType="sagittal"
+                // initialSliceType="sagittal"
                 />
               </CmrPanel>
             </CmrCollapse>
