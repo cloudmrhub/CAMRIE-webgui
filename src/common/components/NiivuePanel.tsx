@@ -97,6 +97,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
   // Voxel sizes and dimensions - snap slider to same positions as Niivue scroll
   const vol = props.nv?.volumes?.[0];
   const meta = vol?.getImageMetadata?.();
+  console.log(meta);
   const nx = Math.max(1, meta?.nx ?? 1);
   const ny = Math.max(1, meta?.ny ?? 1);
   const nz = Math.max(1, meta?.nz ?? 1);

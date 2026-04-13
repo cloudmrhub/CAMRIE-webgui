@@ -772,6 +772,16 @@ Niivue.prototype.draw2D = function (leftTopWidthHeight, axCorSag, customMM = NaN
             obj.modelMatrix,
             obj.normalMatrix
         )
+        // Second pass: draw mesh with depth test disabled so outlines stay visible on top of the slice (matches 3D meshXRay behavior).
+        if (this.opts.meshXRay > 0) {
+            this.drawMesh3D(
+                false,
+                this.opts.meshXRay,
+                mx,
+                obj.modelMatrix,
+                obj.normalMatrix
+            )
+        }
     }
     if (isNaN(customMM)) {
         // no crossbars for mosaic view

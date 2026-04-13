@@ -1,12 +1,10 @@
 import React, { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import "./Setup.scss";
-import { CmrCollapse, CmrPanel, CmrConfirmation } from "cloudmr-ux";
+import { CmrCollapse, CmrPanel, CmrConfirmation, CmrCheckbox } from "cloudmr-ux";
 import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
-  FOV_BOX_SCALE_MAX,
-  FOV_BOX_SCALE_MIN,
-  clampFovBoxScale,
+  volumeWorldAabbMm,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import {
   getUploadedData,
@@ -18,7 +16,7 @@ import {
   setupGetters,
   setupSetters,
 } from "../../features/setup/setupSlice";
-import { CMRSelectUpload, CmrInputNumber } from "cloudmr-ux";
+import { CMRSelectUpload } from "cloudmr-ux";
 import { CmrLabel } from "cloudmr-ux";
 import { Col, Row } from "antd";
 import moment from "moment";
@@ -33,7 +31,6 @@ import {
   CardHeader,
   CardActions,
   Grid,
-  Checkbox,
   Alert,
   TextField,
   FormControl,
@@ -98,6 +95,73 @@ const SETUP_VOLUME_MAP: Record<string, string> = {
   "Heat Generation Rate": "q.nii.gz",
 };
 
+/** Display name → filename under `public/volumes/7T-Head-Triangular-Coil/` (8 Rx + 8 Tx; see info.json). */
+const SETUP_VOLUME_MAP_TRIANGULAR: Record<string, string> = {
+  "Noise Covariance Matrix": "phi.nii.gz",
+  "Noise Coefficient Matrix": "psi.nii.gz",
+  "Coil Sensitivity 1": "b1m_001.nii.gz",
+  "Coil Sensitivity 2": "b1m_002.nii.gz",
+  "Coil Sensitivity 3": "b1m_003.nii.gz",
+  "Coil Sensitivity 4": "b1m_004.nii.gz",
+  "Coil Sensitivity 5": "b1m_005.nii.gz",
+  "Coil Sensitivity 6": "b1m_006.nii.gz",
+  "Coil Sensitivity 7": "b1m_007.nii.gz",
+  "Coil Sensitivity 8": "b1m_008.nii.gz",
+  "Transmit Field 1": "b1p_001.nii.gz",
+  "Transmit Field 2": "b1p_002.nii.gz",
+  "Transmit Field 3": "b1p_003.nii.gz",
+  "Transmit Field 4": "b1p_004.nii.gz",
+  "Transmit Field 5": "b1p_005.nii.gz",
+  "Transmit Field 6": "b1p_006.nii.gz",
+  "Transmit Field 7": "b1p_007.nii.gz",
+  "Transmit Field 8": "b1p_008.nii.gz",
+  "T1": "t1.nii.gz",
+  "T2": "t2.nii.gz",
+  "T2*": "t2star.nii.gz",
+  "Proton Density": "rhoh.nii.gz",
+  "Mass Density": "rhom.nii.gz",
+  "Chemical Shift": "dw.nii.gz",
+  "Relative Permittivity": "epsilon_r.nii.gz",
+  "Conductivity": "sigma_e.nii.gz",
+  "Relative Permeability": "mur.nii.gz",
+  "Heat Capacity": "c.nii.gz",
+  "Thermal Conductivity": "k.nii.gz",
+  "Perfusion": "w.nii.gz",
+  "Heat Generation Rate": "q.nii.gz",
+};
+
+/** Display name → filename under `public/volumes/3T-Head-Birdcage-Coil/` (2 Rx + 2 Tx; see info.json). */
+const SETUP_VOLUME_MAP_BIRDCAGE: Record<string, string> = {
+  "Noise Covariance Matrix": "phi.nii.gz",
+  "Noise Coefficient Matrix": "psi.nii.gz",
+  "Coil Sensitivity 1": "b1m_001.nii.gz",
+  "Coil Sensitivity 2": "b1m_002.nii.gz",
+  "Transmit Field 1": "b1p_001.nii.gz",
+  "Transmit Field 2": "b1p_002.nii.gz",
+  "T1": "t1.nii.gz",
+  "T2": "t2.nii.gz",
+  "T2*": "t2star.nii.gz",
+  "Proton Density": "rhoh.nii.gz",
+  "Mass Density": "rhom.nii.gz",
+  "Chemical Shift": "dw.nii.gz",
+  "Relative Permittivity": "epsilon_r.nii.gz",
+  "Conductivity": "sigma_e.nii.gz",
+  "Relative Permeability": "mur.nii.gz",
+  "Heat Capacity": "c.nii.gz",
+  "Thermal Conductivity": "k.nii.gz",
+  "Perfusion": "w.nii.gz",
+  "Heat Generation Rate": "q.nii.gz",
+};
+
+const MODEL_16CH_SURFACE = "16-Ch 3T Head Surface Coil";
+const MODEL_BIRDCAGE = "3T Head Birdcage Coil";
+const MODEL_TRIANGULAR = "8-Ch 7T Head Triangular Coil";
+
+const BASE_VOL = `${import.meta.env.BASE_URL}volumes/`;
+const baseUrlHeadSurfaceCoil = `${BASE_VOL}3T-Head-Surface-Coil/`;
+const baseUrl3TBirdcageCoil = `${BASE_VOL}3T-Head-Birdcage-Coil/`;
+const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
+
 const Setup = () => {
   const { accessToken } = useAppSelector((state) => state.authenticate);
 
@@ -108,50 +172,53 @@ const Setup = () => {
   // temporarily use local data for models
   const modelOptions = [
     {
-      id: 'cloudMR_overlap-ismrm25.zip',
+      id: '1',
       name: '16-Ch 3T Head Surface Coil',
+      objectName: 'Duke_2mm',
       b0: '3T',
+      nucleus: '1 H',
+      frequency: '127.73',
+      resolution: '2 mm isotropic',
+      numOfTissues: '21',
+      coil: '16-Ch 3T Head Surface Coil',
       receiveChannels: 16,
       transmitChannels: 0,
-      coil: '16-Ch 3T Head Surface Coil',
-      resolution: '2 mm isotropic',
       emSimulator: 'MARIE_3.0_WSVIE_version',
-      numOfTissues: '21',
-      objectName: 'Duke_2mm',
-      frequency: '127.73',
-      nucleus: '1 H',
       // description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
       image: "/models/headSurface1.png"
     },
     {
-      id: 'cloudMR_birdcagecoil-ismrm25.zip',
+      id: '2',
       name: '3T Head Birdcage Coil',
-      b0: '3T',
-      channels: 1,
-      coil: '3T Head Birdcage Coil',
-      resolution: '2 mm isotropic',
-      emSimulator: 'MARIE_version_Hybrid_VSIE',
-      numOfTissues: '22',
-      numOfElements: '1',
       objectName: 'Duke_2mm',
-      frequency: '2.1714514044179997E+9',
-      description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/birdcageCoil.png"
+      b0: '3T',
+      nucleus: '1 H',
+      frequency: '127.73',
+      resolution: '2 mm isotropic',
+      numOfTissues: '21',
+      coil: '3T Head Birdcage Coil',
+      receiveChannels: 2,
+      transmitChannels: 2,
+      emSimulator: 'MARIE_3.0_WSVIE_version',
+      // description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
+      image: "/models/headbirdcage.png"
     },
     {
-      id: 'cloudMR_triangularcoil-ismrm25.zip',
+      id: '3',
       name: '8-Ch 7T Head Triangular Coil',
-      b0: '7T',
-      channels: 1,
-      coil: '8-Ch 7T Head Triangular Coil',
-      resolution: '2 mm isotropic',
-      emSimulator: 'MARIE_version_Hybrid_VSIE',
-      numOfTissues: '23',
-      numOfElements: '1',
       objectName: 'Duke_2mm',
-      frequency: '2.34176131849E+9',
-      description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/triangularCoil.png"
+      b0: '7T',
+      nucleus: '1 H',
+      frequency: '298.04', 
+      resolution: '2 mm isotropic',
+      numOfTissues: '22',
+      coil: '8-Ch 7T Head Triangular Coil',
+      receiveChannels: 8,
+      transmitChannels: 8,
+      emSimulator: 'MARIE_3.0_WSVIE_version',
+      
+      // description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
+      image: "/models/headtriangular.png"
     },
   ];
 
@@ -171,26 +238,170 @@ const Setup = () => {
     (typeof modelOptions)[number] | null
   >(null);
 
-  const is16chHeadSurface = selectedModel?.name === "16-Ch 3T Head Surface Coil";
+  const is16chHeadSurface = selectedModel?.name === MODEL_16CH_SURFACE;
+  const isBirdcageCoil = selectedModel?.name === MODEL_BIRDCAGE;
+  const isTriangularCoil = selectedModel?.name === MODEL_TRIANGULAR;
 
-  const baseUrl = `${import.meta.env.BASE_URL}volumes/`;
-  const availableVolumes: Record<string, string> = is16chHeadSurface
-    ? Object.fromEntries(
-      Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [name, baseUrl + filename])
-    )
-    : {};
+  const availableVolumes = useMemo((): Record<string, string> => {
+    if (is16chHeadSurface) {
+      return Object.fromEntries(
+        Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [
+          name,
+          baseUrlHeadSurfaceCoil + filename,
+        ]),
+      );
+    }
+    if (isBirdcageCoil) {
+      return Object.fromEntries(
+        Object.entries(SETUP_VOLUME_MAP_BIRDCAGE).map(([name, filename]) => [
+          name,
+          baseUrl3TBirdcageCoil + filename,
+        ]),
+      );
+    }
+    if (isTriangularCoil) {
+      return Object.fromEntries(
+        Object.entries(SETUP_VOLUME_MAP_TRIANGULAR).map(([name, filename]) => [
+          name,
+          baseUrl7TTriangularCoil + filename,
+        ]),
+      );
+    }
+    return {};
+  }, [is16chHeadSurface, isBirdcageCoil, isTriangularCoil]);
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
   const [warning, setWarning] = useState("");
   const [warningOpen, setWarningOpen] = useState(false);
-  /** 1 = volume AABB; below 1 = inset; up to FOV_BOX_SCALE_MAX = extra margin (e.g. Niivue slice/mesh vs strict AABB). */
-  const [fovBoxScale, setFovBoxScale] = useState(1);
-  const setupFovBoxOptions = useMemo(
-    () => ({ scale: clampFovBoxScale(fovBoxScale) }),
-    [fovBoxScale],
+  /** Toggle FOV bounding box overlay on the viewer. */
+  const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
+  /** Sequence FoVx: pixel count × resolution (mm/pixel) → FoV length in mm. */
+  const [fovPixelsX, setFovPixelsX] = useState(128);
+  const [fovResXMM, setFovResXMM] = useState(1.0);
+  /** Sequence FoVy */
+  const [fovPixelsY, setFovPixelsY] = useState(128);
+  const [fovResYMM, setFovResYMM] = useState(1.0);
+  /** Draft strings while editing so inputs can be cleared and retyped without immediate clamping. */
+  const [fovPixelsXDraft, setFovPixelsXDraft] = useState<string | null>(null);
+  const [fovResXMMDraft, setFovResXMMDraft] = useState<string | null>(null);
+  const [fovPixelsYDraft, setFovPixelsYDraft] = useState<string | null>(null);
+  const [fovResYMMDraft, setFovResYMMDraft] = useState<string | null>(null);
+
+  /** Sagittal-oriented multi-slice stack (prescription; viewer defaults to sagittal). */
+  const [sagittalNumSlices, setSagittalNumSlices] = useState(10);
+  const [sagittalSliceThicknessMm, setSagittalSliceThicknessMm] = useState(1);
+  /** Inter-slice gap (mm) = center-to-center spacing − slice thickness (same as C–C = thickness + gap). */
+  const [sagittalSliceGapMm, setSagittalSliceGapMm] = useState(5);
+  const [sagittalNumSlicesDraft, setSagittalNumSlicesDraft] = useState<string | null>(null);
+  const [sagittalThicknessDraft, setSagittalThicknessDraft] = useState<string | null>(null);
+  const [sagittalGapDraft, setSagittalGapDraft] = useState<string | null>(null);
+
+  const commitFovPixels = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) ? Math.max(1, n) : fallback;
+  };
+  const commitFovResMm = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? Math.max(0.01, n) : fallback;
+  };
+
+  const commitSliceCount = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) ? Math.max(1, n) : fallback;
+  };
+  const commitNonNegMm = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? Math.max(0, n) : fallback;
+  };
+
+  /** Total extent along stack: N×thickness + (N−1)×gap, with gap = C–C − thickness. */
+  const sagittalStackExtentMm = useMemo(() => {
+    const n = Math.max(1, Math.round(sagittalNumSlices));
+    const th = Math.max(0.01, sagittalSliceThicknessMm);
+    const g = Math.max(0, sagittalSliceGapMm);
+    return n * th + (n - 1) * g;
+  }, [sagittalNumSlices, sagittalSliceThicknessMm, sagittalSliceGapMm]);
+
+  const sagittalCenterToCenterMm = useMemo(() => {
+    const th = Math.max(0.01, sagittalSliceThicknessMm);
+    const g = Math.max(0, sagittalSliceGapMm);
+    return th + g;
+  }, [sagittalSliceThicknessMm, sagittalSliceGapMm]);
+
+  const sequenceFovXMM = useMemo(
+    () => Math.max(0, Math.round(fovPixelsX) * fovResXMM),
+    [fovPixelsX, fovResXMM],
   );
-  const effectiveFovScale = useMemo(() => clampFovBoxScale(fovBoxScale), [fovBoxScale]);
+  const sequenceFovYMM = useMemo(
+    () => Math.max(0, Math.round(fovPixelsY) * fovResYMM),
+    [fovPixelsY, fovResYMM],
+  );
+
+  const setupFovBoxOptions = useMemo(
+    () => ({
+      scale: 1,
+      axialFovMm: { fovXMm: sequenceFovXMM, fovYMm: sequenceFovYMM },
+      axialSliceStack: {
+        numSlices: Math.max(1, Math.round(sagittalNumSlices)),
+        sliceThicknessMm: Math.max(0.01, sagittalSliceThicknessMm),
+        sliceGapMm: Math.max(0, sagittalSliceGapMm),
+      },
+      rgba255: [57, 255, 20, 255] as [number, number, number, number], // #39FF14 neon green outline
+      opacity: 1,
+      name: "Axial FOV",
+    }),
+    [sequenceFovXMM, sequenceFovYMM, sagittalNumSlices, sagittalSliceThicknessMm, sagittalSliceGapMm],
+  );
+
+  /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
+  const [loadedVolumeExtentMm, setLoadedVolumeExtentMm] = useState<{
+    dx: number;
+    dy: number;
+    dz: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (Object.keys(availableVolumes).length === 0) {
+      setLoadedVolumeExtentMm(null);
+      return;
+    }
+    let cancelled = false;
+    const readExtent = (): boolean => {
+      try {
+        if (nv?.volumes?.[0] && nv.gl) {
+          const { min, max } = volumeWorldAabbMm(nv as Parameters<typeof volumeWorldAabbMm>[0]);
+          if (!cancelled) {
+            setLoadedVolumeExtentMm({
+              dx: max[0] - min[0],
+              dy: max[1] - min[1],
+              dz: max[2] - min[2],
+            });
+          }
+          return true;
+        }
+      } catch {
+        /* volume not ready */
+      }
+      return false;
+    };
+    if (readExtent()) return () => { cancelled = true; };
+    const id = window.setInterval(() => {
+      if (readExtent()) window.clearInterval(id);
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [availableVolumes, selectedVolume]);
 
   // Convert availableVolumes to niis format expected by NiiVue
   const setupNiis = Object.entries(availableVolumes).map(([name, url], index) => ({
@@ -235,7 +446,7 @@ const Setup = () => {
       removeFovBoundingBoxMesh(nv as any);
       nv.loadVolumes([]);
     };
-  }, [is16chHeadSurface]);
+  }, [availableVolumes]);
 
   const handleModelSelected = (file?: UploadedFile) => {
     if (!file) {
@@ -836,6 +1047,8 @@ const Setup = () => {
   const [editProtocolNameError, setEditProtocolNameError] = useState("");
 
   const isSavedProtocol = protocol.startsWith("saved-");
+  const isBuiltInProtocol123 =
+    protocol === "10" || protocol === "20" || protocol === "30";
 
   const startEditProtocolName = () => {
     if (!isSavedProtocol) return;
@@ -1017,6 +1230,7 @@ const Setup = () => {
                         maxCount={1}
                         uploadHandler={noopUploadHandler}
                         buttonText="Choose"
+                        selectStyles={selectStyles}
                       />
 
                       {/* Clear Button */}
@@ -1145,52 +1359,8 @@ const Setup = () => {
           >
             <CmrPanel header="Pulse Sequence and Protocol" className="mb-2">
 
-              {Object.keys(availableVolumes).length > 0 && (
-                <Box
-                  sx={{
-                    pb: 1.5,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    maxWidth: 560,
-                  }}
-                >
-                  <CmrLabel style={{ flexShrink: 0, marginBottom: 0 }}>Field of View:</CmrLabel>
-                  <input
-                    id="fov-box-scale"
-                    type="range"
-                    min={FOV_BOX_SCALE_MIN}
-                    max={FOV_BOX_SCALE_MAX}
-                    step={0.05}
-                    value={effectiveFovScale}
-                    onChange={(e) =>
-                      setFovBoxScale(clampFovBoxScale(Number(e.target.value)))
-                    }
-                    style={{ flex: 1, minWidth: 120, accentColor: "#1578A1" }}
-                    aria-label="Field of view box size relative to volume bounds"
-                    aria-valuemin={FOV_BOX_SCALE_MIN}
-                    aria-valuemax={FOV_BOX_SCALE_MAX}
-                    aria-valuenow={effectiveFovScale}
-                    aria-valuetext={`${effectiveFovScale.toFixed(2)}× volume bounds`}
-                  />
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ flexShrink: 0, minWidth: "7.5rem", textAlign: "right" }}
-                    component="span"
-                  >
-                    {effectiveFovScale.toFixed(2)}× volume bounds
-                  </Typography>
-                </Box>
-              )}
-
-              <Divider orientation="horizontal" flexItem sx={{
-                mx: 0, borderColor: "rgba(0, 0, 0, 0.35)",
-                borderRightWidth: 1.5,
-              }} />
-
               {/* <Typography variant="h6" sx={{ fontSize: "16px", mb: 2, }}> Pulse Sequence Selection</Typography> */}
-              <Box sx={{ pt:3, pb: 3 }}>
+              <Box sx={{ pt: 3, pb: 3 }}>
                 <Box display="flex" flexDirection="column">
 
 
@@ -1567,8 +1737,11 @@ const Setup = () => {
                           onClick={handleSaveProtocolClick}
                           sx={{ flex: 1, width: "100%" }}
                           disabled={protocolSequences.length === 0}
+                          aria-label={
+                            isBuiltInProtocol123 ? "Save protocol as" : "Save protocol"
+                          }
                         >
-                          Save
+                          {isBuiltInProtocol123 ? "Save As" : "Save"}
                         </CmrButton>
 
                         <CmrButton
@@ -1596,7 +1769,197 @@ const Setup = () => {
           {/* Field of View - NiiVue viewer (same as Results) */}
           {Object.keys(availableVolumes).length > 0 ? (
             <CmrCollapse activeKey={openFieldofViewPanel}>
-              <CmrPanel header="Field of View" >
+              <CmrPanel header="Field of view (axial) & sagittal stack" >
+                <Box
+                  sx={{
+                    pb: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.25,
+                    width: "100%",
+                    /* Match Toolbar.tsx neurological row: inner Box uses m={1} → 8px theme spacing */
+                    px: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, width: "100%" }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Sequence FoVx
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <TextField
+                          label="Number of pixels"
+                          type="text"
+                          inputMode="numeric"
+                          size="small"
+                          value={fovPixelsXDraft ?? String(fovPixelsX)}
+                          onFocus={() => setFovPixelsXDraft(String(fovPixelsX))}
+                          onChange={(e) => setFovPixelsXDraft(e.target.value)}
+                          onBlur={() => {
+                            setFovPixelsX(commitFovPixels(fovPixelsXDraft ?? "", fovPixelsX));
+                            setFovPixelsXDraft(null);
+                          }}
+                          sx={{ width: 140 }}
+                        />
+                        <TextField
+                          label="Resolution (mm / pixel)"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          value={fovResXMMDraft ?? String(fovResXMM)}
+                          onFocus={() => setFovResXMMDraft(String(fovResXMM))}
+                          onChange={(e) => setFovResXMMDraft(e.target.value)}
+                          onBlur={() => {
+                            setFovResXMM(commitFovResMm(fovResXMMDraft ?? "", fovResXMM));
+                            setFovResXMMDraft(null);
+                          }}
+                          sx={{ width: 160 }}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
+                          FoVx = {sequenceFovXMM.toFixed(2)} mm
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Sequence FoVy
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <TextField
+                          label="Number of pixels"
+                          type="text"
+                          inputMode="numeric"
+                          size="small"
+                          value={fovPixelsYDraft ?? String(fovPixelsY)}
+                          onFocus={() => setFovPixelsYDraft(String(fovPixelsY))}
+                          onChange={(e) => setFovPixelsYDraft(e.target.value)}
+                          onBlur={() => {
+                            setFovPixelsY(commitFovPixels(fovPixelsYDraft ?? "", fovPixelsY));
+                            setFovPixelsYDraft(null);
+                          }}
+                          sx={{ width: 140 }}
+                        />
+                        <TextField
+                          label="Resolution (mm / pixel)"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          value={fovResYMMDraft ?? String(fovResYMM)}
+                          onFocus={() => setFovResYMMDraft(String(fovResYMM))}
+                          onChange={(e) => setFovResYMMDraft(e.target.value)}
+                          onBlur={() => {
+                            setFovResYMM(commitFovResMm(fovResYMMDraft ?? "", fovResYMM));
+                            setFovResYMMDraft(null);
+                          }}
+                          sx={{ width: 160 }}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
+                          FoVy = {sequenceFovYMM.toFixed(2)} mm
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Sagittal stack
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <TextField
+                          label="Number of slices"
+                          type="text"
+                          inputMode="numeric"
+                          size="small"
+                          value={sagittalNumSlicesDraft ?? String(sagittalNumSlices)}
+                          onFocus={() => setSagittalNumSlicesDraft(String(sagittalNumSlices))}
+                          onChange={(e) => setSagittalNumSlicesDraft(e.target.value)}
+                          onBlur={() => {
+                            setSagittalNumSlices(commitSliceCount(sagittalNumSlicesDraft ?? "", sagittalNumSlices));
+                            setSagittalNumSlicesDraft(null);
+                          }}
+                          sx={{ width: 150 }}
+                        />
+                        <TextField
+                          label="Slice thickness (mm)"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          value={sagittalThicknessDraft ?? String(sagittalSliceThicknessMm)}
+                          onFocus={() => setSagittalThicknessDraft(String(sagittalSliceThicknessMm))}
+                          onChange={(e) => setSagittalThicknessDraft(e.target.value)}
+                          onBlur={() => {
+                            setSagittalSliceThicknessMm(
+                              commitFovResMm(sagittalThicknessDraft ?? "", sagittalSliceThicknessMm),
+                            );
+                            setSagittalThicknessDraft(null);
+                          }}
+                          sx={{ width: 170 }}
+                        />
+                        <TextField
+                          label="Slice gap (mm)"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          value={sagittalGapDraft ?? String(sagittalSliceGapMm)}
+                          onFocus={() => setSagittalGapDraft(String(sagittalSliceGapMm))}
+                          onChange={(e) => setSagittalGapDraft(e.target.value)}
+                          onBlur={() => {
+                            setSagittalSliceGapMm(commitNonNegMm(sagittalGapDraft ?? "", sagittalSliceGapMm));
+                            setSagittalGapDraft(null);
+                          }}
+                          sx={{ width: 140 }}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5, maxWidth: 340 }}>
+                          Slice spacing (center-to-center) ≈ {sagittalCenterToCenterMm.toFixed(2)} mm · stack extent ≈{" "}
+                          {sagittalStackExtentMm.toFixed(2)} mm
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, lineHeight: 1.45 }}>
+                        Slice gap = center-to-center distance − slice thickness (0 when slices abut). Equivalently,
+                        center-to-center = thickness + gap.
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                      Prescribed FoVx/FoVy come from pixels × mm/pixel (sequence field of view in mm). The neon green outline is fixed at the volume center (isocenter) on the axial plane through that point. Its size is your FoVx × FoVy unless the rectangle would extend outside the loaded volume — then it shrinks equally on both axes to stay inside.
+                      {loadedVolumeExtentMm != null && (
+                        <>
+                          {" "}
+                          Loaded model extent (bounding box, approx.):{" "}
+                          {loadedVolumeExtentMm.dx.toFixed(0)} × {loadedVolumeExtentMm.dy.toFixed(0)} ×{" "}
+                          {loadedVolumeExtentMm.dz.toFixed(0)} mm. Choose FoVx/FoVy near those in-plane numbers if you want the outline to span most of the anatomy.
+                        </>
+                      )}{" "}
+                      Sagittal stack: with gap = C–C − thickness, total coverage along the stack is
+                      N×thickness + (N−1)×gap. Each slice uses a solid bright yellow fill for the prescribed
+                      thickness (visible in sagittal/coronal/3D) plus thin neon green line outlines on the top and
+                      bottom of each slab — no vertical “walls,” so gaps stay clear while thickness reads from the
+                      fill.
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      width: "100%",
+                      userSelect: "none",
+                      "& .MuiFormControlLabel-root": { margin: 0 },
+                      "& .MuiCheckbox-root": {
+                        padding: "6px",
+                        color: "#1578A1 !important",
+                      },
+                      "& .MuiCheckbox-root.Mui-checked": {
+                        color: "#1578A1 !important",
+                      },
+                    }}
+                  >
+                    <CmrCheckbox
+                      id="show-field-of-view-overlay"
+                      checked={showFieldOfViewOverlay}
+                      checkedColor="#1578A1"
+                      onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
+                    >
+                      Show Box
+                    </CmrCheckbox>
+                  </Box>
+                </Box>
                 <NiiVue
                   niis={setupNiis}
                   warn={warn}
@@ -1609,8 +1972,9 @@ const Setup = () => {
                   pipelineID="setup"
                   saveROICallback={() => { }}
                   accessToken={accessToken ?? ""}
-                  showFovBoundingBox
+                  showFovBoundingBox={showFieldOfViewOverlay}
                   fovBoxOptions={setupFovBoxOptions}
+                  initialSliceType="sagittal"
                 />
               </CmrPanel>
             </CmrCollapse>
