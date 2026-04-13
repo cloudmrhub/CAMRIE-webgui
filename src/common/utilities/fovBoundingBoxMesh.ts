@@ -34,11 +34,30 @@ export type AxialSliceStackMm = {
   sliceGapMm: number;
 };
 
+/** Standard plane relative to world mm (RAS-style: +X left→right, +Y posterior→anterior, +Z inferior→superior). */
+export type FovPlaneOrientation = "axial" | "sagittal" | "coronal";
+
+/**
+ * User-facing prescription (orientation + angulation). Internally we derive unit slice normal **N**, orthonormal
+ * row/column (FoVx/FoVy), and the 3×3 image-to-world rotation [row | col | slice] for mesh / affine use.
+ */
+export type FovImagePrescription = {
+  orientation: FovPlaneOrientation;
+  /** Angulation about world left–right (+X), degrees. */
+  angulationLRdeg: number;
+  /** Angulation about world anterior–posterior (+Y), degrees. */
+  angulationAPdeg: number;
+};
+
 export type FovBoxOptions = {
   /** Used only when `axialFovMm` is absent or invalid: scale extent relative to volume world AABB. */
   scale?: number;
   /** When set with positive finite FoV lengths, draws an axial (i–j plane) rectangle at volume isocenter (0.5³ frac), clipped to the volume. */
   axialFovMm?: AxialFovMm;
+  /**
+   * When set, FoV follows cardinal orientation + LR/AP angulation (computed internally); otherwise voxel i/j/k basis.
+   */
+  imagePrescription?: FovImagePrescription;
   /** Wireframe slab boxes for each slice (thickness + gap); same in-plane half-extents as axial FoV after clamp. */
   axialSliceStack?: AxialSliceStackMm;
   /** RGBA 0–255. */
@@ -177,6 +196,112 @@ function volumeInPlaneAxesMm(nv: { frac2mm: (...args: unknown[]) => unknown }): 
   let u1 = vlen(dyProj) > 1e-8 ? vnorm(dyProj) : vnorm(cross(u0, [0, 0, 1]));
   if (vlen(u1) < 1e-8) u1 = vnorm(cross(u0, [0, 1, 0]));
   return { u0, u1 };
+}
+
+/** Right-handed image basis: row (X), column (Y), slice (Z), with slice = row × column. */
+export type VolumeImageBasisMm = { row: number[]; col: number[]; slice: number[] };
+
+export function volumeImageBasisMm(nv: { frac2mm: (...args: unknown[]) => unknown }): VolumeImageBasisMm {
+  const { u0, u1 } = volumeInPlaneAxesMm(nv);
+  const row = vnorm(u0);
+  const slice = vnorm(cross(u0, u1));
+  const col = vnorm(cross(slice, row));
+  return { row, col, slice };
+}
+
+/** Rodrigues: rotate v about unit axis k by deg (degrees), right-hand rule. */
+function rodriguesRotateVector(v: number[], k: number[], deg: number): number[] {
+  const rad = (deg * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  const kk = vnorm(k);
+  return vadd(vadd(vscale(v, c), vscale(cross(kk, v), s)), vscale(kk, vdot(kk, v) * (1 - c)));
+}
+
+const WORLD_LR = [1, 0, 0];
+const WORLD_AP = [0, 1, 0];
+
+/**
+ * Cardinal image basis before angulation: row × col = slice (RAS-style world slice-mm).
+ * Columns of the 3×3 image→world rotation are [row, col, slice].
+ */
+function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasisMm {
+  switch (orientation) {
+    case "axial":
+      return { row: [1, 0, 0], col: [0, 1, 0], slice: [0, 0, 1] };
+    case "sagittal":
+      return { row: [0, 1, 0], col: [0, 0, 1], slice: [1, 0, 0] };
+    case "coronal":
+      return { row: [0, 0, 1], col: [1, 0, 0], slice: [0, 1, 0] };
+    default:
+      return { row: [1, 0, 0], col: [0, 1, 0], slice: [0, 0, 1] };
+  }
+}
+
+/** Apply LR (+X) then AP (+Y) world angulation to the full row/col/slice triad. */
+function applyWorldAxisAngulation(
+  basis: VolumeImageBasisMm,
+  angulationLRdeg: number,
+  angulationAPdeg: number,
+): VolumeImageBasisMm {
+  let { row, col, slice } = basis;
+  const lr = Number.isFinite(angulationLRdeg) ? angulationLRdeg : 0;
+  const ap = Number.isFinite(angulationAPdeg) ? angulationAPdeg : 0;
+
+  const rotTriad = (deg: number, axis: number[]) => {
+    if (Math.abs(deg) < 1e-12) return;
+    const k = vnorm(axis);
+    row = vnorm(rodriguesRotateVector(row, k, deg));
+    col = vnorm(rodriguesRotateVector(col, k, deg));
+    slice = vnorm(rodriguesRotateVector(slice, k, deg));
+  };
+
+  rotTriad(lr, WORLD_LR);
+  rotTriad(ap, WORLD_AP);
+
+  row = vnorm(row);
+  col = vsub(col, vscale(row, vdot(row, col)));
+  if (vlen(col) < 1e-12) {
+    return basis;
+  }
+  col = vnorm(col);
+  const sl = vnorm(cross(row, col));
+  if (vdot(sl, slice) < 0) {
+    col = vscale(col, -1);
+  }
+  slice = vnorm(cross(row, col));
+  return { row, col, slice };
+}
+
+/**
+ * Full orthonormal basis from UI prescription. Slice normal **N** = `basis.slice` (unit); use for stack direction.
+ * Image→world linear map (columns): **R** = [row | col | slice] (direction cosines in mm).
+ */
+function imageBasisFromOrientationAngulation(
+  orientation: FovPlaneOrientation,
+  angulationLRdeg: number,
+  angulationAPdeg: number,
+): VolumeImageBasisMm {
+  return applyWorldAxisAngulation(baseImageBasisWorld(orientation), angulationLRdeg, angulationAPdeg);
+}
+
+/**
+ * Advanced: build row/col/slice from an explicit unit slice normal (e.g. programmatic API).
+ * FoVx along row, FoVy along column, row × col = N.
+ */
+export function imageBasisFromSliceNormal(nx: number, ny: number, nz: number): VolumeImageBasisMm {
+  const raw = [nx, ny, nz];
+  let n: number[];
+  if (vlen(raw) < 1e-12 || !raw.every((c) => Number.isFinite(c))) {
+    n = [0, 0, 1];
+  } else {
+    n = vnorm(raw);
+  }
+  let ref = [0, 0, 1];
+  if (Math.abs(vdot(n, ref)) > 0.95) ref = [1, 0, 0];
+  const row = vnorm(cross(ref, n));
+  const col = vnorm(cross(n, row));
+  return { row, col, slice: n };
 }
 
 /** Axial slice normal (through-plane / k̂) in mm, orthogonal to î and ĵ. */
@@ -628,7 +753,15 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
   if (isValidAxialFovMm(options?.axialFovMm)) {
     const af = options!.axialFovMm!;
     const C = volumeIsocenterMm(nv);
-    const { u0, u1 } = volumeInPlaneAxesMm(nv);
+    const prescribed = options?.imagePrescription
+      ? imageBasisFromOrientationAngulation(
+          options.imagePrescription.orientation,
+          options.imagePrescription.angulationLRdeg ?? 0,
+          options.imagePrescription.angulationAPdeg ?? 0,
+        )
+      : volumeImageBasisMm(nv);
+    const u0 = prescribed.row;
+    const u1 = prescribed.col;
     let h0 = af.fovXMm / 2;
     let h1 = af.fovYMm / 2;
     const clamped = clampHalvesUniformToVolumeAabb(C, u0, u1, h0, h1, min, max);
@@ -660,7 +793,8 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
 
     const meshes: NVMesh[] = [mesh];
 
-    const nHat = throughPlaneAxisMm(nv);
+    const nCross = cross(u0, u1);
+    const nHat = vlen(nCross) > 1e-12 ? vnorm(nCross) : throughPlaneAxisMm(nv);
     const st = options?.axialSliceStack;
     if (nHat && isValidAxialSliceStack(st)) {
       /** Perpendicular width of each edge ribbon (mm) — lower = slice box edges look like lines, not flat strips. */

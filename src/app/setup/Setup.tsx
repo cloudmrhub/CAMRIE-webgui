@@ -5,6 +5,7 @@ import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
+  type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import {
   getUploadedData,
@@ -34,6 +35,8 @@ import {
   Alert,
   TextField,
   FormControl,
+  InputLabel,
+  Select as MuiSelect,
   MenuItem,
   FormHelperText,
   Snackbar,
@@ -297,6 +300,12 @@ const Setup = () => {
   const [sagittalThicknessDraft, setSagittalThicknessDraft] = useState<string | null>(null);
   const [sagittalGapDraft, setSagittalGapDraft] = useState<string | null>(null);
 
+  const [fovOrientation, setFovOrientation] = useState<FovPlaneOrientation>("axial");
+  const [fovAngulationLRdeg, setFovAngulationLRdeg] = useState(0);
+  const [fovAngulationAPdeg, setFovAngulationAPdeg] = useState(0);
+  const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
+  const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
+
   const commitFovPixels = (raw: string, fallback: number) => {
     const t = raw.trim();
     if (t === "") return fallback;
@@ -321,6 +330,14 @@ const Setup = () => {
     if (t === "") return fallback;
     const n = parseFloat(t);
     return Number.isFinite(n) ? Math.max(0, n) : fallback;
+  };
+
+  const commitAngulationDeg = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseFloat(t);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(-89.5, Math.min(89.5, n));
   };
 
   /** Total extent along stack: N×thickness + (N−1)×gap, with gap = C–C − thickness. */
@@ -350,6 +367,11 @@ const Setup = () => {
     () => ({
       scale: 1,
       axialFovMm: { fovXMm: sequenceFovXMM, fovYMm: sequenceFovYMM },
+      imagePrescription: {
+        orientation: fovOrientation,
+        angulationLRdeg: fovAngulationLRdeg,
+        angulationAPdeg: fovAngulationAPdeg,
+      },
       axialSliceStack: {
         numSlices: Math.max(1, Math.round(sagittalNumSlices)),
         sliceThicknessMm: Math.max(0.01, sagittalSliceThicknessMm),
@@ -359,7 +381,16 @@ const Setup = () => {
       opacity: 1,
       name: "Axial FOV",
     }),
-    [sequenceFovXMM, sequenceFovYMM, sagittalNumSlices, sagittalSliceThicknessMm, sagittalSliceGapMm],
+    [
+      sequenceFovXMM,
+      sequenceFovYMM,
+      fovOrientation,
+      fovAngulationLRdeg,
+      fovAngulationAPdeg,
+      sagittalNumSlices,
+      sagittalSliceThicknessMm,
+      sagittalSliceGapMm,
+    ],
   );
 
   /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
@@ -1758,8 +1789,6 @@ const Setup = () => {
                 )}
               </Box>
 
-
-
             </CmrPanel>
 
           </CmrCollapse>
@@ -1769,7 +1798,7 @@ const Setup = () => {
           {/* Field of View - NiiVue viewer (same as Results) */}
           {Object.keys(availableVolumes).length > 0 ? (
             <CmrCollapse activeKey={openFieldofViewPanel}>
-              <CmrPanel header="Field of view (axial) & sagittal stack" >
+              <CmrPanel header="Field of View">
                 <Box
                   sx={{
                     pb: 2,
@@ -1777,7 +1806,6 @@ const Setup = () => {
                     flexDirection: "column",
                     gap: 0.25,
                     width: "100%",
-                    /* Match Toolbar.tsx neurological row: inner Box uses m={1} → 8px theme spacing */
                     px: 1,
                   }}
                 >
@@ -1860,6 +1888,74 @@ const Setup = () => {
                     </Box>
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Orientation
+                      </Typography>
+
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end", mb: 1.5 }}>
+                        <FormControl size="small" sx={{ minWidth: 220 }}>
+                          <InputLabel id="fov-orientation-label">Orientation</InputLabel>
+                          <MuiSelect
+                            labelId="fov-orientation-label"
+                            label="Orientation"
+                            value={fovOrientation}
+                            onChange={(e) => setFovOrientation(e.target.value as FovPlaneOrientation)}
+                          >
+                            <MenuItem value="axial">Axial</MenuItem>
+                            <MenuItem value="sagittal">Sagittal</MenuItem>
+                            <MenuItem value="coronal">Coronal</MenuItem>
+                          </MuiSelect>
+                        </FormControl>
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Angle
+                      </Typography>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 420 }}>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, marginBottom: 1 }}>
+                          <Typography variant="body2" sx={{ minWidth: 168 }}>
+                            Left - Right:
+                          </Typography>
+                          <TextField
+                            label="Degrees"
+                            type="text"
+                            inputMode="decimal"
+                            size="small"
+                            value={fovAngulationLRdraft ?? String(fovAngulationLRdeg)}
+                            onFocus={() => setFovAngulationLRdraft(String(fovAngulationLRdeg))}
+                            onChange={(e) => setFovAngulationLRdraft(e.target.value)}
+                            onBlur={() => {
+                              setFovAngulationLRdeg(
+                                commitAngulationDeg(fovAngulationLRdraft ?? "", fovAngulationLRdeg),
+                              );
+                              setFovAngulationLRdraft(null);
+                            }}
+                            sx={{ width: 100 }}
+                          />
+                        </Box>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5 }}>
+                          <Typography variant="body2" sx={{ minWidth: 168 }}>
+                            Anterior - Posterior:
+                          </Typography>
+                          <TextField
+                            label="Degrees"
+                            type="text"
+                            inputMode="decimal"
+                            size="small"
+                            value={fovAngulationAPdraft ?? String(fovAngulationAPdeg)}
+                            onFocus={() => setFovAngulationAPdraft(String(fovAngulationAPdeg))}
+                            onChange={(e) => setFovAngulationAPdraft(e.target.value)}
+                            onBlur={() => {
+                              setFovAngulationAPdeg(
+                                commitAngulationDeg(fovAngulationAPdraft ?? "", fovAngulationAPdeg),
+                              );
+                              setFovAngulationAPdraft(null);
+                            }}
+                            sx={{ width: 100 }}
+                          />
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Parallel Ranges
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
@@ -1932,7 +2028,7 @@ const Setup = () => {
                       checkedColor="#1578A1"
                       onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
                     >
-                      Show Box
+                      Show
                     </CmrCheckbox>
                   </Box>
                 </Box>
