@@ -76,6 +76,39 @@ export type FovBoxOptions = {
    */
   sliceFillOpacityByView?: SliceFillOpacityByView;
   name?: string;
+  /**
+   * When true, **Alt+drag** translates FoV meshes in world mm (Niivue `screenXY2mm`). **Alt+Ctrl+drag** adjusts
+   * LR/AP angulation (same as `imagePrescription`) if {@link fovInteractive.onAngulationSetDeg} is provided.
+   * The MRI volume and crosshair are not moved.
+   */
+  fovInteractive?: {
+    enabled?: boolean;
+    /**
+     * Called while Alt+Ctrl+dragging with absolute angles (deg), clamped ±89.5° here; parent should mirror into the
+     * same LR/AP fields as the prescription inputs.
+     */
+    onAngulationSetDeg?: (angulationLRdeg: number, angulationAPdeg: number) => void;
+  };
+  /**
+   * When false, user offset from dragging is cleared on the next `attachFovBoundingBoxMesh`. Default true so
+   * React option refreshes do not reset the pose.
+   */
+  preserveFovUserTransform?: boolean;
+};
+
+/** User-applied translation on top of volume isocenter (for drag + backend export). Angulation lives in `imagePrescription`. */
+export type FovUserMeshTransform = {
+  offsetMm: [number, number, number];
+};
+
+/** Last placed FoV geometry (slice-mm world), for {@link getFovMeshAffineSnapshot}. */
+export type FovMeshGeometrySnapshot = {
+  centerMm: number[];
+  row: number[];
+  col: number[];
+  slice: number[];
+  halfExtentXMm: number;
+  halfExtentYMm: number;
 };
 
 /**
@@ -97,10 +130,10 @@ export type SliceFillOpacityByView = {
  * When passing `sliceFillOpacityByView`, unspecified keys use these values.
  */
 export const DEFAULT_SLICE_FILL_OPACITY_BY_VIEW: Required<SliceFillOpacityByView> = {
-  axial: 1,
+  axial: 0.85,
   coronal: 6,
   sagittal: 6,
-  view3d: 4,
+  view3d: 6,
 };
 
 /** Default extra dimming for slice fill on 2D (see `FovBoxOptions.sliceFillOpacityScale2D`). */
@@ -691,6 +724,10 @@ export type NiivueMeshHost = {
   /** FoV outline + optional slice-stack wireframes (all removed together). */
   __camrieFovBoxMeshes?: NVMesh[];
   __camrieFovSavedNiivueOpts?: { meshThicknessOn2D: number; meshXRay: number } | null;
+  __camrieFovUserTransform?: FovUserMeshTransform;
+  __camrieFovLastOptions?: FovBoxOptions;
+  __camrieFovLastGeometry?: FovMeshGeometrySnapshot;
+  __camrieFovDragCleanup?: () => void;
 };
 
 /**
@@ -795,10 +832,7 @@ function restoreFovNiivueMeshDrawOpts(nv: NiivueMeshHost) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Niivue instance typing uses gl-matrix vec3/vec4
-export function removeFovBoundingBoxMesh(nv: any) {
-  const host = nv as NiivueMeshHost;
-  restoreFovNiivueMeshDrawOpts(host);
+function removeFovMeshesOnly(host: NiivueMeshHost): void {
   const list = host.__camrieFovBoxMeshes;
   if (list?.length) {
     for (const m of list) {
@@ -810,6 +844,382 @@ export function removeFovBoundingBoxMesh(nv: any) {
     }
   }
   host.__camrieFovBoxMeshes = [];
+}
+
+const DEFAULT_FOV_USER_TRANSFORM: FovUserMeshTransform = {
+  offsetMm: [0, 0, 0],
+};
+
+/** Device pixels → LR / AP prescription degrees (Alt+Ctrl+drag), matched to Setup text field convention. */
+const FOV_INTERACTIVE_DEG_PER_PIXEL_LR = 0.065;
+const FOV_INTERACTIVE_DEG_PER_PIXEL_AP = 0.065;
+/** Hold Shift while dragging for smaller steps (translate mm and angulation °). */
+const FOV_INTERACTIVE_FINE_SCALE = 0.22;
+
+function ensureFovUserTransform(host: NiivueMeshHost): FovUserMeshTransform {
+  if (!host.__camrieFovUserTransform) {
+    host.__camrieFovUserTransform = {
+      offsetMm: [...DEFAULT_FOV_USER_TRANSFORM.offsetMm] as [number, number, number],
+    };
+  }
+  return host.__camrieFovUserTransform;
+}
+
+/**
+ * Build outline + optional slice-stack meshes; does not register listeners or call `removeFovBoundingBoxMesh`.
+ * Caller must apply {@link applyFovNiivueMeshDrawOpts} before adding meshes.
+ */
+function createAxialFovMeshList(
+  nv: NiivueMeshHost,
+  gl: WebGL2RenderingContext,
+  options: FovBoxOptions,
+  C: number[],
+  u0: number[],
+  u1: number[],
+  nHat: number[],
+  h0: number,
+  h1: number,
+  min: number[],
+  max: number[],
+): NVMesh[] | null {
+  const borderMm = Math.min(0.0065, Math.max(0.002, Math.min(h0, h1) * 0.00012));
+
+  let buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, borderMm);
+  if (!buf) {
+    const fallbackBw = Math.min(0.0055, Math.max(0.002, Math.min(h0, h1) * 0.0001));
+    buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, fallbackBw);
+  }
+  if (!buf) return null;
+
+  const rgba = boostFovRgb255(options?.rgba255 ?? FOV_OUTLINE_DEFAULT_RGBA255, 1.1);
+  const name = options?.name ?? "Axial FOV";
+  const op = options?.opacity ?? 1;
+  const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
+  mesh.opacity = Math.min(1, Math.max(0.05, op));
+  styleFovNvmesh(mesh, nv);
+
+  const meshes: NVMesh[] = [mesh];
+
+  const st = options?.axialSliceStack;
+  if (nHat && isValidAxialSliceStack(st)) {
+    const stackLw = Math.min(0.0075, Math.max(0.0025, Math.min(h0, h1) * 0.00014));
+    const stackFillBuf = buildAxialSliceStackSolidFillBuffers(
+      C,
+      u0,
+      u1,
+      nHat,
+      h0,
+      h1,
+      st!.numSlices,
+      st!.sliceThicknessMm,
+      st!.sliceGapMm,
+      min,
+      max,
+    );
+    if (stackFillBuf) {
+      const fillRgba = SLICE_VOLUME_FILL_RGBA255;
+      const fillMesh = new NVMesh(
+        stackFillBuf.positions,
+        stackFillBuf.indices,
+        `${name} slice volume`,
+        [...fillRgba],
+        1,
+        true,
+        gl,
+      );
+      fillMesh.opacity = 0.22;
+      styleFovSliceFillMesh(fillMesh, nv);
+      const scale2d =
+        options?.sliceFillOpacityScale2D !== undefined
+          ? Math.min(1, Math.max(0, options.sliceFillOpacityScale2D))
+          : DEFAULT_SLICE_FILL_OPACITY_SCALE_2D;
+      const byView = mergeSliceFillOpacityByView(options?.sliceFillOpacityByView);
+      const fillTagged = fillMesh as NVMesh & {
+        __camrieFovSliceFillMesh?: boolean;
+        __camrieSliceFillOpacityScale2D?: number;
+        __camrieSliceFillOpacityByView?: {
+          axial: number;
+          coronal: number;
+          sagittal: number;
+          view3d: number;
+        };
+      };
+      fillTagged.__camrieFovSliceFillMesh = true;
+      fillTagged.__camrieSliceFillOpacityScale2D = scale2d;
+      fillTagged.__camrieSliceFillOpacityByView = byView;
+      meshes.push(fillMesh);
+    }
+    const stackBuf = buildAxialSliceStackWireframeBuffers(
+      C,
+      u0,
+      u1,
+      nHat,
+      h0,
+      h1,
+      st!.numSlices,
+      st!.sliceThicknessMm,
+      st!.sliceGapMm,
+      stackLw,
+      min,
+      max,
+    );
+    if (stackBuf) {
+      const stackMesh = new NVMesh(
+        stackBuf.positions,
+        stackBuf.indices,
+        `${name} slice stack`,
+        [...rgba],
+        1,
+        true,
+        gl,
+      );
+      stackMesh.opacity = Math.min(1, Math.max(0.05, op));
+      styleFovNvmesh(stackMesh, nv);
+      meshes.push(stackMesh);
+    }
+  }
+
+  return meshes;
+}
+
+function computeAxialFovPlacement(
+  nv: NiivueMeshHost,
+  options: FovBoxOptions,
+  ut: FovUserMeshTransform,
+  min: number[],
+  max: number[],
+): {
+  C: number[];
+  u0: number[];
+  u1: number[];
+  nHat: number[];
+  h0: number;
+  h1: number;
+} | null {
+  if (!isValidAxialFovMm(options.axialFovMm)) return null;
+  const af = options.axialFovMm!;
+  const Ciso = volumeIsocenterMm(nv);
+  const C = vadd(Ciso, [...ut.offsetMm]);
+  const prescribed = options.imagePrescription
+    ? imageBasisFromOrientationAngulation(
+        options.imagePrescription.orientation,
+        options.imagePrescription.angulationLRdeg ?? 0,
+        options.imagePrescription.angulationAPdeg ?? 0,
+      )
+    : volumeImageBasisMm(nv);
+  let u0 = [...prescribed.row];
+  let u1 = [...prescribed.col];
+  const nCross = cross(u0, u1);
+  let nHat = vlen(nCross) > 1e-12 ? vnorm(nCross) : throughPlaneAxisMm(nv);
+  if (!nHat) return null;
+  let h0 = af.fovXMm / 2;
+  let h1 = af.fovYMm / 2;
+  const clamped = clampHalvesUniformToVolumeAabb(C, u0, u1, h0, h1, min, max);
+  h0 = clamped.h0;
+  h1 = clamped.h1;
+  return { C, u0, u1, nHat, h0, h1 };
+}
+
+/** Rebuild axial FoV meshes from {@link NiivueMeshHost.__camrieFovLastOptions} and user transform (for drag). */
+export function rebuildFovBoundingBoxMeshFromUserTransform(nv: any): void {
+  const host = nv as NiivueMeshHost;
+  const opts = host.__camrieFovLastOptions;
+  if (!opts || !nv.gl || !nv.volumes[0] || !isValidAxialFovMm(opts.axialFovMm)) return;
+  const ut = ensureFovUserTransform(host);
+  const { min, max } = volumeWorldAabbMm(nv);
+  const place = computeAxialFovPlacement(host, opts, ut, min, max);
+  if (!place) return;
+  const { C, u0, u1, nHat, h0, h1 } = place;
+  removeFovMeshesOnly(host);
+  const meshes = createAxialFovMeshList(host, nv.gl, opts, C, u0, u1, nHat, h0, h1, min, max);
+  if (!meshes?.length) return;
+  for (const m of meshes) host.addMesh(m);
+  host.__camrieFovBoxMeshes = meshes;
+  const slice = vnorm(cross(u0, u1));
+  host.__camrieFovLastGeometry = {
+    centerMm: [...C],
+    row: [...u0],
+    col: [...u1],
+    slice: [...slice],
+    halfExtentXMm: h0,
+    halfExtentYMm: h1,
+  };
+  host.drawScene();
+}
+
+function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
+  const host = nv as NiivueMeshHost;
+  host.__camrieFovDragCleanup?.();
+  if (!options.fovInteractive?.enabled || !nv.canvas) return;
+
+  const canvas = nv.canvas as HTMLCanvasElement;
+  let mode: "translate" | "angulation" | null = null;
+  let lastX = 0;
+  let lastY = 0;
+
+  /** Same as Niivue `mouseClick`: CSS pixels relative to canvas, then × `uiData.dpr`. Do not extract nv methods — `this` must stay bound. */
+  const toDevicePx = (e: PointerEvent): [number, number] | null => {
+    const canvasEl = nv.canvas as HTMLElement;
+    const rect = canvasEl.getBoundingClientRect();
+    const xCss = e.clientX - rect.left;
+    const yCss = e.clientY - rect.top;
+    const dpr =
+      nv.uiData?.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1);
+    if (!Number.isFinite(dpr) || dpr <= 0) return null;
+    return [xCss * dpr, yCss * dpr];
+  };
+
+  const onPointerDown = (e: PointerEvent): void => {
+    if (!e.altKey || e.button !== 0) return;
+    const px = toDevicePx(e);
+    if (!px) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mode = e.ctrlKey || e.metaKey ? "angulation" : "translate";
+    lastX = px[0];
+    lastY = px[1];
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onPointerMove = (e: PointerEvent): void => {
+    if (!mode) return;
+    const px = toDevicePx(e);
+    if (!px) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ut = ensureFovUserTransform(host);
+    const fine = e.shiftKey ? FOV_INTERACTIVE_FINE_SCALE : 1;
+    if (mode === "translate") {
+      // Call on `nv` — same `this`-binding issue as Niivue mouse helpers if extracted to a bare function.
+      const endMM = nv.screenXY2mm(px[0], px[1]) as number[];
+      const startMM = nv.screenXY2mm(lastX, lastY, endMM[3]) as number[];
+      if (!Number.isFinite(endMM[0]) || !Number.isFinite(startMM[0])) {
+        lastX = px[0];
+        lastY = px[1];
+        return;
+      }
+      const d0 = (endMM[0] - startMM[0]) * fine;
+      const d1 = (endMM[1] - startMM[1]) * fine;
+      const d2 = (endMM[2] - startMM[2]) * fine;
+      ut.offsetMm[0] += d0;
+      ut.offsetMm[1] += d1;
+      ut.offsetMm[2] += d2;
+      lastX = px[0];
+      lastY = px[1];
+      rebuildFovBoundingBoxMeshFromUserTransform(nv);
+    } else {
+      const op = host.__camrieFovLastOptions;
+      if (!op?.imagePrescription) {
+        lastX = px[0];
+        lastY = px[1];
+        return;
+      }
+      const dx = px[0] - lastX;
+      const dy = px[1] - lastY;
+      lastX = px[0];
+      lastY = px[1];
+      const dLR = dx * FOV_INTERACTIVE_DEG_PER_PIXEL_LR * fine;
+      const dAP = -dy * FOV_INTERACTIVE_DEG_PER_PIXEL_AP * fine;
+      const lr = Math.max(-89.5, Math.min(89.5, (op.imagePrescription.angulationLRdeg ?? 0) + dLR));
+      const ap = Math.max(-89.5, Math.min(89.5, (op.imagePrescription.angulationAPdeg ?? 0) + dAP));
+      host.__camrieFovLastOptions = {
+        ...op,
+        imagePrescription: {
+          ...op.imagePrescription,
+          angulationLRdeg: lr,
+          angulationAPdeg: ap,
+        },
+      };
+      options.fovInteractive?.onAngulationSetDeg?.(lr, ap);
+      rebuildFovBoundingBoxMeshFromUserTransform(nv);
+    }
+  };
+
+  const endDrag = (e: PointerEvent): void => {
+    if (!mode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mode = null;
+    try {
+      if (canvas.hasPointerCapture(e.pointerId)) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  canvas.addEventListener("pointerdown", onPointerDown, true);
+  canvas.addEventListener("pointermove", onPointerMove, true);
+  canvas.addEventListener("pointerup", endDrag, true);
+  canvas.addEventListener("pointercancel", endDrag, true);
+
+  host.__camrieFovDragCleanup = () => {
+    canvas.removeEventListener("pointerdown", onPointerDown, true);
+    canvas.removeEventListener("pointermove", onPointerMove, true);
+    canvas.removeEventListener("pointerup", endDrag, true);
+    canvas.removeEventListener("pointercancel", endDrag, true);
+    host.__camrieFovDragCleanup = undefined;
+  };
+}
+
+/**
+ * Snapshot of FoV pose for backend / affine (slice-mm world mm, same as `frac2mm` when slice MM is on).
+ * Returns null if no axial FoV was attached or geometry is unavailable.
+ */
+export function getFovMeshAffineSnapshot(nv: any): {
+  isocenterMm: number[];
+  userTransform: FovUserMeshTransform;
+  centerMm: number[];
+  row: number[];
+  col: number[];
+  slice: number[];
+  halfExtentsMm: { x: number; y: number };
+  axialFovMm?: AxialFovMm;
+  imagePrescription?: FovImagePrescription;
+} | null {
+  const host = nv as NiivueMeshHost;
+  const geom = host.__camrieFovLastGeometry;
+  const opts = host.__camrieFovLastOptions;
+  if (!geom || !opts) return null;
+  const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
+  return {
+    isocenterMm: [...volumeIsocenterMm(nv)],
+    userTransform: { offsetMm: [...ut.offsetMm] as [number, number, number] },
+    centerMm: [...geom.centerMm],
+    row: [...geom.row],
+    col: [...geom.col],
+    slice: [...geom.slice],
+    halfExtentsMm: { x: geom.halfExtentXMm, y: geom.halfExtentYMm },
+    axialFovMm: opts.axialFovMm,
+    imagePrescription: opts.imagePrescription,
+  };
+}
+
+/** Reset user drag offset/twist (next rebuild uses isocenter / zero twist). */
+export function resetFovUserMeshTransform(nv: any): void {
+  const host = nv as NiivueMeshHost;
+  host.__camrieFovUserTransform = {
+    offsetMm: [0, 0, 0],
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Niivue instance typing uses gl-matrix vec3/vec4
+export function removeFovBoundingBoxMesh(nv: any, opts?: { clearUserTransform?: boolean }) {
+  const host = nv as NiivueMeshHost;
+  host.__camrieFovDragCleanup?.();
+  host.__camrieFovDragCleanup = undefined;
+  restoreFovNiivueMeshDrawOpts(host);
+  removeFovMeshesOnly(host);
+  host.__camrieFovLastGeometry = undefined;
+  host.__camrieFovLastOptions = undefined;
+  if (opts?.clearUserTransform) {
+    host.__camrieFovUserTransform = undefined;
+  }
 }
 
 /**
@@ -824,134 +1234,33 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
   const host = nv as NiivueMeshHost;
   const { min, max } = volumeWorldAabbMm(nv);
 
-  if (isValidAxialFovMm(options?.axialFovMm)) {
-    const af = options!.axialFovMm!;
-    const C = volumeIsocenterMm(nv);
-    const prescribed = options?.imagePrescription
-      ? imageBasisFromOrientationAngulation(
-          options.imagePrescription.orientation,
-          options.imagePrescription.angulationLRdeg ?? 0,
-          options.imagePrescription.angulationAPdeg ?? 0,
-        )
-      : volumeImageBasisMm(nv);
-    const u0 = prescribed.row;
-    const u1 = prescribed.col;
-    let h0 = af.fovXMm / 2;
-    let h1 = af.fovYMm / 2;
-    const clamped = clampHalvesUniformToVolumeAabb(C, u0, u1, h0, h1, min, max);
-    h0 = clamped.h0;
-    h1 = clamped.h1;
-
-    /**
-     * Hollow-ring stroke (mm): distance between inner and outer rect — in-plane “width” of the outline band;
-     * keep near hairline so it reads as a line outline, not a filled band.
-     */
-    const borderMm = Math.min(0.0065, Math.max(0.002, Math.min(h0, h1) * 0.00012));
-
-    let buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, borderMm);
-    if (!buf) {
-      const fallbackBw = Math.min(0.0055, Math.max(0.002, Math.min(h0, h1) * 0.0001));
-      buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, fallbackBw);
+  if (isValidAxialFovMm(options?.axialFovMm) && options) {
+    if (options.preserveFovUserTransform === false) {
+      host.__camrieFovUserTransform = undefined;
     }
-    if (!buf) return;
+    const ut = ensureFovUserTransform(host);
+    const place = computeAxialFovPlacement(host, options, ut, min, max);
+    if (!place) return;
 
     applyFovNiivueMeshDrawOpts(host);
 
-    /** Outline + stack wires — neon green by default (vertex RGB boosted for Niivue mesh shading). */
-    const rgba = boostFovRgb255(options?.rgba255 ?? FOV_OUTLINE_DEFAULT_RGBA255, 1.1);
-    const name = options?.name ?? "Axial FOV";
-    const op = options?.opacity ?? 1;
-    const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
-    mesh.opacity = Math.min(1, Math.max(0.05, op));
-    styleFovNvmesh(mesh, host);
-
-    const meshes: NVMesh[] = [mesh];
-
-    const nCross = cross(u0, u1);
-    const nHat = vlen(nCross) > 1e-12 ? vnorm(nCross) : throughPlaneAxisMm(nv);
-    const st = options?.axialSliceStack;
-    if (nHat && isValidAxialSliceStack(st)) {
-      /** Perpendicular width of each edge ribbon (mm) — lower = slice box edges look like lines, not flat strips. */
-      const stackLw = Math.min(0.0075, Math.max(0.0025, Math.min(h0, h1) * 0.00014));
-      const stackFillBuf = buildAxialSliceStackSolidFillBuffers(
-        C,
-        u0,
-        u1,
-        nHat,
-        h0,
-        h1,
-        st!.numSlices,
-        st!.sliceThicknessMm,
-        st!.sliceGapMm,
-        min,
-        max,
-      );
-      if (stackFillBuf) {
-        const fillRgba = SLICE_VOLUME_FILL_RGBA255;
-        const fillMesh = new NVMesh(
-          stackFillBuf.positions,
-          stackFillBuf.indices,
-          `${name} slice volume`,
-          [...fillRgba],
-          1,
-          true,
-          gl,
-        );
-        /** Per-draw uniform × premultiplied shader (see NiivuePatcher `drawMesh3D`). Tune ~0.12–0.35 if needed. */
-        fillMesh.opacity = 0.22;
-        styleFovSliceFillMesh(fillMesh, host);
-        const scale2d =
-          options?.sliceFillOpacityScale2D !== undefined
-            ? Math.min(1, Math.max(0, options.sliceFillOpacityScale2D))
-            : DEFAULT_SLICE_FILL_OPACITY_SCALE_2D;
-        const byView = mergeSliceFillOpacityByView(options?.sliceFillOpacityByView);
-        const fillTagged = fillMesh as NVMesh & {
-          __camrieFovSliceFillMesh?: boolean;
-          __camrieSliceFillOpacityScale2D?: number;
-          __camrieSliceFillOpacityByView?: {
-            axial: number;
-            coronal: number;
-            sagittal: number;
-            view3d: number;
-          };
-        };
-        fillTagged.__camrieFovSliceFillMesh = true;
-        fillTagged.__camrieSliceFillOpacityScale2D = scale2d;
-        fillTagged.__camrieSliceFillOpacityByView = byView;
-        meshes.push(fillMesh);
-      }
-      const stackBuf = buildAxialSliceStackWireframeBuffers(
-        C,
-        u0,
-        u1,
-        nHat,
-        h0,
-        h1,
-        st!.numSlices,
-        st!.sliceThicknessMm,
-        st!.sliceGapMm,
-        stackLw,
-        min,
-        max,
-      );
-      if (stackBuf) {
-        const stackMesh = new NVMesh(
-          stackBuf.positions,
-          stackBuf.indices,
-          `${name} slice stack`,
-          [...rgba],
-          1,
-          true,
-          gl,
-        );
-        stackMesh.opacity = Math.min(1, Math.max(0.05, op));
-        styleFovNvmesh(stackMesh, host);
-        meshes.push(stackMesh);
-      }
-    }
+    const { C, u0, u1, nHat, h0, h1 } = place;
+    const meshes = createAxialFovMeshList(host, gl, options, C, u0, u1, nHat, h0, h1, min, max);
+    if (!meshes?.length) return;
 
     for (const m of meshes) host.addMesh(m);
     host.__camrieFovBoxMeshes = meshes;
+    const slice = vnorm(cross(u0, u1));
+    host.__camrieFovLastOptions = options;
+    host.__camrieFovLastGeometry = {
+      centerMm: [...C],
+      row: [...u0],
+      col: [...u1],
+      slice: [...slice],
+      halfExtentXMm: h0,
+      halfExtentYMm: h1,
+    };
+    installFovMeshDragHandlers(nv, options);
     host.drawScene();
     return;
   }

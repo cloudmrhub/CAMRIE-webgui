@@ -290,6 +290,8 @@ const Setup = () => {
   const [warningOpen, setWarningOpen] = useState(false);
   /** Toggle FOV bounding box overlay on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
+  /** When on, Alt+drag translates the FoV mesh; Alt+Ctrl+drag updates LR/AP angulation (same as text fields). Requires overlay on. */
+  const [fovOverlayInteractiveEnabled, setFovOverlayInteractiveEnabled] = useState(false);
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
   const [geometryBySequenceId, setGeometryBySequenceId] = useState<
     Record<string, SequenceGeometryFormState>
@@ -1237,6 +1239,16 @@ const Setup = () => {
     [selectedProtocolSeqId, protocolSequences],
   );
 
+  /** Alt+Ctrl+drag on FoV canvas: same LR/AP degrees as the angulation text fields (±89.5°). */
+  const handleFovAngulationSetDeg = useCallback(
+    (angulationLRdeg: number, angulationAPdeg: number) => {
+      setFovAngulationLRdraft(null);
+      setFovAngulationAPdraft(null);
+      patchActiveSequenceGeometry({ angulationLRdeg, angulationAPdeg });
+    },
+    [patchActiveSequenceGeometry],
+  );
+
   const setupFovBoxOptions = useMemo(
     () => ({
       scale: 1,
@@ -1254,6 +1266,10 @@ const Setup = () => {
       rgba255: [57, 255, 20, 255] as [number, number, number, number],
       opacity: 1,
       name: "Axial FOV",
+      fovInteractive: {
+        enabled: fovOverlayInteractiveEnabled,
+        onAngulationSetDeg: handleFovAngulationSetDeg,
+      },
     }),
     [
       sequenceFovXMM,
@@ -1264,6 +1280,8 @@ const Setup = () => {
       activeForm.sagittalNumSlices,
       activeForm.sagittalSliceThicknessMm,
       activeForm.sagittalSliceGapMm,
+      fovOverlayInteractiveEnabled,
+      handleFovAngulationSetDeg,
     ],
   );
 
@@ -2204,7 +2222,10 @@ const Setup = () => {
                   <Box
                     sx={{
                       display: "flex",
+                      flexWrap: "wrap",
                       justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: 2,
                       width: "100%",
                       userSelect: "none",
                       "& .MuiFormControlLabel-root": { margin: 0 },
@@ -2224,6 +2245,15 @@ const Setup = () => {
                       onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
                     >
                       Show
+                    </CmrCheckbox>
+                    <CmrCheckbox
+                      id="fov-overlay-interactive-drag"
+                      checked={fovOverlayInteractiveEnabled}
+                      checkedColor="#1578A1"
+                      disabled={!showFieldOfViewOverlay}
+                      onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
+                    >
+                      Reposition overlay (Alt+drag, Alt+Ctrl+angle)
                     </CmrCheckbox>
                   </Box>
                 </Box>
