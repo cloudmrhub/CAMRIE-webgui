@@ -765,6 +765,9 @@ Niivue.prototype.draw2D = function (leftTopWidthHeight, axCorSag, customMM = NaN
         // we may need to transform mesh vertices to the orthogonal voxel space
         const mx = mat4.clone(obj.modelViewProjectionMatrix)
         mat4.multiply(mx, mx, mesh2ortho)
+        // Slice-fill: `__camrieFovMeshPassIs3D` + `__camrieFovMeshAxCorSag` (0=axial, 1=coronal, 2=sagittal).
+        this.__camrieFovMeshPassIs3D = false
+        this.__camrieFovMeshAxCorSag = axCorSag
         this.drawMesh3D(
             true,
             1,
@@ -774,6 +777,8 @@ Niivue.prototype.draw2D = function (leftTopWidthHeight, axCorSag, customMM = NaN
         )
         // Second pass: draw mesh with depth test disabled so outlines stay visible on top of the slice (matches 3D meshXRay behavior).
         if (this.opts.meshXRay > 0) {
+            this.__camrieFovMeshPassIs3D = false
+            this.__camrieFovMeshAxCorSag = axCorSag
             this.drawMesh3D(
                 false,
                 this.opts.meshXRay,
@@ -1527,8 +1532,8 @@ function swizzleVec3(vec, order = [0, 1, 2]) {
 }
 
 Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, sagMM) {
-    console.log('method called');
-    if (sliceIndex < 0 || this.screenSlices.length <= sliceIndex) {
+    // `this` may be wrong if called without Niivue context; `screenSlices` is only set during drawScene / draw2D.
+    if (!this?.screenSlices || sliceIndex < 0 || this.screenSlices.length <= sliceIndex) {
         return;
     }
     const tile = this.screenSlices[sliceIndex];
@@ -1658,8 +1663,7 @@ Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, s
             this.drawLine([left[0], left[1], right[0], right[1]], thick);
         }
     }
-}
-
+};
 
 // not included in public docs
 // Niivue.prototype.drawCrosshairs3D=function(isDepthTest = true, alpha = 1, mvpMtx = null, is2DView = false, isSliceMM = true) {
@@ -1718,4 +1722,158 @@ Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, s
 //     );
 //     gl.bindVertexArray(this.unusedVAO);
 // }
+
+/**
+ * Niivue `drawMesh3D` sets the fragment `opacity` uniform to the call's `alpha` only — `NVMesh.opacity` is ignored.
+ * Multiply `mesh.opacity` into that uniform, and apply optional 2D-only slice-fill scale (see fovBoundingBoxMesh).
+ * Instance `__camrieFovMeshPassIs3D` is true inside `draw3D`, false in `draw2D` before mesh draws.
+ */
+;(function patchCamrieMeshOpacityUniformAndFill2D() {
+    function camrieMeshOpacityUniform(nv, mesh, alpha) {
+        let mo = typeof mesh.opacity === 'number' ? mesh.opacity : 1
+        if (mo > 1) mo = 1
+        if (mo < 0) mo = 0
+        let u = alpha * mo
+        if (!mesh.__camrieFovSliceFillMesh) {
+            return u
+        }
+        const by = mesh.__camrieSliceFillOpacityByView
+        if (nv.__camrieFovMeshPassIs3D === true) {
+            if (by && typeof by.view3d === 'number') {
+                u *= by.view3d
+            }
+        } else {
+            const ax = nv.__camrieFovMeshAxCorSag
+            if (by && typeof ax === 'number') {
+                if (ax === 0) {
+                    u *= by.axial
+                } else if (ax === 1) {
+                    u *= by.coronal
+                } else if (ax === 2) {
+                    u *= by.sagittal
+                }
+            }
+            const s = mesh.__camrieSliceFillOpacityScale2D
+            if (typeof s === 'number' && s >= 0 && s <= 1) {
+                u *= s
+            }
+        }
+        return u
+    }
+
+    const _draw3D = Niivue.prototype.draw3D
+    Niivue.prototype.draw3D = function () {
+        const prev = Object.prototype.hasOwnProperty.call(this, '__camrieFovMeshPassIs3D')
+            ? this.__camrieFovMeshPassIs3D
+            : undefined
+        this.__camrieFovMeshPassIs3D = true
+        try {
+            return _draw3D.apply(this, arguments)
+        } finally {
+            if (prev === undefined) {
+                delete this.__camrieFovMeshPassIs3D
+            } else {
+                this.__camrieFovMeshPassIs3D = prev
+            }
+        }
+    }
+
+    Niivue.prototype.drawMesh3D = function (isDepthTest, alpha, m, modelMtx, normMtx) {
+        if (this.meshes.length < 1) {
+            return
+        }
+        const gl = this.gl
+        if (!m) {
+            ;
+            [m, modelMtx, normMtx] = this.calculateMvpMatrix(
+                this.volumeObject3D,
+                undefined,
+                this.scene.renderAzimuth,
+                this.scene.renderElevation
+            )
+        }
+        gl.enable(gl.DEPTH_TEST)
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+        gl.disable(gl.CULL_FACE)
+        if (isDepthTest) {
+            gl.depthFunc(gl.GREATER)
+        } else {
+            gl.depthFunc(gl.ALWAYS)
+            gl.enable(gl.CULL_FACE)
+        }
+        gl.cullFace(gl.BACK)
+        let shader = this.meshShaders[0].shader
+        let hasFibers = false
+        for (let i2 = 0; i2 < this.meshes.length; i2++) {
+            if (this.meshes[i2].visible === false) {
+                continue
+            }
+            const sliceFill = this.meshes[i2].__camrieFovSliceFillMesh === true
+            if (sliceFill) {
+                gl.enable(gl.BLEND)
+                gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+                gl.depthMask(false)
+            } else if (isDepthTest) {
+                gl.depthMask(true)
+                gl.disable(gl.BLEND)
+            } else {
+                gl.depthMask(true)
+                gl.enable(gl.BLEND)
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+            }
+            shader = this.meshShaders[this.meshes[i2].meshShaderIndex].shader
+            if (this.uiData.mouseDepthPicker) {
+                shader = this.pickingMeshShader
+            }
+            shader.use(this.gl)
+            gl.uniformMatrix4fv(shader.uniforms.mvpMtx, false, m)
+            gl.uniformMatrix4fv(shader.uniforms.normMtx, false, normMtx)
+            gl.uniform1f(shader.uniforms.opacity, camrieMeshOpacityUniform(this, this.meshes[i2], alpha))
+            if (this.meshes[i2].indexCount < 3) {
+                continue
+            }
+            if (this.meshes[i2].offsetPt0) {
+                hasFibers = true
+                continue
+            }
+            if (shader.isMatcap) {
+                gl.activeTexture(gl.TEXTURE6)
+                gl.bindTexture(gl.TEXTURE_2D, this.matCapTexture)
+            }
+            gl.bindVertexArray(this.meshes[i2].vao)
+            gl.drawElements(gl.TRIANGLES, this.meshes[i2].indexCount, gl.UNSIGNED_INT, 0)
+            gl.bindVertexArray(this.unusedVAO)
+            if (sliceFill) {
+                gl.depthMask(true)
+            }
+        }
+        if (!hasFibers) {
+            gl.enable(gl.BLEND)
+            gl.depthFunc(gl.ALWAYS)
+            return
+        }
+        shader = this.fiberShader
+        shader.use(this.gl)
+        gl.uniformMatrix4fv(shader.uniforms.mvpMtx, false, m)
+        gl.uniform1f(shader.uniforms.opacity, alpha)
+        for (let i2 = 0; i2 < this.meshes.length; i2++) {
+            if (this.meshes[i2].visible === false) {
+                continue
+            }
+            if (this.meshes[i2].indexCount < 3) {
+                continue
+            }
+            if (!this.meshes[i2].offsetPt0) {
+                continue
+            }
+            gl.bindVertexArray(this.meshes[i2].vao)
+            gl.drawElements(gl.LINE_STRIP, this.meshes[i2].indexCount, gl.UNSIGNED_INT, 0)
+            gl.bindVertexArray(this.unusedVAO)
+        }
+        gl.enable(gl.BLEND)
+        gl.depthFunc(gl.ALWAYS)
+        this.readyForSync = true
+    }
+})()
+
 export {Niivue};

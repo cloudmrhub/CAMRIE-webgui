@@ -64,8 +64,72 @@ export type FovBoxOptions = {
   rgba255?: [number, number, number, number];
   /** Combined opacity 0–1 (in addition to rgba alpha in shader path). */
   opacity?: number;
+  /**
+   * Optional extra multiplier on **all** 2D slice tiles (0–1), applied after per-view scales. Default `1`.
+   * Prefer {@link sliceFillOpacityByView} for axial vs coronal vs sagittal.
+   */
+  sliceFillOpacityScale2D?: number;
+  /**
+   * Per-view multipliers for the yellow slice-volume fill (relative to `fillMesh.opacity`). All default to `1` except
+   * the built-in {@link DEFAULT_SLICE_FILL_OPACITY_BY_VIEW} when this object is omitted entirely.
+   * Omitted keys fall back to those defaults so coronal/sagittal/3D can read stronger than axial.
+   */
+  sliceFillOpacityByView?: SliceFillOpacityByView;
   name?: string;
 };
+
+/**
+ * Axial / coronal / sagittal 2D tiles and the 3D render panel.
+ * Values are **multipliers** on fill strength (see {@link DEFAULT_SLICE_FILL_OPACITY_BY_VIEW}).
+ */
+export type SliceFillOpacityByView = {
+  axial?: number;
+  coronal?: number;
+  sagittal?: number;
+  /** 3D multiplanar render tile. */
+  view3d?: number;
+};
+
+/**
+ * Default per-view **multipliers** for yellow fill strength (not 0–100% UI opacity).
+ * They multiply the same base as everywhere else (`fillMesh.opacity` × shader). Examples: `1` = baseline;
+ * `0.5` ≈ half that strength on that tile; `1.5` = 50% stronger than baseline.
+ * When passing `sliceFillOpacityByView`, unspecified keys use these values.
+ */
+export const DEFAULT_SLICE_FILL_OPACITY_BY_VIEW: Required<SliceFillOpacityByView> = {
+  axial: 1,
+  coronal: 6,
+  sagittal: 6,
+  view3d: 4,
+};
+
+/** Default extra dimming for slice fill on 2D (see `FovBoxOptions.sliceFillOpacityScale2D`). */
+export const DEFAULT_SLICE_FILL_OPACITY_SCALE_2D = 1;
+
+function clampSliceFillOpacityScale(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return Math.min(4, n);
+}
+
+function mergeSliceFillOpacityByView(
+  partial?: SliceFillOpacityByView,
+): { axial: number; coronal: number; sagittal: number; view3d: number } {
+  const b = DEFAULT_SLICE_FILL_OPACITY_BY_VIEW;
+  if (!partial) {
+    return {
+      axial: b.axial,
+      coronal: b.coronal,
+      sagittal: b.sagittal,
+      view3d: b.view3d,
+    };
+  }
+  return {
+    axial: clampSliceFillOpacityScale(partial.axial !== undefined ? partial.axial : b.axial),
+    coronal: clampSliceFillOpacityScale(partial.coronal !== undefined ? partial.coronal : b.coronal),
+    sagittal: clampSliceFillOpacityScale(partial.sagittal !== undefined ? partial.sagittal : b.sagittal),
+    view3d: clampSliceFillOpacityScale(partial.view3d !== undefined ? partial.view3d : b.view3d),
+  };
+}
 
 /** World-space axis-aligned bounds from Niivue `frac2mm` (8 volume corners). */
 export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown }): { min: number[]; max: number[] } {
@@ -622,8 +686,8 @@ export type NiivueMeshHost = {
   meshShaderNameToNumber?: (name: string) => number | undefined;
   /** Register a custom mesh fragment shader; returns shader index for `mesh.meshShaderIndex`. */
   setCustomMeshShader?: (fragmentSource: string, name: string) => number;
-  /** Cached index for {@link CAMRIE_UNLIT_NEON_FILL_FRAG} (vertex RGBA × mesh opacity). */
-  __camrieUnlitNeonFillRgbaShaderIndex?: number;
+  /** Cached index for {@link CAMRIE_UNLIT_NEON_FILL_FRAG_PREMUL}. */
+  __camrieUnlitNeonFillPremulShaderIndex?: number;
   /** FoV outline + optional slice-stack wireframes (all removed together). */
   __camrieFovBoxMeshes?: NVMesh[];
   __camrieFovSavedNiivueOpts?: { meshThicknessOn2D: number; meshXRay: number } | null;
@@ -638,22 +702,27 @@ const FOV_MESH_XRAY_ALPHA = 0.97;
  * Unlit mesh fragment (same idea as Niivue’s fiber shader): vertex RGB is drawn as-is — required for true neon yellow
  * because built-in Phong/Matte/Toon multiply by lighting and mute #FFFF00 on MRI.
  */
-const CAMRIE_UNLIT_NEON_FILL_FRAG = `#version 300 es
+/**
+ * Premultiplied RGB + a so blending with `gl.blendFunc(ONE, ONE_MINUS_SRC_ALPHA)` matches Niivue mesh draws.
+ * Straight `vec4(rgb, a)` with SRC_ALPHA double-applies alpha and breaks the x-ray pass.
+ */
+const CAMRIE_UNLIT_NEON_FILL_FRAG_PREMUL = `#version 300 es
 precision highp float;
 uniform float opacity;
 in vec4 vClr;
 in vec3 vN;
 out vec4 color;
 void main() {
-  color = vec4(vClr.rgb, opacity * vClr.a);
+  float a = opacity * vClr.a;
+  color = vec4(vClr.rgb * a, a);
 }
 `;
 
 /**
- * Slice-volume fill — low vertex A so `opacity * vClr.a` stays faint on 2D despite meshXRay double-draw and
- * meshThicknessOn2D = Infinity (see `applyFovNiivueMeshDrawOpts`). Pair with `fillMesh.opacity` below.
+ * Slice-volume fill — low vertex A; final alpha is `uniform_opacity * vClr.a` where `uniform_opacity` is set per draw
+ * pass in `NiivuePatcher` as `alpha * fillMesh.opacity` (Niivue upstream ignores `mesh.opacity` in `drawMesh3D`).
  */
-const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 15];
+const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 28];
 
 /** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
@@ -683,19 +752,19 @@ function styleFovNvmesh(mesh: NVMesh, nv: NiivueMeshHost): void {
  */
 function styleFovSliceFillMesh(mesh: NVMesh, nv: NiivueMeshHost): void {
   const host = nv as NiivueMeshHost;
-  const cached = host.__camrieUnlitNeonFillRgbaShaderIndex;
+  const cached = host.__camrieUnlitNeonFillPremulShaderIndex;
   if (typeof cached === "number" && cached >= 0) {
     mesh.meshShaderIndex = cached;
     return;
   }
   try {
     if (typeof host.setCustomMeshShader === "function") {
-      let idx = host.meshShaderNameToNumber?.("CamrieUnlitNeonFillRGBA");
+      let idx = host.meshShaderNameToNumber?.("CamrieUnlitNeonFillPremul");
       if (typeof idx !== "number" || idx < 0) {
-        idx = host.setCustomMeshShader(CAMRIE_UNLIT_NEON_FILL_FRAG, "CamrieUnlitNeonFillRGBA");
+        idx = host.setCustomMeshShader(CAMRIE_UNLIT_NEON_FILL_FRAG_PREMUL, "CamrieUnlitNeonFillPremul");
       }
       if (typeof idx === "number" && idx >= 0) {
-        host.__camrieUnlitNeonFillRgbaShaderIndex = idx;
+        host.__camrieUnlitNeonFillPremulShaderIndex = idx;
         mesh.meshShaderIndex = idx;
         return;
       }
@@ -791,8 +860,8 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
     /** Outline + stack wires — neon green by default (vertex RGB boosted for Niivue mesh shading). */
     const rgba = boostFovRgb255(options?.rgba255 ?? FOV_OUTLINE_DEFAULT_RGBA255, 1.1);
     const name = options?.name ?? "Axial FOV";
-    const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
     const op = options?.opacity ?? 1;
+    const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
     mesh.opacity = Math.min(1, Math.max(0.05, op));
     styleFovNvmesh(mesh, host);
 
@@ -828,9 +897,27 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
           true,
           gl,
         );
-        /** ~0.15 × (15/255) per shader pass; with meshXRay second pass ~0.97, still faint on 2D. Tune 0.1–0.3 if needed. */
-        fillMesh.opacity = 0.15;
+        /** Per-draw uniform × premultiplied shader (see NiivuePatcher `drawMesh3D`). Tune ~0.12–0.35 if needed. */
+        fillMesh.opacity = 0.22;
         styleFovSliceFillMesh(fillMesh, host);
+        const scale2d =
+          options?.sliceFillOpacityScale2D !== undefined
+            ? Math.min(1, Math.max(0, options.sliceFillOpacityScale2D))
+            : DEFAULT_SLICE_FILL_OPACITY_SCALE_2D;
+        const byView = mergeSliceFillOpacityByView(options?.sliceFillOpacityByView);
+        const fillTagged = fillMesh as NVMesh & {
+          __camrieFovSliceFillMesh?: boolean;
+          __camrieSliceFillOpacityScale2D?: number;
+          __camrieSliceFillOpacityByView?: {
+            axial: number;
+            coronal: number;
+            sagittal: number;
+            view3d: number;
+          };
+        };
+        fillTagged.__camrieFovSliceFillMesh = true;
+        fillTagged.__camrieSliceFillOpacityScale2D = scale2d;
+        fillTagged.__camrieSliceFillOpacityByView = byView;
         meshes.push(fillMesh);
       }
       const stackBuf = buildAxialSliceStackWireframeBuffers(
