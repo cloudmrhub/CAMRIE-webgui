@@ -649,8 +649,11 @@ void main() {
 }
 `;
 
-/** Slice-volume fill — yellow with ~30% opacity (A = round(0.3 × 255)); shader uses `opacity * vClr.a`. */
-const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 77];
+/**
+ * Slice-volume fill — low vertex A so `opacity * vClr.a` stays faint on 2D despite meshXRay double-draw and
+ * meshThicknessOn2D = Infinity (see `applyFovNiivueMeshDrawOpts`). Pair with `fillMesh.opacity` below.
+ */
+const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 15];
 
 /** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
@@ -825,7 +828,8 @@ export function attachFovBoundingBoxMesh(nv: any, options?: FovBoxOptions) {
           true,
           gl,
         );
-        fillMesh.opacity = 1;
+        /** ~0.15 × (15/255) per shader pass; with meshXRay second pass ~0.97, still faint on 2D. Tune 0.1–0.3 if needed. */
+        fillMesh.opacity = 0.15;
         styleFovSliceFillMesh(fillMesh, host);
         meshes.push(fillMesh);
       }
