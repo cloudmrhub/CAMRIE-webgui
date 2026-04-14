@@ -1,12 +1,23 @@
-import React, { Fragment, useEffect, useMemo, useState, useRef } from "react";
+import React, { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import "./Setup.scss";
 import { CmrCollapse, CmrPanel, CmrConfirmation, CmrCheckbox } from "cloudmr-ux";
 import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
+  volumeIsocenterMm,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
+import {
+  buildBackendSequencesPayload,
+  buildSequenceGeometryJson,
+  DEFAULT_SEQUENCE_GEOMETRY_FORM,
+  formStateToCaptureInput,
+  sequenceGeometryJsonToFormState,
+  type SequenceGeometryFormState,
+  type LegacySequenceGeometryJson,
+  type SequenceGeometryJson,
+} from "../../common/utilities/sequenceGeometry";
 import {
   getUploadedData,
   uploadData,
@@ -279,30 +290,18 @@ const Setup = () => {
   const [warningOpen, setWarningOpen] = useState(false);
   /** Toggle FOV bounding box overlay on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** Sequence FoVx: pixel count × resolution (mm/pixel) → FoV length in mm. */
-  const [fovPixelsX, setFovPixelsX] = useState(128);
-  const [fovResXMM, setFovResXMM] = useState(1.0);
-  /** Sequence FoVy */
-  const [fovPixelsY, setFovPixelsY] = useState(128);
-  const [fovResYMM, setFovResYMM] = useState(1.0);
+  /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
+  const [geometryBySequenceId, setGeometryBySequenceId] = useState<
+    Record<string, SequenceGeometryFormState>
+  >({});
   /** Draft strings while editing so inputs can be cleared and retyped without immediate clamping. */
   const [fovPixelsXDraft, setFovPixelsXDraft] = useState<string | null>(null);
   const [fovResXMMDraft, setFovResXMMDraft] = useState<string | null>(null);
   const [fovPixelsYDraft, setFovPixelsYDraft] = useState<string | null>(null);
   const [fovResYMMDraft, setFovResYMMDraft] = useState<string | null>(null);
-
-  /** Sagittal-oriented multi-slice stack (prescription; viewer defaults to sagittal). */
-  const [sagittalNumSlices, setSagittalNumSlices] = useState(10);
-  const [sagittalSliceThicknessMm, setSagittalSliceThicknessMm] = useState(1);
-  /** Inter-slice gap (mm) = center-to-center spacing − slice thickness (same as C–C = thickness + gap). */
-  const [sagittalSliceGapMm, setSagittalSliceGapMm] = useState(5);
   const [sagittalNumSlicesDraft, setSagittalNumSlicesDraft] = useState<string | null>(null);
   const [sagittalThicknessDraft, setSagittalThicknessDraft] = useState<string | null>(null);
   const [sagittalGapDraft, setSagittalGapDraft] = useState<string | null>(null);
-
-  const [fovOrientation, setFovOrientation] = useState<FovPlaneOrientation>("axial");
-  const [fovAngulationLRdeg, setFovAngulationLRdeg] = useState(0);
-  const [fovAngulationAPdeg, setFovAngulationAPdeg] = useState(0);
   const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
 
@@ -339,59 +338,6 @@ const Setup = () => {
     if (!Number.isFinite(n)) return fallback;
     return Math.max(-89.5, Math.min(89.5, n));
   };
-
-  /** Total extent along stack: N×thickness + (N−1)×gap, with gap = C–C − thickness. */
-  const sagittalStackExtentMm = useMemo(() => {
-    const n = Math.max(1, Math.round(sagittalNumSlices));
-    const th = Math.max(0.01, sagittalSliceThicknessMm);
-    const g = Math.max(0, sagittalSliceGapMm);
-    return n * th + (n - 1) * g;
-  }, [sagittalNumSlices, sagittalSliceThicknessMm, sagittalSliceGapMm]);
-
-  const sagittalCenterToCenterMm = useMemo(() => {
-    const th = Math.max(0.01, sagittalSliceThicknessMm);
-    const g = Math.max(0, sagittalSliceGapMm);
-    return th + g;
-  }, [sagittalSliceThicknessMm, sagittalSliceGapMm]);
-
-  const sequenceFovXMM = useMemo(
-    () => Math.max(0, Math.round(fovPixelsX) * fovResXMM),
-    [fovPixelsX, fovResXMM],
-  );
-  const sequenceFovYMM = useMemo(
-    () => Math.max(0, Math.round(fovPixelsY) * fovResYMM),
-    [fovPixelsY, fovResYMM],
-  );
-
-  const setupFovBoxOptions = useMemo(
-    () => ({
-      scale: 1,
-      axialFovMm: { fovXMm: sequenceFovXMM, fovYMm: sequenceFovYMM },
-      imagePrescription: {
-        orientation: fovOrientation,
-        angulationLRdeg: fovAngulationLRdeg,
-        angulationAPdeg: fovAngulationAPdeg,
-      },
-      axialSliceStack: {
-        numSlices: Math.max(1, Math.round(sagittalNumSlices)),
-        sliceThicknessMm: Math.max(0.01, sagittalSliceThicknessMm),
-        sliceGapMm: Math.max(0, sagittalSliceGapMm),
-      },
-      rgba255: [57, 255, 20, 255] as [number, number, number, number], // #39FF14 neon green outline
-      opacity: 1,
-      name: "Axial FOV",
-    }),
-    [
-      sequenceFovXMM,
-      sequenceFovYMM,
-      fovOrientation,
-      fovAngulationLRdeg,
-      fovAngulationAPdeg,
-      sagittalNumSlices,
-      sagittalSliceThicknessMm,
-      sagittalSliceGapMm,
-    ],
-  );
 
   /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
   const [loadedVolumeExtentMm, setLoadedVolumeExtentMm] = useState<{
@@ -459,7 +405,9 @@ const Setup = () => {
   useEffect(() => {
     if (Object.keys(availableVolumes).length > 0) {
       const entries = Object.entries(availableVolumes);
-      const [name, url] = entries[0];
+      const t1Index = entries.findIndex(([displayName]) => displayName === "T1");
+      const initialIndex = t1Index >= 0 ? t1Index : 0;
+      const [name, url] = entries[initialIndex];
       const vol = {
         url,
         name: url.split("/").pop() || `${name}.nii.gz`,
@@ -467,7 +415,7 @@ const Setup = () => {
       };
       nv.loadVolumes([vol]);
       nv.closeDrawing();
-      setSelectedVolume(0);
+      setSelectedVolume(initialIndex);
       setTimeout(() => nv.resizeListener(), 700);
     } else {
       removeFovBoundingBoxMesh(nv as any);
@@ -794,7 +742,13 @@ const Setup = () => {
   const [protocol, setProtocol] = useState<string>("");
 
   // Saved protocols (user-created). Persisted to localStorage.
-  type SavedProtocol = { id: string; label: string; sequenceIds: string[] };
+  type SavedProtocol = {
+    id: string;
+    label: string;
+    sequenceIds: string[];
+    /** Per-sequence geometry snapshots at last save (one entry per protocol sequence id). */
+    sequenceGeometry?: Record<string, SequenceGeometryJson | LegacySequenceGeometryJson>;
+  };
   const SAVED_PROTOCOLS_KEY = "camrie-saved-protocols";
 
   const loadSavedProtocols = (): SavedProtocol[] => {
@@ -809,7 +763,10 @@ const Setup = () => {
           typeof p === "object" &&
           typeof (p as SavedProtocol).id === "string" &&
           typeof (p as SavedProtocol).label === "string" &&
-          Array.isArray((p as SavedProtocol).sequenceIds)
+          Array.isArray((p as SavedProtocol).sequenceIds) &&
+          ((p as SavedProtocol).sequenceGeometry === undefined ||
+            (typeof (p as SavedProtocol).sequenceGeometry === "object" &&
+              (p as SavedProtocol).sequenceGeometry !== null))
       );
     } catch {
       return [];
@@ -850,6 +807,7 @@ const Setup = () => {
       setProtocolSequences([]);
       setSelectedSequence(null);
       setSelectedProtocolSeqId(null);
+      setGeometryBySequenceId({});
       return;
     }
 
@@ -859,6 +817,9 @@ const Setup = () => {
         .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
 
       setProtocolSequences(loaded);
+      setGeometryBySequenceId(
+        Object.fromEntries(loaded.map((s) => [s.id, { ...DEFAULT_SEQUENCE_GEOMETRY_FORM }])),
+      );
 
       if (loaded.length > 0) {
         handleSelectProtocolSequence(loaded[0]);
@@ -878,6 +839,13 @@ const Setup = () => {
 
       setProtocolSequences(loaded);
 
+      const geom: Record<string, SequenceGeometryFormState> = {};
+      for (const s of loaded) {
+        const g = saved.sequenceGeometry?.[s.id];
+        geom[s.id] = g ? sequenceGeometryJsonToFormState(g) : { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+      }
+      setGeometryBySequenceId(geom);
+
       if (loaded.length > 0) {
         handleSelectProtocolSequence(loaded[0]);
       } else {
@@ -889,6 +857,7 @@ const Setup = () => {
 
     // Protocol 2/3 placeholder
     setProtocolSequences([]);
+    setGeometryBySequenceId({});
     setSelectedSequence(null);
     setSelectedProtocolSeqId(null);
   };
@@ -971,6 +940,11 @@ const Setup = () => {
       return [...prev, selectedSequence];
     });
 
+    setGeometryBySequenceId((prev) => ({
+      ...prev,
+      [selectedSequence.id]: prev[selectedSequence.id] ?? { ...DEFAULT_SEQUENCE_GEOMETRY_FORM },
+    }));
+
     // default to unchecked (false)
     setProtocolChecked((prev) => ({
       ...prev,
@@ -992,6 +966,12 @@ const Setup = () => {
   const handleRemoveSequenceFromProtocol = (id: string) => {
     setProtocolSequences((prev) => prev.filter((seq) => seq.id !== id));
 
+    setGeometryBySequenceId((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
     // clean up checkbox state
     setProtocolChecked((prev) => {
       const next = { ...prev };
@@ -1010,6 +990,12 @@ const Setup = () => {
     // Remove from protocol list
     setProtocolSequences((prev) => prev.filter((seq) => !idsToDelete.includes(seq.id)));
 
+    setGeometryBySequenceId((prev) => {
+      const next = { ...prev };
+      idsToDelete.forEach((id) => delete next[id]);
+      return next;
+    });
+
     // Clean up checkbox state
     setProtocolChecked((prev) => {
       const next = { ...prev };
@@ -1024,12 +1010,20 @@ const Setup = () => {
   const [saveProtocolNameDraft, setSaveProtocolNameDraft] = useState("");
   const [saveProtocolError, setSaveProtocolError] = useState("");
 
+  const [backendPayloadDialogOpen, setBackendPayloadDialogOpen] = useState(false);
+  const [backendPayloadText, setBackendPayloadText] = useState("");
+  const [backendPayloadError, setBackendPayloadError] = useState<string | null>(null);
+
   const handleSaveProtocolClick = () => {
     // Saved protocol: update in place, no dialog
     if (protocol.startsWith("saved-")) {
+      const ids = protocolSequences.map((s) => s.id);
+      const sequenceGeometry = Object.fromEntries(
+        ids.map((id) => [id, captureSequenceGeometryForId(id)]),
+      );
       setSavedProtocols((prev) =>
         prev.map((p) =>
-          p.id === protocol ? { ...p, sequenceIds: protocolSequences.map((s) => s.id) } : p
+          p.id === protocol ? { ...p, sequenceIds: ids, sequenceGeometry } : p
         )
       );
       setSuccessToastOpen(true);
@@ -1053,10 +1047,16 @@ const Setup = () => {
       return;
     }
 
+    const ids = protocolSequences.map((s) => s.id);
+    const sequenceGeometry = Object.fromEntries(
+      ids.map((id) => [id, captureSequenceGeometryForId(id)]),
+    );
+
     const newProtocol: SavedProtocol = {
       id: `saved-${Date.now()}`,
       label: name,
-      sequenceIds: protocolSequences.map((s) => s.id),
+      sequenceIds: ids,
+      sequenceGeometry,
     };
 
     setSavedProtocols((prev) => [...prev, newProtocol]);
@@ -1118,6 +1118,7 @@ const Setup = () => {
     if (protocol === id) {
       setProtocol("");
       setProtocolSequences([]);
+      setGeometryBySequenceId({});
       setSelectedSequence(null);
       setSelectedProtocolSeqId(null);
     }
@@ -1145,6 +1146,126 @@ const Setup = () => {
     });
   };
   // -- end ---
+
+  const viewerSequenceId =
+    selectedProtocolSeqId ?? (protocolSequences.length > 0 ? protocolSequences[0].id : null);
+
+  const activeForm: SequenceGeometryFormState = useMemo(() => {
+    if (!viewerSequenceId) return DEFAULT_SEQUENCE_GEOMETRY_FORM;
+    return geometryBySequenceId[viewerSequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
+  }, [viewerSequenceId, geometryBySequenceId]);
+
+  useEffect(() => {
+    setFovPixelsXDraft(null);
+    setFovResXMMDraft(null);
+    setFovPixelsYDraft(null);
+    setFovResYMMDraft(null);
+    setSagittalNumSlicesDraft(null);
+    setSagittalThicknessDraft(null);
+    setSagittalGapDraft(null);
+    setFovAngulationLRdraft(null);
+    setFovAngulationAPdraft(null);
+  }, [viewerSequenceId]);
+
+  useEffect(() => {
+    setGeometryBySequenceId((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const s of protocolSequences) {
+        if (next[s.id] === undefined) {
+          next[s.id] = { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [protocolSequences]);
+
+  const sequenceFovXMM = useMemo(
+    () => Math.max(0, Math.round(activeForm.fovPixelsX) * activeForm.fovResXMM),
+    [activeForm.fovPixelsX, activeForm.fovResXMM],
+  );
+  const sequenceFovYMM = useMemo(
+    () => Math.max(0, Math.round(activeForm.fovPixelsY) * activeForm.fovResYMM),
+    [activeForm.fovPixelsY, activeForm.fovResYMM],
+  );
+
+  const captureSequenceGeometryForId = useCallback(
+    (sequenceId: string): SequenceGeometryJson => {
+      let isocenter: [number, number, number] | null = null;
+      try {
+        if (nv?.volumes?.[0]?.frac2mm) {
+          const p = volumeIsocenterMm(nv as Parameters<typeof volumeIsocenterMm>[0]);
+          isocenter = [p[0], p[1], p[2]];
+        }
+      } catch {
+        /* volume not ready */
+      }
+      const form = geometryBySequenceId[sequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
+      return buildSequenceGeometryJson(formStateToCaptureInput(form, isocenter));
+    },
+    [geometryBySequenceId],
+  );
+
+  const handleOpenBackendPayloadPreview = useCallback(() => {
+    try {
+      const geometryById = Object.fromEntries(
+        protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
+      );
+      const payload = buildBackendSequencesPayload(
+        protocolSequences.map((s) => ({ id: s.id, fileName: s.fileName ?? s.id })),
+        geometryById,
+      );
+      setBackendPayloadText(JSON.stringify(payload, null, 2));
+      setBackendPayloadError(null);
+    } catch (err) {
+      setBackendPayloadText("");
+      setBackendPayloadError(err instanceof Error ? err.message : String(err));
+    }
+    setBackendPayloadDialogOpen(true);
+  }, [protocolSequences, captureSequenceGeometryForId]);
+
+  const patchActiveSequenceGeometry = useCallback(
+    (patch: Partial<SequenceGeometryFormState>) => {
+      const id = selectedProtocolSeqId ?? protocolSequences[0]?.id;
+      if (!id) return;
+      setGeometryBySequenceId((prev) => ({
+        ...prev,
+        [id]: { ...(prev[id] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM), ...patch },
+      }));
+    },
+    [selectedProtocolSeqId, protocolSequences],
+  );
+
+  const setupFovBoxOptions = useMemo(
+    () => ({
+      scale: 1,
+      axialFovMm: { fovXMm: sequenceFovXMM, fovYMm: sequenceFovYMM },
+      imagePrescription: {
+        orientation: activeForm.orientation,
+        angulationLRdeg: activeForm.angulationLRdeg,
+        angulationAPdeg: activeForm.angulationAPdeg,
+      },
+      axialSliceStack: {
+        numSlices: Math.max(1, Math.round(activeForm.sagittalNumSlices)),
+        sliceThicknessMm: Math.max(0.01, activeForm.sagittalSliceThicknessMm),
+        sliceGapMm: Math.max(0, activeForm.sagittalSliceGapMm),
+      },
+      rgba255: [57, 255, 20, 255] as [number, number, number, number],
+      opacity: 1,
+      name: "Axial FOV",
+    }),
+    [
+      sequenceFovXMM,
+      sequenceFovYMM,
+      activeForm.orientation,
+      activeForm.angulationLRdeg,
+      activeForm.angulationAPdeg,
+      activeForm.sagittalNumSlices,
+      activeForm.sagittalSliceThicknessMm,
+      activeForm.sagittalSliceGapMm,
+    ],
+  );
 
   //-- handler for Duplicating Sequence in Protocol ---
   const handleDuplicateSequenceInProtocol = (seq: (typeof sequenceOptions)[number]) => {
@@ -1188,6 +1309,11 @@ const Setup = () => {
       next.splice(idx + 1, 0, duplicated);
       return next;
     });
+
+    setGeometryBySequenceId((prev) => ({
+      ...prev,
+      [newId]: { ...(prev[seq.id] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM) },
+    }));
 
     // 3) optionally auto-select it in the details card
     handleSelectProtocolSequence(duplicated);
@@ -1749,39 +1875,56 @@ const Setup = () => {
                       <Box
                         sx={{
                           display: "flex",
-                          gap: 1.5,          // spacing between buttons
+                          flexDirection: "column",
+                          gap: 1.5,
                           width: "100%",
                         }}
                       >
-                        <CmrButton
-                          variant="contained"
-                          color="error"
-                          onClick={handleDeleteCheckedSequences}
-                          disabled={protocolSequences.length === 0}
-                          sx={{ flex: 1, width: "100%" }}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 1.5,
+                            width: "100%",
+                          }}
                         >
-                          Delete
-                        </CmrButton>
+                          <CmrButton
+                            variant="contained"
+                            color="error"
+                            onClick={handleDeleteCheckedSequences}
+                            disabled={protocolSequences.length === 0}
+                            sx={{ flex: 1, width: "100%" }}
+                          >
+                            Delete
+                          </CmrButton>
 
-                        <CmrButton
-                          variant="contained"
-                          onClick={handleSaveProtocolClick}
-                          sx={{ flex: 1, width: "100%" }}
-                          disabled={protocolSequences.length === 0}
-                          aria-label={
-                            isBuiltInProtocol123 ? "Save protocol as" : "Save protocol"
-                          }
-                        >
-                          {isBuiltInProtocol123 ? "Save As" : "Save"}
-                        </CmrButton>
+                          <CmrButton
+                            variant="contained"
+                            onClick={handleSaveProtocolClick}
+                            sx={{ flex: 1, width: "100%" }}
+                            disabled={protocolSequences.length === 0}
+                            aria-label={
+                              isBuiltInProtocol123 ? "Save protocol as" : "Save protocol"
+                            }
+                          >
+                            {isBuiltInProtocol123 ? "Save As" : "Save"}
+                          </CmrButton>
 
+                          <CmrButton
+                            variant="contained"
+                            onClick={() => { }}
+                            sx={{ flex: 1, width: "100%", }}
+                            disabled={protocolSequences.length === 0}
+                          >
+                            Queue
+                          </CmrButton>
+                        </Box>
                         <CmrButton
-                          variant="contained"
-                          onClick={() => { }}
-                          sx={{ flex: 1, width: "100%", }}
+                          variant="outlined"
+                          onClick={handleOpenBackendPayloadPreview}
                           disabled={protocolSequences.length === 0}
+                          sx={{ width: "100%" }}
                         >
-                          Queue
+                          View backend JSON
                         </CmrButton>
                       </Box>
                     </CardActions>
@@ -1810,6 +1953,18 @@ const Setup = () => {
                   }}
                 >
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, width: "100%" }}>
+                    {protocolSequences.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        Add sequences to the protocol to set geometry and FoV per sequence
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        Editing geometry for:{" "}
+                        <strong>
+                          {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
+                        </strong>
+                      </Typography>
+                    )}
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Sequence FoVx
@@ -1820,11 +1975,14 @@ const Setup = () => {
                           type="text"
                           inputMode="numeric"
                           size="small"
-                          value={fovPixelsXDraft ?? String(fovPixelsX)}
-                          onFocus={() => setFovPixelsXDraft(String(fovPixelsX))}
+                          disabled={protocolSequences.length === 0}
+                          value={fovPixelsXDraft ?? String(activeForm.fovPixelsX)}
+                          onFocus={() => setFovPixelsXDraft(String(activeForm.fovPixelsX))}
                           onChange={(e) => setFovPixelsXDraft(e.target.value)}
                           onBlur={() => {
-                            setFovPixelsX(commitFovPixels(fovPixelsXDraft ?? "", fovPixelsX));
+                            patchActiveSequenceGeometry({
+                              fovPixelsX: commitFovPixels(fovPixelsXDraft ?? "", activeForm.fovPixelsX),
+                            });
                             setFovPixelsXDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1834,11 +1992,14 @@ const Setup = () => {
                           type="text"
                           inputMode="decimal"
                           size="small"
-                          value={fovResXMMDraft ?? String(fovResXMM)}
-                          onFocus={() => setFovResXMMDraft(String(fovResXMM))}
+                          disabled={protocolSequences.length === 0}
+                          value={fovResXMMDraft ?? String(activeForm.fovResXMM)}
+                          onFocus={() => setFovResXMMDraft(String(activeForm.fovResXMM))}
                           onChange={(e) => setFovResXMMDraft(e.target.value)}
                           onBlur={() => {
-                            setFovResXMM(commitFovResMm(fovResXMMDraft ?? "", fovResXMM));
+                            patchActiveSequenceGeometry({
+                              fovResXMM: commitFovResMm(fovResXMMDraft ?? "", activeForm.fovResXMM),
+                            });
                             setFovResXMMDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1858,11 +2019,14 @@ const Setup = () => {
                           type="text"
                           inputMode="numeric"
                           size="small"
-                          value={fovPixelsYDraft ?? String(fovPixelsY)}
-                          onFocus={() => setFovPixelsYDraft(String(fovPixelsY))}
+                          disabled={protocolSequences.length === 0}
+                          value={fovPixelsYDraft ?? String(activeForm.fovPixelsY)}
+                          onFocus={() => setFovPixelsYDraft(String(activeForm.fovPixelsY))}
                           onChange={(e) => setFovPixelsYDraft(e.target.value)}
                           onBlur={() => {
-                            setFovPixelsY(commitFovPixels(fovPixelsYDraft ?? "", fovPixelsY));
+                            patchActiveSequenceGeometry({
+                              fovPixelsY: commitFovPixels(fovPixelsYDraft ?? "", activeForm.fovPixelsY),
+                            });
                             setFovPixelsYDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1872,11 +2036,14 @@ const Setup = () => {
                           type="text"
                           inputMode="decimal"
                           size="small"
-                          value={fovResYMMDraft ?? String(fovResYMM)}
-                          onFocus={() => setFovResYMMDraft(String(fovResYMM))}
+                          disabled={protocolSequences.length === 0}
+                          value={fovResYMMDraft ?? String(activeForm.fovResYMM)}
+                          onFocus={() => setFovResYMMDraft(String(activeForm.fovResYMM))}
                           onChange={(e) => setFovResYMMDraft(e.target.value)}
                           onBlur={() => {
-                            setFovResYMM(commitFovResMm(fovResYMMDraft ?? "", fovResYMM));
+                            patchActiveSequenceGeometry({
+                              fovResYMM: commitFovResMm(fovResYMMDraft ?? "", activeForm.fovResYMM),
+                            });
                             setFovResYMMDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1892,13 +2059,17 @@ const Setup = () => {
                       </Typography>
 
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end", mb: 1.5 }}>
-                        <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
                           <InputLabel id="fov-orientation-label">Orientation</InputLabel>
                           <MuiSelect
                             labelId="fov-orientation-label"
                             label="Orientation"
-                            value={fovOrientation}
-                            onChange={(e) => setFovOrientation(e.target.value as FovPlaneOrientation)}
+                            value={activeForm.orientation}
+                            onChange={(e) =>
+                              patchActiveSequenceGeometry({
+                                orientation: e.target.value as FovPlaneOrientation,
+                              })
+                            }
                           >
                             <MenuItem value="axial">Axial</MenuItem>
                             <MenuItem value="sagittal">Sagittal</MenuItem>
@@ -1919,13 +2090,17 @@ const Setup = () => {
                             type="text"
                             inputMode="decimal"
                             size="small"
-                            value={fovAngulationLRdraft ?? String(fovAngulationLRdeg)}
-                            onFocus={() => setFovAngulationLRdraft(String(fovAngulationLRdeg))}
+                            disabled={protocolSequences.length === 0}
+                            value={fovAngulationLRdraft ?? String(activeForm.angulationLRdeg)}
+                            onFocus={() => setFovAngulationLRdraft(String(activeForm.angulationLRdeg))}
                             onChange={(e) => setFovAngulationLRdraft(e.target.value)}
                             onBlur={() => {
-                              setFovAngulationLRdeg(
-                                commitAngulationDeg(fovAngulationLRdraft ?? "", fovAngulationLRdeg),
-                              );
+                              patchActiveSequenceGeometry({
+                                angulationLRdeg: commitAngulationDeg(
+                                  fovAngulationLRdraft ?? "",
+                                  activeForm.angulationLRdeg,
+                                ),
+                              });
                               setFovAngulationLRdraft(null);
                             }}
                             sx={{ width: 100 }}
@@ -1940,13 +2115,17 @@ const Setup = () => {
                             type="text"
                             inputMode="decimal"
                             size="small"
-                            value={fovAngulationAPdraft ?? String(fovAngulationAPdeg)}
-                            onFocus={() => setFovAngulationAPdraft(String(fovAngulationAPdeg))}
+                            disabled={protocolSequences.length === 0}
+                            value={fovAngulationAPdraft ?? String(activeForm.angulationAPdeg)}
+                            onFocus={() => setFovAngulationAPdraft(String(activeForm.angulationAPdeg))}
                             onChange={(e) => setFovAngulationAPdraft(e.target.value)}
                             onBlur={() => {
-                              setFovAngulationAPdeg(
-                                commitAngulationDeg(fovAngulationAPdraft ?? "", fovAngulationAPdeg),
-                              );
+                              patchActiveSequenceGeometry({
+                                angulationAPdeg: commitAngulationDeg(
+                                  fovAngulationAPdraft ?? "",
+                                  activeForm.angulationAPdeg,
+                                ),
+                              });
                               setFovAngulationAPdraft(null);
                             }}
                             sx={{ width: 100 }}
@@ -1964,11 +2143,17 @@ const Setup = () => {
                           type="text"
                           inputMode="numeric"
                           size="small"
-                          value={sagittalNumSlicesDraft ?? String(sagittalNumSlices)}
-                          onFocus={() => setSagittalNumSlicesDraft(String(sagittalNumSlices))}
+                          disabled={protocolSequences.length === 0}
+                          value={sagittalNumSlicesDraft ?? String(activeForm.sagittalNumSlices)}
+                          onFocus={() => setSagittalNumSlicesDraft(String(activeForm.sagittalNumSlices))}
                           onChange={(e) => setSagittalNumSlicesDraft(e.target.value)}
                           onBlur={() => {
-                            setSagittalNumSlices(commitSliceCount(sagittalNumSlicesDraft ?? "", sagittalNumSlices));
+                            patchActiveSequenceGeometry({
+                              sagittalNumSlices: commitSliceCount(
+                                sagittalNumSlicesDraft ?? "",
+                                activeForm.sagittalNumSlices,
+                              ),
+                            });
                             setSagittalNumSlicesDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1978,13 +2163,17 @@ const Setup = () => {
                           type="text"
                           inputMode="decimal"
                           size="small"
-                          value={sagittalThicknessDraft ?? String(sagittalSliceThicknessMm)}
-                          onFocus={() => setSagittalThicknessDraft(String(sagittalSliceThicknessMm))}
+                          disabled={protocolSequences.length === 0}
+                          value={sagittalThicknessDraft ?? String(activeForm.sagittalSliceThicknessMm)}
+                          onFocus={() => setSagittalThicknessDraft(String(activeForm.sagittalSliceThicknessMm))}
                           onChange={(e) => setSagittalThicknessDraft(e.target.value)}
                           onBlur={() => {
-                            setSagittalSliceThicknessMm(
-                              commitFovResMm(sagittalThicknessDraft ?? "", sagittalSliceThicknessMm),
-                            );
+                            patchActiveSequenceGeometry({
+                              sagittalSliceThicknessMm: commitFovResMm(
+                                sagittalThicknessDraft ?? "",
+                                activeForm.sagittalSliceThicknessMm,
+                              ),
+                            });
                             setSagittalThicknessDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -1994,11 +2183,17 @@ const Setup = () => {
                           type="text"
                           inputMode="decimal"
                           size="small"
-                          value={sagittalGapDraft ?? String(sagittalSliceGapMm)}
-                          onFocus={() => setSagittalGapDraft(String(sagittalSliceGapMm))}
+                          disabled={protocolSequences.length === 0}
+                          value={sagittalGapDraft ?? String(activeForm.sagittalSliceGapMm)}
+                          onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapMm))}
                           onChange={(e) => setSagittalGapDraft(e.target.value)}
                           onBlur={() => {
-                            setSagittalSliceGapMm(commitNonNegMm(sagittalGapDraft ?? "", sagittalSliceGapMm));
+                            patchActiveSequenceGeometry({
+                              sagittalSliceGapMm: commitNonNegMm(
+                                sagittalGapDraft ?? "",
+                                activeForm.sagittalSliceGapMm,
+                              ),
+                            });
                             setSagittalGapDraft(null);
                           }}
                           sx={{ width: 180 }}
@@ -2098,6 +2293,52 @@ const Setup = () => {
           </CmrButton>
           <CmrButton variant="contained" onClick={confirmSaveProtocol}>
             Save
+          </CmrButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={backendPayloadDialogOpen}
+        onClose={() => setBackendPayloadDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Backend payload</DialogTitle>
+        <DialogContent dividers>
+          {backendPayloadError ? (
+            <Alert severity="error">{backendPayloadError}</Alert>
+          ) : (
+            <Box
+              component="pre"
+              sx={{
+                m: 0,
+                p: 1,
+                maxHeight: "65vh",
+                overflow: "auto",
+                fontFamily: "ui-monospace, Consolas, monospace",
+                fontSize: 12,
+                lineHeight: 1.45,
+                bgcolor: "rgba(0,0,0,0.04)",
+                borderRadius: 1,
+              }}
+            >
+              {backendPayloadText}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: "wrap" }}>
+          {!backendPayloadError && backendPayloadText ? (
+            <CmrButton
+              variant="outlined"
+              onClick={() => {
+                void navigator.clipboard.writeText(backendPayloadText);
+              }}
+            >
+              Copy JSON
+            </CmrButton>
+          ) : null}
+          <CmrButton variant="contained" onClick={() => setBackendPayloadDialogOpen(false)}>
+            Close
           </CmrButton>
         </DialogActions>
       </Dialog>

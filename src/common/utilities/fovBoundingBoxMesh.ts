@@ -277,7 +277,7 @@ function applyWorldAxisAngulation(
  * Full orthonormal basis from UI prescription. Slice normal **N** = `basis.slice` (unit); use for stack direction.
  * Image→world linear map (columns): **R** = [row | col | slice] (direction cosines in mm).
  */
-function imageBasisFromOrientationAngulation(
+export function imageBasisFromOrientationAngulation(
   orientation: FovPlaneOrientation,
   angulationLRdeg: number,
   angulationAPdeg: number,
@@ -622,14 +622,16 @@ export type NiivueMeshHost = {
   meshShaderNameToNumber?: (name: string) => number | undefined;
   /** Register a custom mesh fragment shader; returns shader index for `mesh.meshShaderIndex`. */
   setCustomMeshShader?: (fragmentSource: string, name: string) => number;
-  /** Cached index for {@link CAMRIE_UNLIT_NEON_FILL_FRAG}. */
-  __camrieUnlitNeonFillShaderIndex?: number;
+  /** Cached index for {@link CAMRIE_UNLIT_NEON_FILL_FRAG} (vertex RGBA × mesh opacity). */
+  __camrieUnlitNeonFillRgbaShaderIndex?: number;
   /** FoV outline + optional slice-stack wireframes (all removed together). */
   __camrieFovBoxMeshes?: NVMesh[];
   __camrieFovSavedNiivueOpts?: { meshThicknessOn2D: number; meshXRay: number } | null;
 };
 
-/** Second-pass alpha for mesh on 2D slices (Niivue draws meshes twice when meshXRay > 0 so lines sit above the slice). */
+/**
+ * Second-pass multiplier for mesh on 2D/3D (Niivue draws meshes twice when meshXRay > 0).
+ */
 const FOV_MESH_XRAY_ALPHA = 0.97;
 
 /**
@@ -643,12 +645,12 @@ in vec4 vClr;
 in vec3 vN;
 out vec4 color;
 void main() {
-  color = vec4(vClr.rgb, opacity);
+  color = vec4(vClr.rgb, opacity * vClr.a);
 }
 `;
 
-/** Slice-volume fill — pure neon yellow; actual screen color comes from unlit shader above. */
-const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 255];
+/** Slice-volume fill — yellow with ~30% opacity (A = round(0.3 × 255)); shader uses `opacity * vClr.a`. */
+const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 77];
 
 /** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
@@ -678,19 +680,19 @@ function styleFovNvmesh(mesh: NVMesh, nv: NiivueMeshHost): void {
  */
 function styleFovSliceFillMesh(mesh: NVMesh, nv: NiivueMeshHost): void {
   const host = nv as NiivueMeshHost;
-  const cached = host.__camrieUnlitNeonFillShaderIndex;
+  const cached = host.__camrieUnlitNeonFillRgbaShaderIndex;
   if (typeof cached === "number" && cached >= 0) {
     mesh.meshShaderIndex = cached;
     return;
   }
   try {
     if (typeof host.setCustomMeshShader === "function") {
-      let idx = host.meshShaderNameToNumber?.("CamrieUnlitNeonFill");
+      let idx = host.meshShaderNameToNumber?.("CamrieUnlitNeonFillRGBA");
       if (typeof idx !== "number" || idx < 0) {
-        idx = host.setCustomMeshShader(CAMRIE_UNLIT_NEON_FILL_FRAG, "CamrieUnlitNeonFill");
+        idx = host.setCustomMeshShader(CAMRIE_UNLIT_NEON_FILL_FRAG, "CamrieUnlitNeonFillRGBA");
       }
       if (typeof idx === "number" && idx >= 0) {
-        host.__camrieUnlitNeonFillShaderIndex = idx;
+        host.__camrieUnlitNeonFillRgbaShaderIndex = idx;
         mesh.meshShaderIndex = idx;
         return;
       }
