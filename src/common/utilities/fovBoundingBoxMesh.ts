@@ -1208,6 +1208,31 @@ export function getFovMeshAffineSnapshot(nv: any): {
   };
 }
 
+/**
+ * World-mm center of the prescribed FoV for backend JSON (`isocenter_mm` / affine `t`).
+ * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (includes clamping);
+ * otherwise volume isocenter plus any persisted drag offset (e.g. overlay hidden, transform retained).
+ */
+export function getPrescriptionCenterMmForGeometryExport(nv: any): [number, number, number] | null {
+  try {
+    if (!nv?.volumes?.[0]?.frac2mm) return null;
+    const snap = getFovMeshAffineSnapshot(nv);
+    if (snap) {
+      return [snap.centerMm[0], snap.centerMm[1], snap.centerMm[2]];
+    }
+    const host = nv as NiivueMeshHost;
+    const volIso = volumeIsocenterMm(nv);
+    const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
+    return [
+      volIso[0] + ut.offsetMm[0],
+      volIso[1] + ut.offsetMm[1],
+      volIso[2] + ut.offsetMm[2],
+    ];
+  } catch {
+    return null;
+  }
+}
+
 /** Reset user drag offset/twist (next rebuild uses isocenter / zero twist). */
 export function resetFovUserMeshTransform(nv: any): void {
   const host = nv as NiivueMeshHost;

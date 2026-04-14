@@ -5,7 +5,7 @@ import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
-  volumeIsocenterMm,
+  getPrescriptionCenterMmForGeometryExport,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import {
@@ -1307,10 +1307,8 @@ const Setup = () => {
     (sequenceId: string): SequenceGeometryJson => {
       let isocenter: [number, number, number] | null = null;
       try {
-        if (nv?.volumes?.[0]?.frac2mm) {
-          const p = volumeIsocenterMm(nv as Parameters<typeof volumeIsocenterMm>[0]);
-          isocenter = [p[0], p[1], p[2]];
-        }
+        const p = getPrescriptionCenterMmForGeometryExport(nv);
+        if (p) isocenter = [p[0], p[1], p[2]];
       } catch {
         /* volume not ready */
       }
@@ -2540,7 +2538,6 @@ const Setup = () => {
                   mx: 0, mb: 2, mt: 1, borderColor: "rgba(0, 0, 0, 0.35)",
                   borderRightWidth: 1.5,
                 }} />
-
                 <NiiVue
                   niis={setupNiis}
                   warn={warn}
