@@ -78,8 +78,9 @@ export type FovBoxOptions = {
   name?: string;
   /**
    * When true, **Alt+drag** translates FoV meshes in world mm (Niivue `screenXY2mm`). **Alt+Ctrl+drag** adjusts
-   * LR/AP angulation (same as `imagePrescription`) if {@link fovInteractive.onAngulationSetDeg} is provided.
-   * The MRI volume and crosshair are not moved.
+   * LR/AP angulation if {@link fovInteractive.onAngulationSetDeg} is provided. Horizontal delta → LR°, vertical → AP°
+   * (diagonal changes both). **Shift** = finer steps. Optional {@link fovInteractive.lockAngulationLR} /
+   * {@link fovInteractive.lockAngulationAP} freeze that axis during canvas drag (see Setup Angle checkboxes).
    */
   fovInteractive?: {
     enabled?: boolean;
@@ -88,6 +89,10 @@ export type FovBoxOptions = {
      * same LR/AP fields as the prescription inputs.
      */
     onAngulationSetDeg?: (angulationLRdeg: number, angulationAPdeg: number) => void;
+    /** When true, canvas angulation drag does not change LR° (only AP updates, if not also locked). */
+    lockAngulationLR?: boolean;
+    /** When true, canvas angulation drag does not change AP° (only LR updates, if not also locked). */
+    lockAngulationAP?: boolean;
   };
   /**
    * When false, user offset from dragging is cleared on the next `attachFovBoundingBoxMesh`. Default true so
@@ -1122,8 +1127,11 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
       const dy = px[1] - lastY;
       lastX = px[0];
       lastY = px[1];
-      const dLR = dx * FOV_INTERACTIVE_DEG_PER_PIXEL_LR * fine;
-      const dAP = -dy * FOV_INTERACTIVE_DEG_PER_PIXEL_AP * fine;
+      /** 2D in (LR, AP): any screen direction maps to a mix of both; diagonal changes both together. */
+      let dLR = dx * FOV_INTERACTIVE_DEG_PER_PIXEL_LR * fine;
+      let dAP = -dy * FOV_INTERACTIVE_DEG_PER_PIXEL_AP * fine;
+      if (options.fovInteractive?.lockAngulationLR) dLR = 0;
+      if (options.fovInteractive?.lockAngulationAP) dAP = 0;
       const lr = Math.max(-89.5, Math.min(89.5, (op.imagePrescription.angulationLRdeg ?? 0) + dLR));
       const ap = Math.max(-89.5, Math.min(89.5, (op.imagePrescription.angulationAPdeg ?? 0) + dAP));
       host.__camrieFovLastOptions = {

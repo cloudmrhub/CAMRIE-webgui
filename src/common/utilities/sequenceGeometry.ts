@@ -12,6 +12,42 @@ export type Affine4x4 = [
   [number, number, number, number],
 ];
 
+/** Stored ids for phase/frequency encoding direction pickers (labels vary by slice orientation). */
+export type EncodingDirectionId = "left" | "right" | "anterior" | "posterior" | "up" | "down";
+
+export const ENCODING_DIRECTION_OPTIONS: Record<
+  FovPlaneOrientation,
+  readonly { value: EncodingDirectionId; label: string }[]
+> = {
+  axial: [
+    { value: "left", label: "Left" },
+    { value: "right", label: "Right" },
+    { value: "posterior", label: "Posterior" },
+    { value: "anterior", label: "Anterior" },
+  ],
+  sagittal: [
+    { value: "posterior", label: "Posterior" },
+    { value: "anterior", label: "Anterior" },
+    { value: "down", label: "Down" },
+    { value: "up", label: "Up" },
+  ],
+  coronal: [
+    { value: "left", label: "Left" },
+    { value: "right", label: "Right" },
+    { value: "down", label: "Down" },
+    { value: "up", label: "Up" },
+  ],
+};
+
+export function clampEncodingDirectionToOrientation(
+  orientation: FovPlaneOrientation,
+  direction: EncodingDirectionId,
+): EncodingDirectionId {
+  const opts = ENCODING_DIRECTION_OPTIONS[orientation];
+  if (opts.some((o) => o.value === direction)) return direction;
+  return opts[0].value;
+}
+
 /**
  * Geometry for one pulse sequence (JSON export). **Authoritative orientation + spacing** live in `affine`;
  * `fov_mm`, `matrix`, and `slice` are the scalar inputs used to build it (FoV = matrix × resolution in-plane).
@@ -41,6 +77,10 @@ export type SequenceGeometryJson = {
     orientation: FovPlaneOrientation;
     angulation_lr_deg: number;
     angulation_ap_deg: number;
+    /** In-plane anatomical direction for phase-encoded axis (Setup UI; optional for older saves). */
+    phase_encoding_direction?: EncodingDirectionId;
+    /** In-plane anatomical direction for frequency-encoded axis (readout). */
+    frequency_encoding_direction?: EncodingDirectionId;
   };
 };
 
@@ -78,6 +118,8 @@ export type SetupGeometryCaptureInput = {
   sagittalSliceThicknessMm: number;
   sagittalSliceGapMm: number;
   isocenterMm: [number, number, number] | null;
+  phaseEncodingDirection: EncodingDirectionId;
+  frequencyEncodingDirection: EncodingDirectionId;
 };
 
 function affine4ScaledFromBasis(
@@ -121,6 +163,8 @@ export type SequenceGeometryFormState = {
   sagittalNumSlices: number;
   sagittalSliceThicknessMm: number;
   sagittalSliceGapMm: number;
+  phaseEncodingDirection: EncodingDirectionId;
+  frequencyEncodingDirection: EncodingDirectionId;
 };
 
 export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
@@ -134,6 +178,8 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   sagittalNumSlices: 10,
   sagittalSliceThicknessMm: 1,
   sagittalSliceGapMm: 5,
+  phaseEncodingDirection: "left",
+  frequencyEncodingDirection: "anterior",
 };
 
 export function formStateToCaptureInput(
@@ -156,6 +202,8 @@ export function formStateToCaptureInput(
     sagittalSliceThicknessMm: form.sagittalSliceThicknessMm,
     sagittalSliceGapMm: form.sagittalSliceGapMm,
     isocenterMm,
+    phaseEncodingDirection: form.phaseEncodingDirection,
+    frequencyEncodingDirection: form.frequencyEncodingDirection,
   };
 }
 
@@ -185,13 +233,21 @@ export function sequenceGeometryJsonToFormState(
       sagittalNumSlices: g.num_slices,
       sagittalSliceThicknessMm: g.slice_thickness_mm,
       sagittalSliceGapMm: g.slice_gap_mm,
+      phaseEncodingDirection: clampEncodingDirectionToOrientation(g.orientation, DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection),
+      frequencyEncodingDirection: clampEncodingDirectionToOrientation(
+        g.orientation,
+        DEFAULT_SEQUENCE_GEOMETRY_FORM.frequencyEncodingDirection,
+      ),
     };
   }
 
   const nx = Math.max(1, Math.round(g.matrix[0]));
   const ny = Math.max(1, Math.round(g.matrix[1]));
+  const o = g.ui.orientation;
+  const phaseIn = g.ui.phase_encoding_direction;
+  const freqIn = g.ui.frequency_encoding_direction;
   return {
-    orientation: g.ui.orientation,
+    orientation: o,
     angulationLRdeg: g.ui.angulation_lr_deg,
     angulationAPdeg: g.ui.angulation_ap_deg,
     fovPixelsX: nx,
@@ -201,6 +257,14 @@ export function sequenceGeometryJsonToFormState(
     sagittalNumSlices: g.slice.num_slices,
     sagittalSliceThicknessMm: g.slice.thickness_mm,
     sagittalSliceGapMm: g.slice.gap_mm,
+    phaseEncodingDirection: clampEncodingDirectionToOrientation(
+      o,
+      phaseIn ?? DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection,
+    ),
+    frequencyEncodingDirection: clampEncodingDirectionToOrientation(
+      o,
+      freqIn ?? DEFAULT_SEQUENCE_GEOMETRY_FORM.frequencyEncodingDirection,
+    ),
   };
 }
 
@@ -252,6 +316,8 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       orientation: prescription.orientation,
       angulation_lr_deg: prescription.angulationLRdeg ?? 0,
       angulation_ap_deg: prescription.angulationAPdeg ?? 0,
+      phase_encoding_direction: input.phaseEncodingDirection,
+      frequency_encoding_direction: input.frequencyEncodingDirection,
     },
   };
 }

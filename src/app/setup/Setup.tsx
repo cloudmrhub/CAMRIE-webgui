@@ -11,9 +11,12 @@ import {
 import {
   buildBackendSequencesPayload,
   buildSequenceGeometryJson,
+  clampEncodingDirectionToOrientation,
   DEFAULT_SEQUENCE_GEOMETRY_FORM,
+  ENCODING_DIRECTION_OPTIONS,
   formStateToCaptureInput,
   sequenceGeometryJsonToFormState,
+  type EncodingDirectionId,
   type SequenceGeometryFormState,
   type LegacySequenceGeometryJson,
   type SequenceGeometryJson,
@@ -69,6 +72,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { store } from "../../features/store";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadFromText";
@@ -175,6 +179,102 @@ const BASE_VOL = `${import.meta.env.BASE_URL}volumes/`;
 const baseUrlHeadSurfaceCoil = `${BASE_VOL}3T-Head-Surface-Coil/`;
 const baseUrl3TBirdcageCoil = `${BASE_VOL}3T-Head-Birdcage-Coil/`;
 const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
+
+/** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
+const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
+
+/** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
+type FovTripletBlurredField = "fovMm" | "res" | "pixels";
+
+type ParsedFovTriplet = { fovMm?: number; res?: number; px?: number };
+
+function parseFovTripletStrings(rawFov: string, rawRes: string, rawPx: string): ParsedFovTriplet {
+  const fovMm = (() => {
+    const t = rawFov.trim();
+    if (t === "") return undefined;
+    const n = parseFloat(t);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  })();
+  const res = (() => {
+    const t = rawRes.trim();
+    if (t === "") return undefined;
+    const n = parseFloat(t);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  })();
+  const px = (() => {
+    const t = rawPx.trim();
+    if (t === "") return undefined;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) && n >= 1 ? n : undefined;
+  })();
+  return { fovMm, res, px };
+}
+
+function resolveFovTriplet(
+  t: ParsedFovTriplet,
+  lastField: FovTripletBlurredField,
+): { fovPixels: number; fovResMM: number } | null {
+  const { fovMm, res, px } = t;
+  const hasF = fovMm !== undefined;
+  const hasR = res !== undefined;
+  const hasP = px !== undefined;
+  const count = [hasF, hasR, hasP].filter(Boolean).length;
+  if (count < 2) return null;
+
+  if (hasP && hasR && !hasF) {
+    return { fovPixels: Math.max(1, Math.round(px!)), fovResMM: Math.max(0.01, res!) };
+  }
+  if (hasF && hasR && !hasP) {
+    return {
+      fovPixels: Math.max(1, Math.round(fovMm! / res!)),
+      fovResMM: Math.max(0.01, res!),
+    };
+  }
+  if (hasF && hasP && !hasR) {
+    const fovPixels = Math.max(1, Math.round(px!));
+    return { fovPixels, fovResMM: Math.max(0.01, fovMm! / fovPixels) };
+  }
+  if (hasF && hasR && hasP) {
+    const f = fovMm!;
+    const r = Math.max(0.01, res!);
+    const pRounded = Math.max(1, Math.round(px!));
+    if (lastField === "pixels") {
+      return { fovPixels: pRounded, fovResMM: Math.max(0.01, f / pRounded) };
+    }
+    return { fovPixels: Math.max(1, Math.round(f / r)), fovResMM: r };
+  }
+  return null;
+}
+
+/** Which stored field (`angulationLRdeg` = world +X, `angulationAPdeg` = world +Y) and label per row; see `baseImageBasisWorld` in fovBoundingBoxMesh. */
+type FovAngulationAxisKey = "lr" | "ap";
+
+type FovAngleRowSpec = { label: string; axisKey: FovAngulationAxisKey };
+
+function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngleRowSpec, FovAngleRowSpec] {
+  switch (orientation) {
+    case "axial":
+      return [
+        { label: "Left - Right", axisKey: "lr" },
+        { label: "Anterior - Posterior", axisKey: "ap" },
+      ];
+    case "sagittal":
+      return [
+        { label: "Anterior - Posterior", axisKey: "ap" },
+        { label: "Inferior - Superior", axisKey: "lr" },
+      ];
+    case "coronal":
+      return [
+        { label: "Left - Right", axisKey: "lr" },
+        { label: "Inferior - Superior", axisKey: "ap" },
+      ];
+    default:
+      return [
+        { label: "Left - Right", axisKey: "lr" },
+        { label: "Anterior - Posterior", axisKey: "ap" },
+      ];
+  }
+}
 
 const Setup = () => {
   const { accessToken } = useAppSelector((state) => state.authenticate);
@@ -288,17 +388,22 @@ const Setup = () => {
   const [selectedVolume, setSelectedVolume] = useState(0);
   const [warning, setWarning] = useState("");
   const [warningOpen, setWarningOpen] = useState(false);
-  /** Toggle FOV bounding box overlay on the viewer. */
+  /** Toggle scan prescription (bounding box) on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** When on, Alt+drag translates the FoV mesh; Alt+Ctrl+drag updates LR/AP angulation (same as text fields). Requires overlay on. */
+  /** When on: Alt+drag = move; Alt+Ctrl+angle = world +X/+Y (labels follow orientation). Shift = finer. Locks match axis rows. */
   const [fovOverlayInteractiveEnabled, setFovOverlayInteractiveEnabled] = useState(false);
+  /** When set, Alt+Ctrl canvas drag does not change that angle (manual text edits still apply). */
+  const [fovInteractiveLockLR, setFovInteractiveLockLR] = useState(false);
+  const [fovInteractiveLockAP, setFovInteractiveLockAP] = useState(false);
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
   const [geometryBySequenceId, setGeometryBySequenceId] = useState<
     Record<string, SequenceGeometryFormState>
   >({});
   /** Draft strings while editing so inputs can be cleared and retyped without immediate clamping. */
+  const [fovXMMdraft, setFovXMMdraft] = useState<string | null>(null);
   const [fovPixelsXDraft, setFovPixelsXDraft] = useState<string | null>(null);
   const [fovResXMMDraft, setFovResXMMDraft] = useState<string | null>(null);
+  const [fovYMMDraft, setFovYMMDraft] = useState<string | null>(null);
   const [fovPixelsYDraft, setFovPixelsYDraft] = useState<string | null>(null);
   const [fovResYMMDraft, setFovResYMMDraft] = useState<string | null>(null);
   const [sagittalNumSlicesDraft, setSagittalNumSlicesDraft] = useState<string | null>(null);
@@ -307,12 +412,6 @@ const Setup = () => {
   const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
 
-  const commitFovPixels = (raw: string, fallback: number) => {
-    const t = raw.trim();
-    if (t === "") return fallback;
-    const n = parseInt(t, 10);
-    return Number.isFinite(n) ? Math.max(1, n) : fallback;
-  };
   const commitFovResMm = (raw: string, fallback: number) => {
     const t = raw.trim();
     if (t === "") return fallback;
@@ -1157,9 +1256,21 @@ const Setup = () => {
     return geometryBySequenceId[viewerSequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
   }, [viewerSequenceId, geometryBySequenceId]);
 
+  const fovAngleRows = useMemo(
+    () => fovAngleRowsForOrientation(activeForm.orientation),
+    [activeForm.orientation],
+  );
+
+  const encodingDirectionChoices = useMemo(
+    () => ENCODING_DIRECTION_OPTIONS[activeForm.orientation],
+    [activeForm.orientation],
+  );
+
   useEffect(() => {
+    setFovXMMdraft(null);
     setFovPixelsXDraft(null);
     setFovResXMMDraft(null);
+    setFovYMMDraft(null);
     setFovPixelsYDraft(null);
     setFovResYMMDraft(null);
     setSagittalNumSlicesDraft(null);
@@ -1239,7 +1350,51 @@ const Setup = () => {
     [selectedProtocolSeqId, protocolSequences],
   );
 
-  /** Alt+Ctrl+drag on FoV canvas: same LR/AP degrees as the angulation text fields (±89.5°). */
+  const onBlurPhaseEncodingTriplet = useCallback(
+    (lastField: FovTripletBlurredField) => {
+      const rawFov = fovXMMdraft ?? sequenceFovXMM.toFixed(2);
+      const rawRes = fovResXMMDraft ?? String(activeForm.fovResXMM);
+      const rawPx = fovPixelsXDraft ?? String(activeForm.fovPixelsX);
+      const out = resolveFovTriplet(parseFovTripletStrings(rawFov, rawRes, rawPx), lastField);
+      setFovXMMdraft(null);
+      setFovResXMMDraft(null);
+      setFovPixelsXDraft(null);
+      if (out) patchActiveSequenceGeometry({ fovPixelsX: out.fovPixels, fovResXMM: out.fovResMM });
+    },
+    [
+      patchActiveSequenceGeometry,
+      fovXMMdraft,
+      fovResXMMDraft,
+      fovPixelsXDraft,
+      sequenceFovXMM,
+      activeForm.fovResXMM,
+      activeForm.fovPixelsX,
+    ],
+  );
+
+  const onBlurFrequencyEncodingTriplet = useCallback(
+    (lastField: FovTripletBlurredField) => {
+      const rawFov = fovYMMDraft ?? sequenceFovYMM.toFixed(2);
+      const rawRes = fovResYMMDraft ?? String(activeForm.fovResYMM);
+      const rawPx = fovPixelsYDraft ?? String(activeForm.fovPixelsY);
+      const out = resolveFovTriplet(parseFovTripletStrings(rawFov, rawRes, rawPx), lastField);
+      setFovYMMDraft(null);
+      setFovResYMMDraft(null);
+      setFovPixelsYDraft(null);
+      if (out) patchActiveSequenceGeometry({ fovPixelsY: out.fovPixels, fovResYMM: out.fovResMM });
+    },
+    [
+      patchActiveSequenceGeometry,
+      fovYMMDraft,
+      fovResYMMDraft,
+      fovPixelsYDraft,
+      sequenceFovYMM,
+      activeForm.fovResYMM,
+      activeForm.fovPixelsY,
+    ],
+  );
+
+  /** Alt+Ctrl+drag on FoV canvas: same world-axis degrees as the angulation text fields (±89.5°). */
   const handleFovAngulationSetDeg = useCallback(
     (angulationLRdeg: number, angulationAPdeg: number) => {
       setFovAngulationLRdraft(null);
@@ -1269,6 +1424,8 @@ const Setup = () => {
       fovInteractive: {
         enabled: fovOverlayInteractiveEnabled,
         onAngulationSetDeg: handleFovAngulationSetDeg,
+        lockAngulationLR: fovInteractiveLockLR,
+        lockAngulationAP: fovInteractiveLockAP,
       },
     }),
     [
@@ -1281,6 +1438,8 @@ const Setup = () => {
       activeForm.sagittalSliceThicknessMm,
       activeForm.sagittalSliceGapMm,
       fovOverlayInteractiveEnabled,
+      fovInteractiveLockLR,
+      fovInteractiveLockAP,
       handleFovAngulationSetDeg,
     ],
   );
@@ -1970,124 +2129,44 @@ const Setup = () => {
                     px: 1,
                   }}
                 >
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, width: "100%" }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
                     {protocolSequences.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
                         Add sequences to the protocol to set geometry and FoV per sequence
                       </Typography>
                     ) : (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
                         Editing geometry for:{" "}
                         <strong>
                           {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
                         </strong>
                       </Typography>
                     )}
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Sequence FoVx
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
-                        <TextField
-                          label="Number of pixels"
-                          type="text"
-                          inputMode="numeric"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={fovPixelsXDraft ?? String(activeForm.fovPixelsX)}
-                          onFocus={() => setFovPixelsXDraft(String(activeForm.fovPixelsX))}
-                          onChange={(e) => setFovPixelsXDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              fovPixelsX: commitFovPixels(fovPixelsXDraft ?? "", activeForm.fovPixelsX),
-                            });
-                            setFovPixelsXDraft(null);
-                          }}
-                          sx={{ width: 180 }}
-                        />
-                        <TextField
-                          label="Resolution (mm / pixel)"
-                          type="text"
-                          inputMode="decimal"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={fovResXMMDraft ?? String(activeForm.fovResXMM)}
-                          onFocus={() => setFovResXMMDraft(String(activeForm.fovResXMM))}
-                          onChange={(e) => setFovResXMMDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              fovResXMM: commitFovResMm(fovResXMMDraft ?? "", activeForm.fovResXMM),
-                            });
-                            setFovResXMMDraft(null);
-                          }}
-                          sx={{ width: 180 }}
-                        />
-                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
-                          FoVx = {sequenceFovXMM.toFixed(2)} mm
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Sequence FoVy
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
-                        <TextField
-                          label="Number of pixels"
-                          type="text"
-                          inputMode="numeric"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={fovPixelsYDraft ?? String(activeForm.fovPixelsY)}
-                          onFocus={() => setFovPixelsYDraft(String(activeForm.fovPixelsY))}
-                          onChange={(e) => setFovPixelsYDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              fovPixelsY: commitFovPixels(fovPixelsYDraft ?? "", activeForm.fovPixelsY),
-                            });
-                            setFovPixelsYDraft(null);
-                          }}
-                          sx={{ width: 180 }}
-                        />
-                        <TextField
-                          label="Resolution (mm / pixel)"
-                          type="text"
-                          inputMode="decimal"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={fovResYMMDraft ?? String(activeForm.fovResYMM)}
-                          onFocus={() => setFovResYMMDraft(String(activeForm.fovResYMM))}
-                          onChange={(e) => setFovResYMMDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              fovResYMM: commitFovResMm(fovResYMMDraft ?? "", activeForm.fovResYMM),
-                            });
-                            setFovResYMMDraft(null);
-                          }}
-                          sx={{ width: 180 }}
-                        />
-                        <Typography variant="body2" color="text.secondary" sx={{ pb: 0.5 }}>
-                          FoVy = {sequenceFovYMM.toFixed(2)} mm
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box>
+                    <Box sx={{ marginTop: 1 }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Orientation
                       </Typography>
-
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end", mb: 1.5 }}>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
                         <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
                           <InputLabel id="fov-orientation-label">Orientation</InputLabel>
                           <MuiSelect
                             labelId="fov-orientation-label"
                             label="Orientation"
                             value={activeForm.orientation}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const next = e.target.value as FovPlaneOrientation;
                               patchActiveSequenceGeometry({
-                                orientation: e.target.value as FovPlaneOrientation,
-                              })
-                            }
+                                orientation: next,
+                                phaseEncodingDirection: clampEncodingDirectionToOrientation(
+                                  next,
+                                  activeForm.phaseEncodingDirection,
+                                ),
+                                frequencyEncodingDirection: clampEncodingDirectionToOrientation(
+                                  next,
+                                  activeForm.frequencyEncodingDirection,
+                                ),
+                              });
+                            }}
                           >
                             <MenuItem value="axial">Axial</MenuItem>
                             <MenuItem value="sagittal">Sagittal</MenuItem>
@@ -2095,74 +2174,272 @@ const Setup = () => {
                           </MuiSelect>
                         </FormControl>
                       </Box>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.75rem",
+                        marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                          Phase Encoding
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                          <TextField
+                            label="FoV (mm)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovXMMdraft !== null ? fovXMMdraft : sequenceFovXMM}
+                            onFocus={() => setFovXMMdraft((d) => d ?? String(sequenceFovXMM))}
+                            onChange={(e) => setFovXMMdraft(e.target.value)}
+                            onBlur={() => onBlurPhaseEncodingTriplet("fovMm")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <TextField
+                            label="Resolution (mm/pixel)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovResXMMDraft !== null ? fovResXMMDraft : activeForm.fovResXMM}
+                            onFocus={() => setFovResXMMDraft((d) => d ?? String(activeForm.fovResXMM))}
+                            onChange={(e) => setFovResXMMDraft(e.target.value)}
+                            onBlur={() => onBlurPhaseEncodingTriplet("res")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <TextField
+                            label="Number of pixels"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovPixelsXDraft !== null ? fovPixelsXDraft : activeForm.fovPixelsX}
+                            onFocus={() => setFovPixelsXDraft((d) => d ?? String(activeForm.fovPixelsX))}
+                            onChange={(e) => setFovPixelsXDraft(e.target.value)}
+                            onBlur={() => onBlurPhaseEncodingTriplet("pixels")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
+                            <FormControl size="small" sx={{ minWidth: 168 }} disabled={protocolSequences.length === 0}>
+                              <InputLabel id="fov-phase-encoding-direction-label">Direction</InputLabel>
+                              <MuiSelect
+                                labelId="fov-phase-encoding-direction-label"
+                                label="Direction"
+                                value={activeForm.phaseEncodingDirection}
+                                onChange={(e) =>
+                                  patchActiveSequenceGeometry({
+                                    phaseEncodingDirection: e.target.value as EncodingDirectionId,
+                                  })
+                                }
+                              >
+                                {encodingDirectionChoices.map((opt) => (
+                                  <MenuItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </MenuItem>
+                                ))}
+                              </MuiSelect>
+                            </FormControl>
+                            <Tooltip title="Choose the phase encoding direction">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  aria-label="About phase encoding direction"
+                                  disabled={protocolSequences.length === 0}
+                                  tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                                  sx={{ color: "text.secondary", mb: 0.25 }}
+                                >
+                                  <InfoOutlinedIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        </Box>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                          Frequency Encoding
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                          <TextField
+                            label="FoV (mm)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovYMMDraft !== null ? fovYMMDraft : sequenceFovYMM}
+                            onFocus={() => setFovYMMDraft((d) => d ?? String(sequenceFovYMM))}
+                            onChange={(e) => setFovYMMDraft(e.target.value)}
+                            onBlur={() => onBlurFrequencyEncodingTriplet("fovMm")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <TextField
+                            label="Resolution (mm/pixel)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovResYMMDraft !== null ? fovResYMMDraft : activeForm.fovResYMM}
+                            onFocus={() => setFovResYMMDraft((d) => d ?? String(activeForm.fovResYMM))}
+                            onChange={(e) => setFovResYMMDraft(e.target.value)}
+                            onBlur={() => onBlurFrequencyEncodingTriplet("res")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <TextField
+                            label="Number of pixels"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={fovPixelsYDraft !== null ? fovPixelsYDraft : activeForm.fovPixelsY}
+                            onFocus={() => setFovPixelsYDraft((d) => d ?? String(activeForm.fovPixelsY))}
+                            onChange={(e) => setFovPixelsYDraft(e.target.value)}
+                            onBlur={() => onBlurFrequencyEncodingTriplet("pixels")}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: 160 }}
+                          />
+                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
+                            <FormControl size="small" sx={{ minWidth: 168 }} disabled={protocolSequences.length === 0}>
+                              <InputLabel id="fov-frequency-encoding-direction-label">Direction</InputLabel>
+                              <MuiSelect
+                                labelId="fov-frequency-encoding-direction-label"
+                                label="Direction"
+                                value={activeForm.frequencyEncodingDirection}
+                                onChange={(e) =>
+                                  patchActiveSequenceGeometry({
+                                    frequencyEncodingDirection: e.target.value as EncodingDirectionId,
+                                  })
+                                }
+                              >
+                                {encodingDirectionChoices.map((opt) => (
+                                  <MenuItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </MenuItem>
+                                ))}
+                              </MuiSelect>
+                            </FormControl>
+                            <Tooltip title="Choose the frequency encoding direction">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  aria-label="About frequency encoding direction"
+                                  disabled={protocolSequences.length === 0}
+                                  tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                                  sx={{ color: "text.secondary", mb: 0.25 }}
+                                >
+                                  <InfoOutlinedIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Angle
                       </Typography>
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 420 }}>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, marginBottom: 1 }}>
-                          <Typography variant="body2" sx={{ minWidth: 168 }}>
-                            Left - Right:
-                          </Typography>
-                          <TextField
-                            label="Degrees"
-                            type="text"
-                            inputMode="decimal"
-                            size="small"
-                            disabled={protocolSequences.length === 0}
-                            value={fovAngulationLRdraft ?? String(activeForm.angulationLRdeg)}
-                            onFocus={() => setFovAngulationLRdraft(String(activeForm.angulationLRdeg))}
-                            onChange={(e) => setFovAngulationLRdraft(e.target.value)}
-                            onBlur={() => {
-                              patchActiveSequenceGeometry({
-                                angulationLRdeg: commitAngulationDeg(
-                                  fovAngulationLRdraft ?? "",
-                                  activeForm.angulationLRdeg,
-                                ),
-                              });
-                              setFovAngulationLRdraft(null);
-                            }}
-                            sx={{ width: 100 }}
-                          />
-                        </Box>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5 }}>
-                          <Typography variant="body2" sx={{ minWidth: 168 }}>
-                            Anterior - Posterior:
-                          </Typography>
-                          <TextField
-                            label="Degrees"
-                            type="text"
-                            inputMode="decimal"
-                            size="small"
-                            disabled={protocolSequences.length === 0}
-                            value={fovAngulationAPdraft ?? String(activeForm.angulationAPdeg)}
-                            onFocus={() => setFovAngulationAPdraft(String(activeForm.angulationAPdeg))}
-                            onChange={(e) => setFovAngulationAPdraft(e.target.value)}
-                            onBlur={() => {
-                              patchActiveSequenceGeometry({
-                                angulationAPdeg: commitAngulationDeg(
-                                  fovAngulationAPdraft ?? "",
-                                  activeForm.angulationAPdeg,
-                                ),
-                              });
-                              setFovAngulationAPdraft(null);
-                            }}
-                            sx={{ width: 100 }}
-                          />
-                        </Box>
+                        {fovAngleRows.map((row, index) => {
+                          const isLr = row.axisKey === "lr";
+                          return (
+                            <Box
+                              key={`${row.axisKey}-${index}`}
+                              sx={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                gap: 1.5,
+                                marginBottom: index === 0 ? 1 : 0,
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ minWidth: 168 }}>
+                                {row.label}:
+                              </Typography>
+                              <TextField
+                                label="Degrees"
+                                type="number"
+                                size="small"
+                                disabled={protocolSequences.length === 0}
+                                value={
+                                  isLr
+                                    ? fovAngulationLRdraft !== null
+                                      ? fovAngulationLRdraft
+                                      : activeForm.angulationLRdeg
+                                    : fovAngulationAPdraft !== null
+                                      ? fovAngulationAPdraft
+                                      : activeForm.angulationAPdeg
+                                }
+                                onFocus={() =>
+                                  isLr
+                                    ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
+                                    : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
+                                }
+                                onChange={(e) =>
+                                  isLr
+                                    ? setFovAngulationLRdraft(e.target.value)
+                                    : setFovAngulationAPdraft(e.target.value)
+                                }
+                                onBlur={() => {
+                                  if (isLr) {
+                                    patchActiveSequenceGeometry({
+                                      angulationLRdeg: commitAngulationDeg(
+                                        fovAngulationLRdraft ?? "",
+                                        activeForm.angulationLRdeg,
+                                      ),
+                                    });
+                                    setFovAngulationLRdraft(null);
+                                  } else {
+                                    patchActiveSequenceGeometry({
+                                      angulationAPdeg: commitAngulationDeg(
+                                        fovAngulationAPdraft ?? "",
+                                        activeForm.angulationAPdeg,
+                                      ),
+                                    });
+                                    setFovAngulationAPdraft(null);
+                                  }
+                                }}
+                                inputProps={{ step: "any" }}
+                                sx={{ width: 100 }}
+                              />
+                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                <CmrCheckbox
+                                  id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
+                                  checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
+                                  checkedColor="#1578A1"
+                                  disabled={protocolSequences.length === 0}
+                                  onChange={(e) =>
+                                    isLr
+                                      ? setFovInteractiveLockLR(e.target.checked)
+                                      : setFovInteractiveLockAP(e.target.checked)
+                                  }
+                                >
+                                  Lock
+                                </CmrCheckbox>
+                              </Box>
+                            </Box>
+                          );
+                        })}
                       </Box>
                     </Box>
-                    <Box>
+                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Parallel Ranges
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
                         <TextField
                           label="Number of slices"
-                          type="text"
-                          inputMode="numeric"
+                          type="number"
                           size="small"
                           disabled={protocolSequences.length === 0}
-                          value={sagittalNumSlicesDraft ?? String(activeForm.sagittalNumSlices)}
+                          value={
+                            sagittalNumSlicesDraft !== null
+                              ? sagittalNumSlicesDraft
+                              : activeForm.sagittalNumSlices
+                          }
                           onFocus={() => setSagittalNumSlicesDraft(String(activeForm.sagittalNumSlices))}
                           onChange={(e) => setSagittalNumSlicesDraft(e.target.value)}
                           onBlur={() => {
@@ -2174,15 +2451,19 @@ const Setup = () => {
                             });
                             setSagittalNumSlicesDraft(null);
                           }}
+                          inputProps={{ step: "any" }}
                           sx={{ width: 180 }}
                         />
                         <TextField
                           label="Slice thickness (mm)"
-                          type="text"
-                          inputMode="decimal"
+                          type="number"
                           size="small"
                           disabled={protocolSequences.length === 0}
-                          value={sagittalThicknessDraft ?? String(activeForm.sagittalSliceThicknessMm)}
+                          value={
+                            sagittalThicknessDraft !== null
+                              ? sagittalThicknessDraft
+                              : activeForm.sagittalSliceThicknessMm
+                          }
                           onFocus={() => setSagittalThicknessDraft(String(activeForm.sagittalSliceThicknessMm))}
                           onChange={(e) => setSagittalThicknessDraft(e.target.value)}
                           onBlur={() => {
@@ -2194,15 +2475,15 @@ const Setup = () => {
                             });
                             setSagittalThicknessDraft(null);
                           }}
+                          inputProps={{ step: "any" }}
                           sx={{ width: 180 }}
                         />
                         <TextField
                           label="Slice gap (mm)"
-                          type="text"
-                          inputMode="decimal"
+                          type="number"
                           size="small"
                           disabled={protocolSequences.length === 0}
-                          value={sagittalGapDraft ?? String(activeForm.sagittalSliceGapMm)}
+                          value={sagittalGapDraft !== null ? sagittalGapDraft : activeForm.sagittalSliceGapMm}
                           onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapMm))}
                           onChange={(e) => setSagittalGapDraft(e.target.value)}
                           onBlur={() => {
@@ -2214,6 +2495,7 @@ const Setup = () => {
                             });
                             setSagittalGapDraft(null);
                           }}
+                          inputProps={{ step: "any" }}
                           sx={{ width: 180 }}
                         />
                       </Box>
@@ -2228,33 +2510,29 @@ const Setup = () => {
                       gap: 2,
                       width: "100%",
                       userSelect: "none",
-                      "& .MuiFormControlLabel-root": { margin: 0 },
-                      "& .MuiCheckbox-root": {
-                        padding: "6px",
-                        color: "#1578A1 !important",
-                      },
-                      "& .MuiCheckbox-root.Mui-checked": {
-                        color: "#1578A1 !important",
-                      },
                     }}
                   >
-                    <CmrCheckbox
-                      id="show-field-of-view-overlay"
-                      checked={showFieldOfViewOverlay}
-                      checkedColor="#1578A1"
-                      onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
-                    >
-                      Show
-                    </CmrCheckbox>
-                    <CmrCheckbox
-                      id="fov-overlay-interactive-drag"
-                      checked={fovOverlayInteractiveEnabled}
-                      checkedColor="#1578A1"
-                      disabled={!showFieldOfViewOverlay}
-                      onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
-                    >
-                      Reposition overlay (Alt+drag, Alt+Ctrl+angle)
-                    </CmrCheckbox>
+                    <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                      <CmrCheckbox
+                        id="show-field-of-view-overlay"
+                        checked={showFieldOfViewOverlay}
+                        checkedColor="#1578A1"
+                        onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
+                      >
+                        Show Pription
+                      </CmrCheckbox>
+                    </Box>
+                    <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                      <CmrCheckbox
+                        id="fov-overlay-interactive-drag"
+                        checked={fovOverlayInteractiveEnabled}
+                        checkedColor="#1578A1"
+                        disabled={!showFieldOfViewOverlay}
+                        onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
+                      >
+                        Reposition Prescription (Alt+move · Alt+Ctrl+angle)
+                      </CmrCheckbox>
+                    </Box>
                   </Box>
                 </Box>
 

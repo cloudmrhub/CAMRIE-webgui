@@ -451,23 +451,18 @@ export function NiivuePanel(props: NiivuePanelProps) {
                     width: "100%",
                     mt: 0.5,
                     userSelect: "none",
-                    "& .MuiFormControlLabel-root": { margin: 0 },
-                    "& .MuiCheckbox-root": {
-                      padding: "6px",
-                      color: "#1578A1 !important",
-                    },
-                    "& .MuiCheckbox-root.Mui-checked": {
-                      color: "#1578A1 !important",
-                    },
                   }}
                 >
-                  <CmrCheckbox
-                    checked={props.contrastLocked}
-                    checkedColor="#1578A1"
-                    onChange={(e) => props.setContrastLocked(e.target.checked)}
-                  >
-                    Lock Value
-                  </CmrCheckbox>
+                  <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                    <CmrCheckbox
+                      id="contrast-lock-value"
+                      checked={props.contrastLocked}
+                      checkedColor="#1578A1"
+                      onChange={(e) => props.setContrastLocked(e.target.checked)}
+                    >
+                      Lock Value
+                    </CmrCheckbox>
+                  </Box>
                 </Box>
               </Box>
 
