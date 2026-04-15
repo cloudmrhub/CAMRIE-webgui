@@ -6,6 +6,7 @@ import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
   getPrescriptionCenterMmForGeometryExport,
+  resetFovPrescriptionTranslation,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import {
@@ -55,6 +56,8 @@ import {
   FormHelperText,
   Snackbar,
   Slide,
+  Slider,
+  InputAdornment,
 } from "@mui/material";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -183,6 +186,10 @@ const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
 /** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
 const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
 
+/** Matches `fovBoundingBoxMesh` angulation clamps (interactive drag + backend). */
+const FOV_ANGULATION_DEG_MIN = -89.5;
+const FOV_ANGULATION_DEG_MAX = 89.5;
+
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
 
@@ -246,7 +253,11 @@ function resolveFovTriplet(
   return null;
 }
 
-/** Which stored field (`angulationLRdeg` = world +X, `angulationAPdeg` = world +Y) and label per row; see `baseImageBasisWorld` in fovBoundingBoxMesh. */
+/**
+ * Which stored field maps to each Angle row. Internally `angulationLRdeg` / `angulationAPdeg` are rotations about
+ * fixed world +X and +Y (see `applyWorldAxisAngulation` in fovBoundingBoxMesh). Labels here describe the **obliquity
+ * the user sees** for that orientation (not the rotation axis name).
+ */
 type FovAngulationAxisKey = "lr" | "ap";
 
 type FovAngleRowSpec = { label: string; axisKey: FovAngulationAxisKey };
@@ -255,23 +266,23 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
   switch (orientation) {
     case "axial":
       return [
-        { label: "Left - Right", axisKey: "lr" },
-        { label: "Anterior - Posterior", axisKey: "ap" },
+        { label: "Anterior - Posterior", axisKey: "lr" },
+        { label: "Left - Right", axisKey: "ap" },
       ];
     case "sagittal":
       return [
-        { label: "Anterior - Posterior", axisKey: "ap" },
-        { label: "Inferior - Superior", axisKey: "lr" },
+        { label: "Inferior - Superior", axisKey: "ap" },
+        { label: "Anterior - Posterior", axisKey: "lr" },
       ];
     case "coronal":
       return [
-        { label: "Left - Right", axisKey: "lr" },
-        { label: "Inferior - Superior", axisKey: "ap" },
+        { label: "Inferior - Superior", axisKey: "lr" },
+        { label: "Left - Right", axisKey: "ap" },
       ];
     default:
       return [
-        { label: "Left - Right", axisKey: "lr" },
-        { label: "Anterior - Posterior", axisKey: "ap" },
+        { label: "Anterior - Posterior", axisKey: "lr" },
+        { label: "Left - Right", axisKey: "ap" },
       ];
   }
 }
@@ -437,7 +448,7 @@ const Setup = () => {
     if (t === "") return fallback;
     const n = parseFloat(t);
     if (!Number.isFinite(n)) return fallback;
-    return Math.max(-89.5, Math.min(89.5, n));
+    return Math.max(FOV_ANGULATION_DEG_MIN, Math.min(FOV_ANGULATION_DEG_MAX, n));
   };
 
   /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
@@ -2338,11 +2349,14 @@ const Setup = () => {
                     </Box>
                     <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Angle
+                        Translation and Angulation
                       </Typography>
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 420 }}>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 680 }}>
                         {fovAngleRows.map((row, index) => {
                           const isLr = row.axisKey === "lr";
+                          const committedDeg = isLr
+                            ? activeForm.angulationLRdeg
+                            : activeForm.angulationAPdeg;
                           return (
                             <Box
                               key={`${row.axisKey}-${index}`}
@@ -2357,70 +2371,150 @@ const Setup = () => {
                               <Typography variant="body2" sx={{ minWidth: 168 }}>
                                 {row.label}:
                               </Typography>
-                              <TextField
-                                label="Degrees"
-                                type="number"
-                                size="small"
-                                disabled={protocolSequences.length === 0}
-                                value={
-                                  isLr
-                                    ? fovAngulationLRdraft !== null
-                                      ? fovAngulationLRdraft
-                                      : activeForm.angulationLRdeg
-                                    : fovAngulationAPdraft !== null
-                                      ? fovAngulationAPdraft
-                                      : activeForm.angulationAPdeg
-                                }
-                                onFocus={() =>
-                                  isLr
-                                    ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
-                                    : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
-                                }
-                                onChange={(e) =>
-                                  isLr
-                                    ? setFovAngulationLRdraft(e.target.value)
-                                    : setFovAngulationAPdraft(e.target.value)
-                                }
-                                onBlur={() => {
-                                  if (isLr) {
-                                    patchActiveSequenceGeometry({
-                                      angulationLRdeg: commitAngulationDeg(
-                                        fovAngulationLRdraft ?? "",
-                                        activeForm.angulationLRdeg,
-                                      ),
-                                    });
-                                    setFovAngulationLRdraft(null);
-                                  } else {
-                                    patchActiveSequenceGeometry({
-                                      angulationAPdeg: commitAngulationDeg(
-                                        fovAngulationAPdraft ?? "",
-                                        activeForm.angulationAPdeg,
-                                      ),
-                                    });
-                                    setFovAngulationAPdraft(null);
-                                  }
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 2,
+                                  flex: 1,
+                                  minWidth: 340,
                                 }}
-                                inputProps={{ step: "any" }}
-                                sx={{ width: 100 }}
-                              />
-                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
-                                <CmrCheckbox
-                                  id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
-                                  checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
-                                  checkedColor="#1578A1"
+                              >
+                                <Slider
+                                  size="medium"
                                   disabled={protocolSequences.length === 0}
-                                  onChange={(e) =>
-                                    isLr
-                                      ? setFovInteractiveLockLR(e.target.checked)
-                                      : setFovInteractiveLockAP(e.target.checked)
-                                  }
+                                  value={committedDeg}
+                                  min={FOV_ANGULATION_DEG_MIN}
+                                  max={FOV_ANGULATION_DEG_MAX}
+                                  step={0.1}
+                                  valueLabelDisplay="auto"
+                                  valueLabelFormat={(v) => `${v}°`}
+                                  getAriaValueText={(v) => `${v} degrees`}
+                                  onChange={(_, v) => {
+                                    const num = typeof v === "number" ? v : v[0];
+                                    if (isLr) {
+                                      setFovAngulationLRdraft(null);
+                                      patchActiveSequenceGeometry({ angulationLRdeg: num });
+                                    } else {
+                                      setFovAngulationAPdraft(null);
+                                      patchActiveSequenceGeometry({ angulationAPdeg: num });
+                                    }
+                                  }}
+                                  sx={{
+                                    width: 325,
+                                    flexShrink: 0,
+                                    color: "#1578A1",
+                                    "& .MuiSlider-thumb": { color: "#1578A1" },
+                                    "& .MuiSlider-track": { color: "#1578A1" },
+                                  }}
+                                />
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5,
+                                    flexShrink: 0,
+                                  }}
                                 >
-                                  Lock
-                                </CmrCheckbox>
+                                  <TextField
+                                    type="text"
+                                    inputMode="decimal"
+                                    size="small"
+                                    disabled={protocolSequences.length === 0}
+                                    value={
+                                      isLr
+                                        ? fovAngulationLRdraft !== null
+                                          ? fovAngulationLRdraft
+                                          : String(committedDeg)
+                                        : fovAngulationAPdraft !== null
+                                          ? fovAngulationAPdraft
+                                          : String(committedDeg)
+                                    }
+                                    onFocus={() =>
+                                      isLr
+                                        ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
+                                        : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
+                                    }
+                                    onChange={(e) =>
+                                      isLr
+                                        ? setFovAngulationLRdraft(e.target.value)
+                                        : setFovAngulationAPdraft(e.target.value)
+                                    }
+                                    onBlur={() => {
+                                      if (isLr) {
+                                        patchActiveSequenceGeometry({
+                                          angulationLRdeg: commitAngulationDeg(
+                                            fovAngulationLRdraft ?? "",
+                                            activeForm.angulationLRdeg,
+                                          ),
+                                        });
+                                        setFovAngulationLRdraft(null);
+                                      } else {
+                                        patchActiveSequenceGeometry({
+                                          angulationAPdeg: commitAngulationDeg(
+                                            fovAngulationAPdraft ?? "",
+                                            activeForm.angulationAPdeg,
+                                          ),
+                                        });
+                                        setFovAngulationAPdraft(null);
+                                      }
+                                    }}
+                                    sx={{ width: 96, flexShrink: 0 }}
+                                    InputProps={{
+                                      endAdornment: (
+                                        <InputAdornment position="end">°</InputAdornment>
+                                      ),
+                                    }}
+                                  />
+                                  <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                    <CmrCheckbox
+                                      id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
+                                      checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
+                                      checkedColor="#1578A1"
+                                      disabled={protocolSequences.length === 0}
+                                      onChange={(e) =>
+                                        isLr
+                                          ? setFovInteractiveLockLR(e.target.checked)
+                                          : setFovInteractiveLockAP(e.target.checked)
+                                      }
+                                    >
+                                      Lock
+                                    </CmrCheckbox>
+                                  </Box>
+                                </Box>
                               </Box>
                             </Box>
                           );
                         })}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          width: "100%",
+                          mt: 1,
+                        }}
+                      >
+                        <Tooltip title="Clear Alt+drag translation and place the prescription center back on the volume isocenter">
+                          <span>
+                            <CmrButton
+                              variant="outlined"
+                              size="small"
+                              disabled={!nv?.volumes?.[0]}
+                              onClick={() => {
+                                try {
+                                  resetFovPrescriptionTranslation(nv);
+                                } catch {
+                                  /* volume not ready */
+                                }
+                              }}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Reset Translation
+                            </CmrButton>
+                          </span>
+                        </Tooltip>
                       </Box>
                     </Box>
                     <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
@@ -2517,10 +2611,17 @@ const Setup = () => {
                         checkedColor="#1578A1"
                         onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
                       >
-                        Show Pription
+                        Show Prescription
                       </CmrCheckbox>
                     </Box>
-                    <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.25,
+                        "& .MuiFormControlLabel-root": { margin: 0 },
+                      }}
+                    >
                       <CmrCheckbox
                         id="fov-overlay-interactive-drag"
                         checked={fovOverlayInteractiveEnabled}
@@ -2528,8 +2629,31 @@ const Setup = () => {
                         disabled={!showFieldOfViewOverlay}
                         onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
                       >
-                        Reposition Prescription (Alt+move · Alt+Ctrl+angle)
+                        Reposition Prescription
                       </CmrCheckbox>
+                      <Tooltip
+                        title={
+                          <>
+                            Alt+drag: translate the prescription in world coordinates
+                            <br />
+                            Alt+Ctrl+drag: adjust the same angles as the angle fields
+                            <br />
+                            Hold Shift while dragging for finer steps.
+                          </>
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            aria-label="Reposition prescription shortcuts"
+                            disabled={!showFieldOfViewOverlay}
+                            tabIndex={!showFieldOfViewOverlay ? -1 : 0}
+                            sx={{ color: "text.secondary", p: 0.25 }}
+                          >
+                            <InfoOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Box>
                   </Box>
                 </Box>

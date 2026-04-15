@@ -43,9 +43,15 @@ export type FovPlaneOrientation = "axial" | "sagittal" | "coronal";
  */
 export type FovImagePrescription = {
   orientation: FovPlaneOrientation;
-  /** Angulation about world left–right (+X), degrees. */
+  /**
+   * Rotation about world +X (RAS), degrees, applied before {@link angulationAPdeg}. For an **axial** prescription this
+   * tilts the slice normal in the sagittal plane (A–P obliquity); see {@link applyWorldAxisAngulation}.
+   */
   angulationLRdeg: number;
-  /** Angulation about world anterior–posterior (+Y), degrees. */
+  /**
+   * Rotation about world +Y (RAS), degrees, after {@link angulationLRdeg}. For **axial**, this tilts the normal in the
+   * coronal plane (L–R obliquity).
+   */
   angulationAPdeg: number;
 };
 
@@ -1239,6 +1245,12 @@ export function resetFovUserMeshTransform(nv: any): void {
   host.__camrieFovUserTransform = {
     offsetMm: [0, 0, 0],
   };
+}
+
+/** Clear Alt+drag translation and redraw FoV meshes when axial FoV options are cached (overlay was attached). */
+export function resetFovPrescriptionTranslation(nv: any): void {
+  resetFovUserMeshTransform(nv);
+  rebuildFovBoundingBoxMeshFromUserTransform(nv);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Niivue instance typing uses gl-matrix vec3/vec4
