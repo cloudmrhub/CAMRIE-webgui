@@ -190,6 +190,9 @@ const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
 const FOV_ANGULATION_DEG_MIN = -89.5;
 const FOV_ANGULATION_DEG_MAX = 89.5;
 
+/** Fixed label column width (`sm+`) so LR/AP slider tracks share a common start edge. */
+const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 220 };
+
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
 
@@ -2138,10 +2141,22 @@ const Setup = () => {
                     flexDirection: "column",
                     gap: 0.25,
                     width: "100%",
+                    maxWidth: "100%",
+                    minWidth: 0,
+                    boxSizing: "border-box",
                     px: 1,
                   }}
                 >
-                  <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
                     {protocolSequences.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">
                         Add sequences to the protocol to set geometry and FoV per sequence
@@ -2354,11 +2369,29 @@ const Setup = () => {
                         </Box>
                       </Box>
                     </Box>
-                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
+                    <Box
+                      sx={{
+                        marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
+                      }}
+                    >
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Translation and Angulation
                       </Typography>
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 680 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.5,
+                          width: "100%",
+                          maxWidth: "100%",
+                          minWidth: 0,
+                          boxSizing: "border-box",
+                        }}
+                      >
                         {fovAngleRows.map((row, index) => {
                           const isLr = row.axisKey === "lr";
                           const committedDeg = isLr
@@ -2369,23 +2402,44 @@ const Setup = () => {
                               key={`${row.axisKey}-${index}`}
                               sx={{
                                 display: "flex",
-                                flexWrap: "wrap",
-                                alignItems: "center",
+                                flexDirection: { xs: "column", sm: "row" },
+                                alignItems: { xs: "stretch", sm: "flex-start" },
+                                flexWrap: "nowrap",
                                 gap: 1.5,
+                                width: "100%",
+                                maxWidth: "100%",
+                                minWidth: 0,
                                 marginBottom: index === 0 ? 1 : 0,
+                                boxSizing: "border-box",
                               }}
                             >
-                              <Typography variant="body2" sx={{ minWidth: 168 }}>
+                              <Typography
+                                variant="body2"
+                                component="div"
+                                sx={{
+                                  flexShrink: 0,
+                                  boxSizing: "border-box",
+                                  width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  pr: { sm: 0.5 },
+                                  lineHeight: 1.35,
+                                }}
+                              >
                                 {row.label}:
                               </Typography>
                               <Box
                                 sx={{
                                   display: "flex",
                                   alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 2,
-                                  flex: 1,
-                                  minWidth: 340,
+                                  justifyContent: { xs: "flex-start", sm: "space-between" },
+                                  gap: { xs: 1.5, sm: 2 },
+                                  flex: "1 1 0",
+                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                  width: { xs: "100%", sm: "auto" },
+                                  maxWidth: "100%",
+                                  boxSizing: "border-box",
                                 }}
                               >
                                 <Slider
@@ -2409,8 +2463,10 @@ const Setup = () => {
                                     }
                                   }}
                                   sx={{
-                                    width: 325,
-                                    flexShrink: 0,
+                                    flex: "1 1 120px",
+                                    minWidth: 0,
+                                    maxWidth: "100%",
+                                    width: "100%",
                                     color: "#1578A1",
                                     "& .MuiSlider-thumb": { color: "#1578A1" },
                                     "& .MuiSlider-track": { color: "#1578A1" },
@@ -2422,6 +2478,8 @@ const Setup = () => {
                                     alignItems: "center",
                                     gap: 1.5,
                                     flexShrink: 0,
+                                    flexWrap: "wrap",
+                                    minWidth: 0,
                                   }}
                                 >
                                   <TextField
