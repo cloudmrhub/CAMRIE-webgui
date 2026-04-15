@@ -1077,6 +1077,7 @@ const Setup = () => {
 
   const handleRemoveSequenceFromProtocol = (id: string) => {
     setProtocolSequences((prev) => prev.filter((seq) => seq.id !== id));
+    setSelectedProtocolSeqId((cur) => (cur === id ? null : cur));
 
     setGeometryBySequenceId((prev) => {
       const next = { ...prev };
@@ -1101,6 +1102,9 @@ const Setup = () => {
 
     // Remove from protocol list
     setProtocolSequences((prev) => prev.filter((seq) => !idsToDelete.includes(seq.id)));
+    setSelectedProtocolSeqId((cur) =>
+      cur != null && idsToDelete.includes(cur) ? null : cur,
+    );
 
     setGeometryBySequenceId((prev) => {
       const next = { ...prev };
@@ -1259,8 +1263,7 @@ const Setup = () => {
   };
   // -- end ---
 
-  const viewerSequenceId =
-    selectedProtocolSeqId ?? (protocolSequences.length > 0 ? protocolSequences[0].id : null);
+  const viewerSequenceId = selectedProtocolSeqId;
 
   const activeForm: SequenceGeometryFormState = useMemo(() => {
     if (!viewerSequenceId) return DEFAULT_SEQUENCE_GEOMETRY_FORM;
@@ -1349,14 +1352,14 @@ const Setup = () => {
 
   const patchActiveSequenceGeometry = useCallback(
     (patch: Partial<SequenceGeometryFormState>) => {
-      const id = selectedProtocolSeqId ?? protocolSequences[0]?.id;
+      const id = selectedProtocolSeqId;
       if (!id) return;
       setGeometryBySequenceId((prev) => ({
         ...prev,
         [id]: { ...(prev[id] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM), ...patch },
       }));
     },
-    [selectedProtocolSeqId, protocolSequences],
+    [selectedProtocolSeqId],
   );
 
   const onBlurPhaseEncodingTriplet = useCallback(
@@ -2143,15 +2146,19 @@ const Setup = () => {
                       <Typography variant="body2" color="text.secondary">
                         Add sequences to the protocol to set geometry and FoV per sequence
                       </Typography>
-                    ) : (
+                    ) : !selectedProtocolSeqId ? (
                       <Typography variant="body2" color="text.secondary">
-                        Editing geometry for:{" "}
-                        <strong>
-                          {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
-                        </strong>
+                        Select a sequence in the protocol to set geometry and FoV per sequence
                       </Typography>
-                    )}
-                    <Box sx={{ marginTop: 1 }}>
+                    ) : (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          Editing geometry for:{" "}
+                          <strong>
+                            {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
+                          </strong>
+                        </Typography>
+                        <Box sx={{ marginTop: 1 }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Orientation
                       </Typography>
@@ -2592,7 +2599,11 @@ const Setup = () => {
                         />
                       </Box>
                     </Box>
+                      </>
+                    )}
                   </Box>
+                  {selectedProtocolSeqId ? (
+                    <>
                   <Box
                     sx={{
                       display: "flex",
@@ -2656,12 +2667,14 @@ const Setup = () => {
                       </Tooltip>
                     </Box>
                   </Box>
-                </Box>
-
                 <Divider orientation="horizontal" flexItem sx={{
                   mx: 0, mb: 2, mt: 1, borderColor: "rgba(0, 0, 0, 0.35)",
                   borderRightWidth: 1.5,
                 }} />
+                    </>
+                  ) : null}
+                </Box>
+
                 <NiiVue
                   niis={setupNiis}
                   warn={warn}
@@ -2674,7 +2687,7 @@ const Setup = () => {
                   pipelineID="setup"
                   saveROICallback={() => { }}
                   accessToken={accessToken ?? ""}
-                  showFovBoundingBox={showFieldOfViewOverlay}
+                  showFovBoundingBox={Boolean(selectedProtocolSeqId) && showFieldOfViewOverlay}
                   fovBoxOptions={setupFovBoxOptions}
                 // initialSliceType="sagittal"
                 />
