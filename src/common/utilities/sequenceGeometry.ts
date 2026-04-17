@@ -12,7 +12,10 @@ export type Affine4x4 = [
   [number, number, number, number],
 ];
 
-/** Stored ids for phase/frequency encoding direction pickers (labels vary by slice orientation). */
+/**
+ * Stored ids for phase/frequency encoding direction pickers (labels vary by slice orientation).
+ * For the foot–head axis, `up` / `down` mean **head** / **feet** (patient-fixed, head-first; same as superior/inferior); ids are unchanged for JSON compatibility.
+ */
 export type EncodingDirectionId = "left" | "right" | "anterior" | "posterior" | "up" | "down";
 
 export const ENCODING_DIRECTION_OPTIONS: Record<
@@ -28,14 +31,14 @@ export const ENCODING_DIRECTION_OPTIONS: Record<
   sagittal: [
     { value: "posterior", label: "Posterior" },
     { value: "anterior", label: "Anterior" },
-    { value: "down", label: "Down" },
-    { value: "up", label: "Up" },
+    { value: "down", label: "Feet" },
+    { value: "up", label: "Head" },
   ],
   coronal: [
     { value: "left", label: "Left" },
     { value: "right", label: "Right" },
-    { value: "down", label: "Down" },
-    { value: "up", label: "Up" },
+    { value: "down", label: "Feet" },
+    { value: "up", label: "Head" },
   ],
 };
 
@@ -54,8 +57,8 @@ export function clampEncodingDirectionToOrientation(
  * - **`fov_mm`**, **`matrix`**, **`slice`**: copied from Setup form state (user-facing millimetres and counts).
  *   They are **not** taken from Niivue mesh half-extents (the on-screen box may be clamped to the volume).
  * - **`isocenter_mm`** and **`affine`**: built in **physical millimetres** in the same world frame as Niivue’s
- *   `frac2mm` output after normalizing native units; `isocenter_mm` is the live prescription center when the
- *   viewer is available (see `getPrescriptionCenterMmForGeometryExport`).
+ *   `frac2mm` output after normalizing native units; `isocenter_mm` is the live slice group center when the
+ *   viewer is available (see `getSliceCenterMmForGeometryExport`).
  * - **`affine`** maps integer voxel indices to world position in mm; backends should treat it as authoritative
  *   for orientation and spacing; **`ui`** is round-trip metadata for the Setup screen.
  */
@@ -71,18 +74,25 @@ export type SequenceGeometryJson = {
     gap_mm: number;
   };
   /**
-   * Image index → **world position in millimetres** (same RAS-style frame as Niivue `frac2mm` after mm normalization).
+   * Image index → **world position in millimetres** (patient-fixed frame as Niivue `frac2mm` after mm normalization: +x left, +y posterior, +z superior, head-first).
    * **world** = **affine** × [i, j, k, 1]ᵀ with integer indices i∈[0,Nx−1], j∈[0,Ny−1], k∈[0,Nz−1].
    * Column 0 = readout × (fov_x/Nx), column 1 = phase × (fov_y/Ny), column 2 = slice normal × dz
    * (dz = thickness_mm + gap_mm). Column 3 is chosen so the **center** of the grid maps to `isocenter_mm`
    * (matches FoV overlay center), not voxel (0,0,0).
    */
   affine: Affine4x4;
-  /** Setup prescription; not authoritative vs `affine` — use for UI / round-trip. */
+  /** Setup UI metadata; not authoritative vs `affine` — use for UI / round-trip. */
   ui: {
     orientation: FovPlaneOrientation;
     angulation_lr_deg: number;
     angulation_ap_deg: number;
+    /**
+     * Offset of the slice group center (central slice of the stack) from **volume isocenter**, mm,
+     * in CAMRIE world axes (+x toward left, +y toward posterior, +z toward superior; patient-fixed, head-first).
+     */
+    slice_offset_mm?: [number, number, number];
+    /** @deprecated Renamed to {@link SequenceGeometryJson.ui.slice_offset_mm}. */
+    prescription_offset_mm?: [number, number, number];
     /** In-plane anatomical direction for phase-encoded axis (Setup UI; optional for older saves). */
     phase_encoding_direction?: EncodingDirectionId;
     /** In-plane anatomical direction for frequency-encoded axis (readout). */
@@ -123,6 +133,10 @@ export type SetupGeometryCaptureInput = {
   sagittalNumSlices: number;
   sagittalSliceThicknessMm: number;
   sagittalSliceGapMm: number;
+  /** Slice group center offset from volume isocenter (mm; +x left, +y posterior, +z superior). */
+  sliceOffsetXMM: number;
+  sliceOffsetYMM: number;
+  sliceOffsetZMM: number;
   isocenterMm: [number, number, number] | null;
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
@@ -169,6 +183,10 @@ export type SequenceGeometryFormState = {
   sagittalNumSlices: number;
   sagittalSliceThicknessMm: number;
   sagittalSliceGapMm: number;
+  /** Offset of slice group center from volume isocenter (mm; +x toward left, +y toward posterior, +z toward superior; head-first). */
+  sliceOffsetXMM: number;
+  sliceOffsetYMM: number;
+  sliceOffsetZMM: number;
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
 };
@@ -184,6 +202,9 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   sagittalNumSlices: 10,
   sagittalSliceThicknessMm: 1,
   sagittalSliceGapMm: 5,
+  sliceOffsetXMM: 0,
+  sliceOffsetYMM: 0,
+  sliceOffsetZMM: 0,
   phaseEncodingDirection: "left",
   frequencyEncodingDirection: "anterior",
 };
@@ -207,6 +228,9 @@ export function formStateToCaptureInput(
     sagittalNumSlices: form.sagittalNumSlices,
     sagittalSliceThicknessMm: form.sagittalSliceThicknessMm,
     sagittalSliceGapMm: form.sagittalSliceGapMm,
+    sliceOffsetXMM: form.sliceOffsetXMM,
+    sliceOffsetYMM: form.sliceOffsetYMM,
+    sliceOffsetZMM: form.sliceOffsetZMM,
     isocenterMm,
     phaseEncodingDirection: form.phaseEncodingDirection,
     frequencyEncodingDirection: form.frequencyEncodingDirection,
@@ -239,6 +263,9 @@ export function sequenceGeometryJsonToFormState(
       sagittalNumSlices: g.num_slices,
       sagittalSliceThicknessMm: g.slice_thickness_mm,
       sagittalSliceGapMm: g.slice_gap_mm,
+      sliceOffsetXMM: 0,
+      sliceOffsetYMM: 0,
+      sliceOffsetZMM: 0,
       phaseEncodingDirection: clampEncodingDirectionToOrientation(g.orientation, DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection),
       frequencyEncodingDirection: clampEncodingDirectionToOrientation(
         g.orientation,
@@ -252,6 +279,10 @@ export function sequenceGeometryJsonToFormState(
   const o = g.ui.orientation;
   const phaseIn = g.ui.phase_encoding_direction;
   const freqIn = g.ui.frequency_encoding_direction;
+  const off =
+    g.ui.slice_offset_mm ??
+    g.ui.prescription_offset_mm ??
+    ([0, 0, 0] as [number, number, number]);
   return {
     orientation: o,
     angulationLRdeg: g.ui.angulation_lr_deg,
@@ -263,6 +294,9 @@ export function sequenceGeometryJsonToFormState(
     sagittalNumSlices: g.slice.num_slices,
     sagittalSliceThicknessMm: g.slice.thickness_mm,
     sagittalSliceGapMm: g.slice.gap_mm,
+    sliceOffsetXMM: off[0] ?? 0,
+    sliceOffsetYMM: off[1] ?? 0,
+    sliceOffsetZMM: off[2] ?? 0,
     phaseEncodingDirection: clampEncodingDirectionToOrientation(
       o,
       phaseIn ?? DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection,
@@ -284,7 +318,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
   const iso: [number, number, number] | null = input.isocenterMm
     ? [input.isocenterMm[0], input.isocenterMm[1], input.isocenterMm[2]]
     : null;
-  /** Prescription center in Niivue mm; if no volume, origin-centered grid in world mm. */
+  /** Slice group center in world mm; if no volume, origin-centered grid in world mm. */
   const centerMm: [number, number, number] = input.isocenterMm ?? [0, 0, 0];
 
   const nx = Math.max(1, Math.round(input.fovPixelsX));
@@ -323,6 +357,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       orientation: prescription.orientation,
       angulation_lr_deg: prescription.angulationLRdeg ?? 0,
       angulation_ap_deg: prescription.angulationAPdeg ?? 0,
+      slice_offset_mm: [input.sliceOffsetXMM, input.sliceOffsetYMM, input.sliceOffsetZMM],
       phase_encoding_direction: input.phaseEncodingDirection,
       frequency_encoding_direction: input.frequencyEncodingDirection,
     },

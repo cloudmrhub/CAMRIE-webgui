@@ -5,8 +5,8 @@ import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
-  getPrescriptionCenterMmForGeometryExport,
-  resetFovPrescriptionTranslation,
+  getSliceCenterMmForGeometryExport,
+  resetFovSliceTranslation,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import {
@@ -258,8 +258,8 @@ function resolveFovTriplet(
 
 /**
  * Which stored field maps to each Angle row. Internally `angulationLRdeg` / `angulationAPdeg` are rotations about
- * fixed world +X and +Y (see `applyWorldAxisAngulation` in fovBoundingBoxMesh). Labels here describe the **obliquity
- * the user sees** for that orientation (not the rotation axis name).
+ * fixed world +x and +y (see `applyWorldAxisAngulation` in fovBoundingBoxMesh). Labels here describe the **obliquity
+ * the user sees** for that orientation (anterior–posterior vs left–right), not the rotation axis name.
  */
 type FovAngulationAxisKey = "lr" | "ap";
 
@@ -269,23 +269,23 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
   switch (orientation) {
     case "axial":
       return [
-        { label: "Anterior - Posterior", axisKey: "lr" },
-        { label: "Left - Right", axisKey: "ap" },
+        { label: "Anterior–posterior", axisKey: "lr" },
+        { label: "Left–right", axisKey: "ap" },
       ];
     case "sagittal":
       return [
-        { label: "Inferior - Superior", axisKey: "ap" },
-        { label: "Anterior - Posterior", axisKey: "lr" },
+        { label: "Foot–head", axisKey: "ap" },
+        { label: "Anterior–posterior", axisKey: "lr" },
       ];
     case "coronal":
       return [
-        { label: "Inferior - Superior", axisKey: "lr" },
-        { label: "Left - Right", axisKey: "ap" },
+        { label: "Foot–head", axisKey: "lr" },
+        { label: "Left–right", axisKey: "ap" },
       ];
     default:
       return [
-        { label: "Anterior - Posterior", axisKey: "lr" },
-        { label: "Left - Right", axisKey: "ap" },
+        { label: "Anterior–posterior", axisKey: "lr" },
+        { label: "Left–right", axisKey: "ap" },
       ];
   }
 }
@@ -402,9 +402,9 @@ const Setup = () => {
   const [selectedVolume, setSelectedVolume] = useState(0);
   const [warning, setWarning] = useState("");
   const [warningOpen, setWarningOpen] = useState(false);
-  /** Toggle scan prescription (bounding box) on the viewer. */
+  /** Toggle scan / slice overlay (bounding box) on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** When on: Alt+drag = move; Alt+Ctrl+angle = world +X/+Y (labels follow orientation). Shift = finer. Locks match axis rows. */
+  /** When on: Alt+drag = slice offset (LR/AP/FH mm); Alt+Ctrl+drag = angulation about +x / +y (row labels follow orientation). Shift = finer. Locks match angle rows. */
   const [fovOverlayInteractiveEnabled, setFovOverlayInteractiveEnabled] = useState(false);
   /** When set, Alt+Ctrl canvas drag does not change that angle (manual text edits still apply). */
   const [fovInteractiveLockLR, setFovInteractiveLockLR] = useState(false);
@@ -423,6 +423,9 @@ const Setup = () => {
   const [sagittalNumSlicesDraft, setSagittalNumSlicesDraft] = useState<string | null>(null);
   const [sagittalThicknessDraft, setSagittalThicknessDraft] = useState<string | null>(null);
   const [sagittalGapDraft, setSagittalGapDraft] = useState<string | null>(null);
+  const [sliceOffsetXMmDraft, setSliceOffsetXMmDraft] = useState<string | null>(null);
+  const [sliceOffsetYMmDraft, setSliceOffsetYMmDraft] = useState<string | null>(null);
+  const [sliceOffsetZMmDraft, setSliceOffsetZMmDraft] = useState<string | null>(null);
   const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
 
@@ -444,6 +447,14 @@ const Setup = () => {
     if (t === "") return fallback;
     const n = parseFloat(t);
     return Number.isFinite(n) ? Math.max(0, n) : fallback;
+  };
+
+  /** Signed offset in mm (slice group center vs volume isocenter). */
+  const commitSignedMm = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? n : fallback;
   };
 
   const commitAngulationDeg = (raw: string, fallback: number) => {
@@ -1293,6 +1304,9 @@ const Setup = () => {
     setSagittalNumSlicesDraft(null);
     setSagittalThicknessDraft(null);
     setSagittalGapDraft(null);
+    setSliceOffsetXMmDraft(null);
+    setSliceOffsetYMmDraft(null);
+    setSliceOffsetZMmDraft(null);
     setFovAngulationLRdraft(null);
     setFovAngulationAPdraft(null);
   }, [viewerSequenceId]);
@@ -1324,7 +1338,7 @@ const Setup = () => {
     (sequenceId: string): SequenceGeometryJson => {
       let isocenter: [number, number, number] | null = null;
       try {
-        const p = getPrescriptionCenterMmForGeometryExport(nv);
+        const p = getSliceCenterMmForGeometryExport(nv);
         if (p) isocenter = [p[0], p[1], p[2]];
       } catch {
         /* volume not ready */
@@ -1409,12 +1423,27 @@ const Setup = () => {
     ],
   );
 
-  /** Alt+Ctrl+drag on FoV canvas: same world-axis degrees as the angulation text fields (±89.5°). */
+  /** Alt+Ctrl+drag on FoV canvas: same degrees as the angulation fields (±89.5°), about world +x / +y. */
   const handleFovAngulationSetDeg = useCallback(
     (angulationLRdeg: number, angulationAPdeg: number) => {
       setFovAngulationLRdraft(null);
       setFovAngulationAPdraft(null);
       patchActiveSequenceGeometry({ angulationLRdeg, angulationAPdeg });
+    },
+    [patchActiveSequenceGeometry],
+  );
+
+  /** Alt+drag translation: keep offset fields in sync with the mesh (mm along +x left, +y posterior, +z head). */
+  const handleFovSliceOffsetMmChange = useCallback(
+    (offsetWorldMm: [number, number, number]) => {
+      setSliceOffsetXMmDraft(null);
+      setSliceOffsetYMmDraft(null);
+      setSliceOffsetZMmDraft(null);
+      patchActiveSequenceGeometry({
+        sliceOffsetXMM: offsetWorldMm[0],
+        sliceOffsetYMM: offsetWorldMm[1],
+        sliceOffsetZMM: offsetWorldMm[2],
+      });
     },
     [patchActiveSequenceGeometry],
   );
@@ -1428,6 +1457,11 @@ const Setup = () => {
         angulationLRdeg: activeForm.angulationLRdeg,
         angulationAPdeg: activeForm.angulationAPdeg,
       },
+      sliceOffsetWorldMm: [
+        activeForm.sliceOffsetXMM,
+        activeForm.sliceOffsetYMM,
+        activeForm.sliceOffsetZMM,
+      ] as [number, number, number],
       axialSliceStack: {
         numSlices: Math.max(1, Math.round(activeForm.sagittalNumSlices)),
         sliceThicknessMm: Math.max(0.01, activeForm.sagittalSliceThicknessMm),
@@ -1439,6 +1473,7 @@ const Setup = () => {
       fovInteractive: {
         enabled: fovOverlayInteractiveEnabled,
         onAngulationSetDeg: handleFovAngulationSetDeg,
+        onSliceOffsetMmChange: handleFovSliceOffsetMmChange,
         lockAngulationLR: fovInteractiveLockLR,
         lockAngulationAP: fovInteractiveLockAP,
       },
@@ -1449,6 +1484,9 @@ const Setup = () => {
       activeForm.orientation,
       activeForm.angulationLRdeg,
       activeForm.angulationAPdeg,
+      activeForm.sliceOffsetXMM,
+      activeForm.sliceOffsetYMM,
+      activeForm.sliceOffsetZMM,
       activeForm.sagittalNumSlices,
       activeForm.sagittalSliceThicknessMm,
       activeForm.sagittalSliceGapMm,
@@ -1456,6 +1494,7 @@ const Setup = () => {
       fovInteractiveLockLR,
       fovInteractiveLockAP,
       handleFovAngulationSetDeg,
+      handleFovSliceOffsetMmChange,
     ],
   );
 
@@ -2379,7 +2418,157 @@ const Setup = () => {
                       }}
                     >
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Translation and Angulation
+                        Translation
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 1.5,
+                          alignItems: "flex-end",
+                          mb: 2,
+                          width: "100%",
+                        }}
+                      >
+                        <TextField
+                          label="Offset +x (LR) mm"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          disabled={protocolSequences.length === 0}
+                          value={
+                            sliceOffsetXMmDraft !== null
+                              ? sliceOffsetXMmDraft
+                              : String(activeForm.sliceOffsetXMM)
+                          }
+                          onFocus={() =>
+                            setSliceOffsetXMmDraft(String(activeForm.sliceOffsetXMM))
+                          }
+                          onChange={(e) => setSliceOffsetXMmDraft(e.target.value)}
+                          onBlur={() => {
+                            patchActiveSequenceGeometry({
+                              sliceOffsetXMM: commitSignedMm(
+                                sliceOffsetXMmDraft ?? "",
+                                activeForm.sliceOffsetXMM,
+                              ),
+                            });
+                            setSliceOffsetXMmDraft(null);
+                          }}
+                          sx={{ width: 168 }}
+                        />
+                        <TextField
+                          label="Offset +y (AP) mm"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          disabled={protocolSequences.length === 0}
+                          value={
+                            sliceOffsetYMmDraft !== null
+                              ? sliceOffsetYMmDraft
+                              : String(activeForm.sliceOffsetYMM)
+                          }
+                          onFocus={() =>
+                            setSliceOffsetYMmDraft(String(activeForm.sliceOffsetYMM))
+                          }
+                          onChange={(e) => setSliceOffsetYMmDraft(e.target.value)}
+                          onBlur={() => {
+                            patchActiveSequenceGeometry({
+                              sliceOffsetYMM: commitSignedMm(
+                                sliceOffsetYMmDraft ?? "",
+                                activeForm.sliceOffsetYMM,
+                              ),
+                            });
+                            setSliceOffsetYMmDraft(null);
+                          }}
+                          sx={{ width: 168 }}
+                        />
+                        <TextField
+                          label="Offset +z (FH) mm"
+                          type="text"
+                          inputMode="decimal"
+                          size="small"
+                          disabled={protocolSequences.length === 0}
+                          value={
+                            sliceOffsetZMmDraft !== null
+                              ? sliceOffsetZMmDraft
+                              : String(activeForm.sliceOffsetZMM)
+                          }
+                          onFocus={() =>
+                            setSliceOffsetZMmDraft(String(activeForm.sliceOffsetZMM))
+                          }
+                          onChange={(e) => setSliceOffsetZMmDraft(e.target.value)}
+                          onBlur={() => {
+                            patchActiveSequenceGeometry({
+                              sliceOffsetZMM: commitSignedMm(
+                                sliceOffsetZMmDraft ?? "",
+                                activeForm.sliceOffsetZMM,
+                              ),
+                            });
+                            setSliceOffsetZMmDraft(null);
+                          }}
+                          sx={{ width: 168 }}
+                        />
+                        <Tooltip
+                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left–right): +x toward left. AP (anterior–posterior): +y toward posterior. FH (foot–head): +z toward head. Patient-fixed frame, head-first. Alt+drag updates these fields."
+                          placement="bottom"
+                        >
+                          <span>
+                            <IconButton
+                              size="small"
+                              aria-label="About slice offset from isocenter"
+                              disabled={protocolSequences.length === 0}
+                              tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                              sx={{ color: "text.secondary", mb: 0.25 }}
+                            >
+                              <InfoOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          width: "100%",
+                          mt: 1,
+                        }}
+                      >
+                        <Tooltip title="Clear slice offset (fields above and Alt+drag) and place the slice group center on the volume isocenter">
+                          <span>
+                            <CmrButton
+                              variant="outlined"
+                              size="small"
+                              disabled={!nv?.volumes?.[0]}
+                              onClick={() => {
+                                patchActiveSequenceGeometry({
+                                  sliceOffsetXMM: 0,
+                                  sliceOffsetYMM: 0,
+                                  sliceOffsetZMM: 0,
+                                });
+                                try {
+                                  resetFovSliceTranslation(nv);
+                                } catch {
+                                  /* volume not ready */
+                                }
+                              }}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Reset Translation
+                            </CmrButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                      <Box
+                        sx={{
+                          marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                          width: "100%",
+                          maxWidth: "100%",
+                          minWidth: 0,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Angulation
                       </Typography>
                       <Box
                         sx={{
@@ -2553,33 +2742,6 @@ const Setup = () => {
                           );
                         })}
                       </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "flex-start",
-                          width: "100%",
-                          mt: 1,
-                        }}
-                      >
-                        <Tooltip title="Clear Alt+drag translation and place the prescription center back on the volume isocenter">
-                          <span>
-                            <CmrButton
-                              variant="outlined"
-                              size="small"
-                              disabled={!nv?.volumes?.[0]}
-                              onClick={() => {
-                                try {
-                                  resetFovPrescriptionTranslation(nv);
-                                } catch {
-                                  /* volume not ready */
-                                }
-                              }}
-                              sx={{ whiteSpace: "nowrap" }}
-                            >
-                              Reset Translation
-                            </CmrButton>
-                          </span>
-                        </Tooltip>
                       </Box>
                     </Box>
                     <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
@@ -2703,9 +2865,10 @@ const Setup = () => {
                       <Tooltip
                         title={
                           <>
-                            Alt+drag: translate the prescription in world coordinates
+                            Alt+drag: translate the slice group (offsets along left–right, anterior–posterior, foot–head;
+                            mm, patient-fixed, head-first)
                             <br />
-                            Alt+Ctrl+drag: adjust the same angles as the angle fields
+                            Alt+Ctrl+drag: adjust angulation about +x and +y (same as the angle rows)
                             <br />
                             Hold Shift while dragging for finer steps.
                           </>
@@ -2714,7 +2877,7 @@ const Setup = () => {
                         <span>
                           <IconButton
                             size="small"
-                            aria-label="Reposition prescription shortcuts"
+                            aria-label="Reposition slice overlay shortcuts"
                             disabled={!showFieldOfViewOverlay}
                             tabIndex={!showFieldOfViewOverlay ? -1 : 0}
                             sx={{ color: "text.secondary", p: 0.25 }}

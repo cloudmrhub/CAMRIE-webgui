@@ -44,6 +44,12 @@ function niivueWorldToMm(v: number[], minB: number[], maxB: number[]): number[] 
   return [v[0] * inv, v[1] * inv, v[2] * inv];
 }
 
+/** Millimetre displacement in world space → Niivue native (same scale on all axes). */
+function mmVecToNiivueNative(mm: number[], minB: number[], maxB: number[]): number[] {
+  const s = getMmToNiivueWorldScale(minB, maxB);
+  return [mm[0] * s, mm[1] * s, mm[2] * s];
+}
+
 /** Multi-slice axial stack: through-plane axis = voxel k̂ (cross of in-plane î,ĵ); slice centers spaced by thickness + gap. */
 export type AxialSliceStackMm = {
   numSlices: number;
@@ -51,23 +57,23 @@ export type AxialSliceStackMm = {
   sliceGapMm: number;
 };
 
-/** Standard plane relative to world mm (RAS-style: +X left→right, +Y posterior→anterior, +Z inferior→superior). */
+/** Standard plane relative to world mm (patient-fixed, head-first: +x toward left, +y toward posterior, +z toward superior). */
 export type FovPlaneOrientation = "axial" | "sagittal" | "coronal";
 
 /**
- * User-facing prescription (orientation + angulation). Internally we derive unit slice normal **N**, orthonormal
+ * User-facing slice geometry (orientation + angulation). Internally we derive unit slice normal **N**, orthonormal
  * row/column (FoVx/FoVy), and the 3×3 image-to-world rotation [row | col | slice] for mesh / affine use.
  */
 export type FovImagePrescription = {
   orientation: FovPlaneOrientation;
   /**
-   * Rotation about world +X (RAS), degrees, applied before {@link angulationAPdeg}. For an **axial** prescription this
-   * tilts the slice normal in the sagittal plane (A–P obliquity); see {@link applyWorldAxisAngulation}.
+   * Rotation about world +x (left–right axis), degrees, applied before {@link angulationAPdeg}. For an **axial** slice this
+   * tilts the slice normal in the sagittal plane (anterior–posterior obliquity); see {@link applyWorldAxisAngulation}.
    */
   angulationLRdeg: number;
   /**
-   * Rotation about world +Y (RAS), degrees, after {@link angulationLRdeg}. For **axial**, this tilts the normal in the
-   * coronal plane (L–R obliquity).
+   * Rotation about world +y (anterior–posterior axis), degrees, after {@link angulationLRdeg}. For **axial**, this tilts the normal in the
+   * coronal plane (left–right obliquity).
    */
   angulationAPdeg: number;
 };
@@ -77,6 +83,12 @@ export type FovBoxOptions = {
   scale?: number;
   /** When set with positive finite FoV lengths, draws an axial (i–j plane) rectangle at volume isocenter (0.5³ frac), clipped to the volume. */
   axialFovMm?: AxialFovMm;
+  /**
+   * Translation of the **slice group center** (central slice of a multi-slice stack) from the **volume isocenter**,
+   * in **millimetres** in CAMRIE world axes (+x toward left, +y toward posterior, +z toward superior; patient-fixed, head-first; same frame as {@link imageBasisFromOrientationAngulation}).
+   * When set, this drives placement; otherwise legacy {@link NiivueMeshHost.__camrieFovUserTransform} `offsetMm` (native units) is used.
+   */
+  sliceOffsetWorldMm?: [number, number, number];
   /**
    * When set, FoV follows cardinal orientation + LR/AP angulation (computed internally); otherwise voxel i/j/k basis.
    */
@@ -109,9 +121,14 @@ export type FovBoxOptions = {
     enabled?: boolean;
     /**
      * Called while Alt+Ctrl+dragging with absolute angles (deg), clamped ±89.5° here; parent should mirror into the
-     * same LR/AP fields as the prescription inputs.
+     * same LR/AP fields as the angulation inputs.
      */
     onAngulationSetDeg?: (angulationLRdeg: number, angulationAPdeg: number) => void;
+    /**
+     * Alt+drag translation: absolute slice offset (mm, world axes), same triple as {@link FovBoxOptions.sliceOffsetWorldMm}.
+     * Parent should mirror into Setup numeric fields.
+     */
+    onSliceOffsetMmChange?: (offsetWorldMm: [number, number, number]) => void;
     /** When true, canvas angulation drag does not change LR° (only AP updates, if not also locked). */
     lockAngulationLR?: boolean;
     /** When true, canvas angulation drag does not change AP° (only LR updates, if not also locked). */
@@ -369,7 +386,7 @@ function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasis
   }
 }
 
-/** Apply LR (+X) then AP (+Y) world angulation to the full row/col/slice triad. */
+/** Apply LR (+x) then AP (+y) world angulation to the full row/col/slice triad. */
 function applyWorldAxisAngulation(
   basis: VolumeImageBasisMm,
   angulationLRdeg: number,
@@ -405,7 +422,7 @@ function applyWorldAxisAngulation(
 }
 
 /**
- * Full orthonormal basis from UI prescription. Slice normal **N** = `basis.slice` (unit); use for stack direction.
+ * Full orthonormal basis from UI slice orientation. Slice normal **N** = `basis.slice` (unit); use for stack direction.
  * Image→world linear map (columns): **R** = [row | col | slice] (direction cosines in mm).
  */
 export function imageBasisFromOrientationAngulation(
@@ -848,7 +865,7 @@ const DEFAULT_FOV_USER_TRANSFORM: FovUserMeshTransform = {
   offsetMm: [0, 0, 0],
 };
 
-/** Device pixels → LR / AP prescription degrees (Alt+Ctrl+drag), matched to Setup text field convention. */
+/** Device pixels → LR / AP angulation degrees (Alt+Ctrl+drag), matched to Setup text field convention. */
 const FOV_INTERACTIVE_DEG_PER_PIXEL_LR = 0.065;
 const FOV_INTERACTIVE_DEG_PER_PIXEL_AP = 0.065;
 /** Hold Shift while dragging for smaller steps (translate mm and angulation °). */
@@ -1005,8 +1022,11 @@ function computeAxialFovPlacement(
   const af = options.axialFovMm!;
   const unitScale = getMmToNiivueWorldScale(min, max);
   const Ciso = volumeIsocenterMm(nv);
-  // `offsetMm` is updated from `screenXY2mm` — already Niivue world units; do not apply unitScale.
-  const C = vadd(Ciso, [...ut.offsetMm]);
+  const offsetNative =
+    options.sliceOffsetWorldMm !== undefined
+      ? mmVecToNiivueNative([...options.sliceOffsetWorldMm], min, max)
+      : [...ut.offsetMm];
+  const C = vadd(Ciso, offsetNative);
   const prescribed = options.imagePrescription
     ? imageBasisFromOrientationAngulation(
         options.imagePrescription.orientation,
@@ -1112,9 +1132,28 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
       const d0 = (endMM[0] - startMM[0]) * fine;
       const d1 = (endMM[1] - startMM[1]) * fine;
       const d2 = (endMM[2] - startMM[2]) * fine;
-      ut.offsetMm[0] += d0;
-      ut.offsetMm[1] += d1;
-      ut.offsetMm[2] += d2;
+      const { min, max } = volumeWorldAabbMm(nv);
+      const op = host.__camrieFovLastOptions;
+      if (!op) {
+        lastX = px[0];
+        lastY = px[1];
+        return;
+      }
+      const curMm: [number, number, number] =
+        op.sliceOffsetWorldMm !== undefined
+          ? [...op.sliceOffsetWorldMm]
+          : (niivueWorldToMm(ut.offsetMm, min, max) as [number, number, number]);
+      const curNative = mmVecToNiivueNative(curMm, min, max);
+      const newNative = [curNative[0] + d0, curNative[1] + d1, curNative[2] + d2];
+      const newMm = niivueWorldToMm(newNative, min, max) as [number, number, number];
+      ut.offsetMm[0] = 0;
+      ut.offsetMm[1] = 0;
+      ut.offsetMm[2] = 0;
+      host.__camrieFovLastOptions = {
+        ...op,
+        sliceOffsetWorldMm: newMm,
+      };
+      options.fovInteractive?.onSliceOffsetMmChange?.(newMm);
       lastX = px[0];
       lastY = px[1];
       rebuildFovBoundingBoxMeshFromUserTransform(nv);
@@ -1205,10 +1244,14 @@ export function getFovMeshAffineSnapshot(nv: any): {
   const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
   const { min, max } = volumeWorldAabbMm(nv);
   const inv = 1 / getMmToNiivueWorldScale(min, max);
+  const offsetMmPhysical: [number, number, number] =
+    opts.sliceOffsetWorldMm !== undefined
+      ? [...opts.sliceOffsetWorldMm]
+      : ([ut.offsetMm[0] * inv, ut.offsetMm[1] * inv, ut.offsetMm[2] * inv] as [number, number, number]);
   return {
     isocenterMm: niivueWorldToMm(volumeIsocenterMm(nv), min, max),
     userTransform: {
-      offsetMm: [ut.offsetMm[0] * inv, ut.offsetMm[1] * inv, ut.offsetMm[2] * inv] as [number, number, number],
+      offsetMm: offsetMmPhysical,
     },
     centerMm: niivueWorldToMm(geom.centerMm, min, max),
     row: [...geom.row],
@@ -1221,11 +1264,11 @@ export function getFovMeshAffineSnapshot(nv: any): {
 }
 
 /**
- * Prescription center in **physical millimetres** for {@link buildSequenceGeometryJson} (`isocenter_mm` and affine `t`).
+ * Slice group center in **physical millimetres** for {@link buildSequenceGeometryJson} (`isocenter_mm` and affine `t`).
  * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (matches clamped overlay);
  * otherwise volume isocenter plus drag offset (same native→mm normalization).
  */
-export function getPrescriptionCenterMmForGeometryExport(nv: any): [number, number, number] | null {
+export function getSliceCenterMmForGeometryExport(nv: any): [number, number, number] | null {
   try {
     if (!nv?.volumes?.[0]?.frac2mm) return null;
     const snap = getFovMeshAffineSnapshot(nv);
@@ -1235,8 +1278,13 @@ export function getPrescriptionCenterMmForGeometryExport(nv: any): [number, numb
     const host = nv as NiivueMeshHost;
     const { min, max } = volumeWorldAabbMm(nv);
     const volIso = volumeIsocenterMm(nv);
+    const opts = host.__camrieFovLastOptions;
     const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
-    const C = [volIso[0] + ut.offsetMm[0], volIso[1] + ut.offsetMm[1], volIso[2] + ut.offsetMm[2]];
+    const offsetNative =
+      opts?.sliceOffsetWorldMm !== undefined
+        ? mmVecToNiivueNative([...opts.sliceOffsetWorldMm], min, max)
+        : [ut.offsetMm[0], ut.offsetMm[1], ut.offsetMm[2]];
+    const C = [volIso[0] + offsetNative[0], volIso[1] + offsetNative[1], volIso[2] + offsetNative[2]];
     return niivueWorldToMm(C, min, max) as [number, number, number];
   } catch {
     return null;
@@ -1252,8 +1300,13 @@ export function resetFovUserMeshTransform(nv: any): void {
 }
 
 /** Clear Alt+drag translation and redraw FoV meshes when axial FoV options are cached (overlay was attached). */
-export function resetFovPrescriptionTranslation(nv: any): void {
+export function resetFovSliceTranslation(nv: any): void {
   resetFovUserMeshTransform(nv);
+  const host = nv as NiivueMeshHost;
+  const op = host.__camrieFovLastOptions;
+  if (op) {
+    host.__camrieFovLastOptions = { ...op, sliceOffsetWorldMm: [0, 0, 0] };
+  }
   rebuildFovBoundingBoxMeshFromUserTransform(nv);
 }
 
