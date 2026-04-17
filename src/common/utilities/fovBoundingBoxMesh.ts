@@ -20,11 +20,28 @@ export type AxialFovMm = {
 };
 
 /**
- * Same convention as Niivue `createOnLocationChange`: slice-mm (`frac2mm` matrix), not `frac2mmOrtho`.
- * Otherwise the FoV drifts from the crosshair when "world space" / isSliceMM toggles differ.
+ * Same convention as Niivue `createOnLocationChange`: slice matrix (`frac2mm`, `isSliceMM`), not `frac2mmOrtho`.
+ * Returns **Niivue native world units** (often metres), not necessarily millimetres — see {@link getMmToNiivueWorldScale}.
  */
 function sliceMmFromFrac(nv: { frac2mm: (...args: unknown[]) => unknown }, frac: number[]): number[] {
   return nv.frac2mm([frac[0], frac[1], frac[2]], 0, true) as number[];
+}
+
+/**
+ * UI and sequence JSON use millimetres; Niivue `frac2mm` world positions are often **metres** (~0.2 for a 200 mm extent).
+ * Returns the factor such that: `positionInNiivueWorld = lengthInMm * factor`.
+ */
+function getMmToNiivueWorldScale(minB: number[], maxB: number[]): number {
+  const extent = Math.max(maxB[0] - minB[0], maxB[1] - minB[1], maxB[2] - minB[2]);
+  if (extent > 100) return 1;
+  if (extent < 1) return 0.001;
+  return 0.001;
+}
+
+/** Inverse of {@link getMmToNiivueWorldScale} — converts Niivue world length/position to millimetres. */
+function niivueWorldToMm(v: number[], minB: number[], maxB: number[]): number[] {
+  const inv = 1 / getMmToNiivueWorldScale(minB, maxB);
+  return [v[0] * inv, v[1] * inv, v[2] * inv];
 }
 
 /** Multi-slice axial stack: through-plane axis = voxel k̂ (cross of in-plane î,ĵ); slice centers spaced by thickness + gap. */
@@ -112,7 +129,10 @@ export type FovUserMeshTransform = {
   offsetMm: [number, number, number];
 };
 
-/** Last placed FoV geometry (slice-mm world), for {@link getFovMeshAffineSnapshot}. */
+/**
+ * Last placed FoV mesh pose in **Niivue native world units** (same as `frac2mm`); field names use `Mm` historically.
+ * For export, use {@link getFovMeshAffineSnapshot} which converts positions/extents to physical millimetres.
+ */
 export type FovMeshGeometrySnapshot = {
   centerMm: number[];
   row: number[];
@@ -175,7 +195,10 @@ function mergeSliceFillOpacityByView(
   };
 }
 
-/** World-space axis-aligned bounds from Niivue `frac2mm` (8 volume corners). */
+/**
+ * Axis-aligned bounds of the volume in **Niivue world coordinates** (same units as `frac2mm`, often metres).
+ * Name suffix "Mm" is historical; use {@link getMmToNiivueWorldScale} when mixing with UI mm.
+ */
 export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown }): { min: number[]; max: number[] } {
   const xs: number[] = [];
   const ys: number[] = [];
@@ -420,33 +443,6 @@ function throughPlaneAxisMm(nv: { frac2mm: (...args: unknown[]) => unknown }): n
   return vnorm(n);
 }
 
-/** Line C + t·n̂ clipped to world AABB (n̂ unit); returns inclusive [lo, hi] in t. */
-function lineClipIntervalAgainstAabb(C: number[], nHat: number[], minB: number[], maxB: number[]): { lo: number; hi: number } | null {
-  let t0 = -Infinity;
-  let t1 = Infinity;
-  for (let i = 0; i < 3; i++) {
-    const d = nHat[i];
-    if (Math.abs(d) < 1e-14) {
-      if (C[i] < minB[i] - 1e-5 || C[i] > maxB[i] + 1e-5) return null;
-      continue;
-    }
-    const inv0 = (minB[i] - C[i]) / d;
-    const inv1 = (maxB[i] - C[i]) / d;
-    const lo = Math.min(inv0, inv1);
-    const hi = Math.max(inv0, inv1);
-    t0 = Math.max(t0, lo);
-    t1 = Math.min(t1, hi);
-  }
-  if (t0 > t1 + 1e-9) return null;
-  return { lo: t0, hi: t1 };
-}
-
-/** Max |t| such that C + t·n̂ stays in box when 0 ∈ [lo,hi]. */
-function maxSymmetricHalfSpanAlongLine(lo: number, hi: number): number {
-  if (lo <= 0 && hi >= 0) return Math.min(-lo, hi);
-  return 0;
-}
-
 /**
  * Same quad with both triangle windings. Niivue's meshXRay pass uses back-face culling; a flat ring in the
  * slice plane can lose most faces if only one winding is emitted — looks like a single stray triangle.
@@ -555,20 +551,11 @@ function sliceStackScaledGeometry(
   maxB: number[],
 ): { N: number; sp2: number; hT: number } | null {
   const N = Math.max(1, Math.round(numSlices));
-  const T = Math.max(1e-6, thicknessMm);
-  const G = Math.max(0, gapMm);
-  const halfStack = (N * T + (N - 1) * G) / 2;
-
-  const iv = lineClipIntervalAgainstAabb(C, nHat, minB, maxB);
-  if (!iv) return null;
-  const halfAvail = maxSymmetricHalfSpanAlongLine(iv.lo, iv.hi) * 0.98;
-  if (halfAvail < 1e-6) return null;
-
-  const scale = halfStack > 1e-9 ? Math.min(1, halfAvail / halfStack) : 1;
-  const T2 = T * scale;
-  const G2 = G * scale;
-  const sp2 = T2 + G2;
-  const hT = T2 / 2;
+  const unitScale = getMmToNiivueWorldScale(minB, maxB);
+  const T = Math.max(1e-12, thicknessMm * unitScale);
+  const G = Math.max(0, gapMm * unitScale);
+  const sp2 = T + G;
+  const hT = T / 2;
   return { N, sp2, hT };
 }
 
@@ -893,11 +880,15 @@ function createAxialFovMeshList(
   min: number[],
   max: number[],
 ): NVMesh[] | null {
-  const borderMm = Math.min(0.0065, Math.max(0.002, Math.min(h0, h1) * 0.00012));
+  const mmToWorld = getMmToNiivueWorldScale(min, max);
+  const borderWorld = Math.min(
+    0.0065 * mmToWorld,
+    Math.max(0.002 * mmToWorld, Math.min(h0, h1) * 0.00012),
+  );
 
-  let buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, borderMm);
+  let buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, borderWorld);
   if (!buf) {
-    const fallbackBw = Math.min(0.0055, Math.max(0.002, Math.min(h0, h1) * 0.0001));
+    const fallbackBw = Math.min(0.0055 * mmToWorld, Math.max(0.002 * mmToWorld, Math.min(h0, h1) * 0.0001));
     buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, fallbackBw);
   }
   if (!buf) return null;
@@ -913,7 +904,10 @@ function createAxialFovMeshList(
 
   const st = options?.axialSliceStack;
   if (nHat && isValidAxialSliceStack(st)) {
-    const stackLw = Math.min(0.0075, Math.max(0.0025, Math.min(h0, h1) * 0.00014));
+    const stackLw = Math.min(
+      0.0075 * mmToWorld,
+      Math.max(0.0025 * mmToWorld, Math.min(h0, h1) * 0.00014),
+    );
     const stackFillBuf = buildAxialSliceStackSolidFillBuffers(
       C,
       u0,
@@ -1009,7 +1003,9 @@ function computeAxialFovPlacement(
 } | null {
   if (!isValidAxialFovMm(options.axialFovMm)) return null;
   const af = options.axialFovMm!;
+  const unitScale = getMmToNiivueWorldScale(min, max);
   const Ciso = volumeIsocenterMm(nv);
+  // `offsetMm` is updated from `screenXY2mm` — already Niivue world units; do not apply unitScale.
   const C = vadd(Ciso, [...ut.offsetMm]);
   const prescribed = options.imagePrescription
     ? imageBasisFromOrientationAngulation(
@@ -1023,8 +1019,8 @@ function computeAxialFovPlacement(
   const nCross = cross(u0, u1);
   let nHat = vlen(nCross) > 1e-12 ? vnorm(nCross) : throughPlaneAxisMm(nv);
   if (!nHat) return null;
-  let h0 = af.fovXMm / 2;
-  let h1 = af.fovYMm / 2;
+  let h0 = (af.fovXMm / 2) * unitScale;
+  let h1 = (af.fovYMm / 2) * unitScale;
   const clamped = clampHalvesUniformToVolumeAabb(C, u0, u1, h0, h1, min, max);
   h0 = clamped.h0;
   h1 = clamped.h1;
@@ -1182,8 +1178,14 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
 }
 
 /**
- * Snapshot of FoV pose for backend / affine (slice-mm world mm, same as `frac2mm` when slice MM is on).
- * Returns null if no axial FoV was attached or geometry is unavailable.
+ * Debug / tooling snapshot of the live FoV mesh vs the volume.
+ *
+ * - **Positions** (`isocenterMm`, `centerMm`, `userTransform.offsetMm`, `halfExtentsMm`) are converted to
+ *   **physical millimetres** in the same world frame as Niivue’s `frac2mm` output (native units normalized to mm).
+ * - **`axialFovMm`** is copied from the attach options — same user-entered FoV as the Setup form (not clamped).
+ * - **`halfExtentsMm`** are the **rendered** half-extents after {@link clampHalvesUniformToVolumeAabb}; they can be
+ *   smaller than `axialFovMm/2` when the box is clamped. For sequence JSON, use `SequenceGeometryJson.fov_mm` /
+ *   `slice` from {@link buildSequenceGeometryJson} (form inputs), not these half-extents.
  */
 export function getFovMeshAffineSnapshot(nv: any): {
   isocenterMm: number[];
@@ -1201,23 +1203,27 @@ export function getFovMeshAffineSnapshot(nv: any): {
   const opts = host.__camrieFovLastOptions;
   if (!geom || !opts) return null;
   const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
+  const { min, max } = volumeWorldAabbMm(nv);
+  const inv = 1 / getMmToNiivueWorldScale(min, max);
   return {
-    isocenterMm: [...volumeIsocenterMm(nv)],
-    userTransform: { offsetMm: [...ut.offsetMm] as [number, number, number] },
-    centerMm: [...geom.centerMm],
+    isocenterMm: niivueWorldToMm(volumeIsocenterMm(nv), min, max),
+    userTransform: {
+      offsetMm: [ut.offsetMm[0] * inv, ut.offsetMm[1] * inv, ut.offsetMm[2] * inv] as [number, number, number],
+    },
+    centerMm: niivueWorldToMm(geom.centerMm, min, max),
     row: [...geom.row],
     col: [...geom.col],
     slice: [...geom.slice],
-    halfExtentsMm: { x: geom.halfExtentXMm, y: geom.halfExtentYMm },
+    halfExtentsMm: { x: geom.halfExtentXMm * inv, y: geom.halfExtentYMm * inv },
     axialFovMm: opts.axialFovMm,
     imagePrescription: opts.imagePrescription,
   };
 }
 
 /**
- * World-mm center of the prescribed FoV for backend JSON (`isocenter_mm` / affine `t`).
- * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (includes clamping);
- * otherwise volume isocenter plus any persisted drag offset (e.g. overlay hidden, transform retained).
+ * Prescription center in **physical millimetres** for {@link buildSequenceGeometryJson} (`isocenter_mm` and affine `t`).
+ * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (matches clamped overlay);
+ * otherwise volume isocenter plus drag offset (same native→mm normalization).
  */
 export function getPrescriptionCenterMmForGeometryExport(nv: any): [number, number, number] | null {
   try {
@@ -1227,13 +1233,11 @@ export function getPrescriptionCenterMmForGeometryExport(nv: any): [number, numb
       return [snap.centerMm[0], snap.centerMm[1], snap.centerMm[2]];
     }
     const host = nv as NiivueMeshHost;
+    const { min, max } = volumeWorldAabbMm(nv);
     const volIso = volumeIsocenterMm(nv);
     const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
-    return [
-      volIso[0] + ut.offsetMm[0],
-      volIso[1] + ut.offsetMm[1],
-      volIso[2] + ut.offsetMm[2],
-    ];
+    const C = [volIso[0] + ut.offsetMm[0], volIso[1] + ut.offsetMm[1], volIso[2] + ut.offsetMm[2]];
+    return niivueWorldToMm(C, min, max) as [number, number, number];
   } catch {
     return null;
   }

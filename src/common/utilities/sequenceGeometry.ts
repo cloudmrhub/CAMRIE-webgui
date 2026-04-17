@@ -49,15 +49,21 @@ export function clampEncodingDirectionToOrientation(
 }
 
 /**
- * Geometry for one pulse sequence (JSON export). **Authoritative orientation + spacing** live in `affine`;
- * `fov_mm`, `matrix`, and `slice` are the scalar inputs used to build it (FoV = matrix × resolution in-plane).
- * `ui` is prescription metadata for the Setup screen and round-trip only — backends should trust `affine`.
+ * Geometry for one pulse sequence (JSON export).
+ *
+ * - **`fov_mm`**, **`matrix`**, **`slice`**: copied from Setup form state (user-facing millimetres and counts).
+ *   They are **not** taken from Niivue mesh half-extents (the on-screen box may be clamped to the volume).
+ * - **`isocenter_mm`** and **`affine`**: built in **physical millimetres** in the same world frame as Niivue’s
+ *   `frac2mm` output after normalizing native units; `isocenter_mm` is the live prescription center when the
+ *   viewer is available (see `getPrescriptionCenterMmForGeometryExport`).
+ * - **`affine`** maps integer voxel indices to world position in mm; backends should treat it as authoritative
+ *   for orientation and spacing; **`ui`** is round-trip metadata for the Setup screen.
  */
 export type SequenceGeometryJson = {
   isocenter_mm: [number, number, number] | null;
-  /** In-plane field of view [x, y] in mm. */
+  /** In-plane field of view [x, y] in mm (from form: pixels × mm/px). */
   fov_mm: [number, number];
-  /** Acquisition matrix [Nx, Ny]. */
+  /** Acquisition matrix [Nx, Ny] (from form). */
   matrix: [number, number];
   slice: {
     num_slices: number;
@@ -65,7 +71,7 @@ export type SequenceGeometryJson = {
     gap_mm: number;
   };
   /**
-   * Image index → Niivue **slice-mm** world space (same frame as `volumeIsocenterMm` / `frac2mm(..., true)`).
+   * Image index → **world position in millimetres** (same RAS-style frame as Niivue `frac2mm` after mm normalization).
    * **world** = **affine** × [i, j, k, 1]ᵀ with integer indices i∈[0,Nx−1], j∈[0,Ny−1], k∈[0,Nz−1].
    * Column 0 = readout × (fov_x/Nx), column 1 = phase × (fov_y/Ny), column 2 = slice normal × dz
    * (dz = thickness_mm + gap_mm). Column 3 is chosen so the **center** of the grid maps to `isocenter_mm`
@@ -288,6 +294,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
   const fovY = input.sequenceFovYMM;
   const dx = fovX / nx;
   const dy = fovY / ny;
+  // User slice spacing in mm (same numbers as Setup).
   const dz =
     Math.max(0.01, input.sagittalSliceThicknessMm) + Math.max(0, input.sagittalSliceGapMm);
 

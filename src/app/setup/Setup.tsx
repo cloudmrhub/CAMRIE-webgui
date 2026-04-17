@@ -2680,7 +2680,7 @@ const Setup = () => {
                         checkedColor="#1578A1"
                         onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
                       >
-                        Show Prescription
+                        Show Slices
                       </CmrCheckbox>
                     </Box>
                     <Box
@@ -2698,7 +2698,7 @@ const Setup = () => {
                         disabled={!showFieldOfViewOverlay}
                         onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
                       >
-                        Reposition Prescription
+                        Reposition Slices
                       </CmrCheckbox>
                       <Tooltip
                         title={
