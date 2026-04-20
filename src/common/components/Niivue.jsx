@@ -527,13 +527,20 @@ export default function NiiVueport(props) {
       case "measurement":
         nv.opts.dragMode = nv.dragModes.measurement;
         break;
+      case "translate-slice":
+      case "angle-slice":
+        // Keep native drag as pan; FoV overlay handles its own pointer events.
+        nv.opts.dragMode = nv.dragModes.pan;
+        break;
       case "pan":
+      default:
         // nv.opts.dragMode = 3;
         nv.opts.dragMode = nv.dragModes.pan;
         break;
     }
     // nv.drawScene();
     setDragMode(dragMode);
+    props.onDragModeChange?.(dragMode);
   }
 
   function nvSaveImage() {

@@ -138,6 +138,14 @@ export type FovBoxOptions = {
     lockAngulationLR?: boolean;
     /** When true, canvas angulation drag does not change AP° (only LR updates, if not also locked). */
     lockAngulationAP?: boolean;
+    /** When true, Alt+drag translation is disabled (angulation drag still works if enabled). */
+    lockTranslate?: boolean;
+    /**
+     * When true, plain left-button drag activates the FoV interaction without requiring Alt.
+     * The drag mode (translate vs angulation) is inferred from the lock flags: if `lockTranslate`
+     * is set the drag angulates; if both angulation axes are locked the drag translates.
+     */
+    altFree?: boolean;
   };
   /**
    * When false, user offset from dragging is cleared on the next `attachFovBoundingBoxMesh`. Default true so
@@ -1131,12 +1139,19 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
   };
 
   const onPointerDown = (e: PointerEvent): void => {
-    if (!e.altKey || e.button !== 0) return;
+    if (e.button !== 0) return;
+    const altFree = options.fovInteractive?.altFree;
+    if (!altFree && !e.altKey) return;
     const px = toDevicePx(e);
     if (!px) return;
     e.preventDefault();
     e.stopPropagation();
-    mode = e.ctrlKey || e.metaKey ? "angulation" : "translate";
+    if (altFree) {
+      // Mode is fixed by the lock flags: translate-only or angulation-only.
+      mode = options.fovInteractive?.lockTranslate ? "angulation" : "translate";
+    } else {
+      mode = e.ctrlKey || e.metaKey ? "angulation" : "translate";
+    }
     lastX = px[0];
     lastY = px[1];
     try {
@@ -1155,6 +1170,11 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
     const ut = ensureFovUserTransform(host);
     const fine = e.shiftKey ? FOV_INTERACTIVE_FINE_SCALE : 1;
     if (mode === "translate") {
+      if (options.fovInteractive?.lockTranslate) {
+        lastX = px[0];
+        lastY = px[1];
+        return;
+      }
       // Call on `nv` — same `this`-binding issue as Niivue mouse helpers if extracted to a bare function.
       const endMM = nv.screenXY2mm(px[0], px[1]) as number[];
       const startMM = nv.screenXY2mm(lastX, lastY, endMM[3]) as number[];

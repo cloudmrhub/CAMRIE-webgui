@@ -194,8 +194,8 @@ const FOV_ANGULATION_DEG_MAX = 89.5;
 const FOV_Z_ANGULATION_DEG_MIN = -180;
 const FOV_Z_ANGULATION_DEG_MAX = 180;
 
-/** Fixed label column width (`sm+`) so LR/AP slider tracks share a common start edge. */
-const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 220 };
+/** Fixed label column width (`sm+`) so X/Y/Z slider tracks share a common start edge. */
+const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 40 };
 
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
@@ -273,23 +273,23 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
   switch (orientation) {
     case "axial":
       return [
-        { label: "Anterior–posterior", axisKey: "lr" },
-        { label: "Left–right", axisKey: "ap" },
+        { label: "X", axisKey: "lr" },
+        { label: "Y", axisKey: "ap" },
       ];
     case "sagittal":
       return [
-        { label: "Foot–head", axisKey: "ap" },
-        { label: "Anterior–posterior", axisKey: "lr" },
+        { label: "X", axisKey: "ap" },
+        { label: "Y", axisKey: "lr" },
       ];
     case "coronal":
       return [
-        { label: "Foot–head", axisKey: "lr" },
-        { label: "Left–right", axisKey: "ap" },
+        { label: "X", axisKey: "lr" },
+        { label: "Y", axisKey: "ap" },
       ];
     default:
       return [
-        { label: "Anterior–posterior", axisKey: "lr" },
-        { label: "Left–right", axisKey: "ap" },
+        { label: "X", axisKey: "lr" },
+        { label: "Y", axisKey: "ap" },
       ];
   }
 }
@@ -408,8 +408,8 @@ const Setup = () => {
   const [warningOpen, setWarningOpen] = useState(false);
   /** Toggle scan / slice overlay (bounding box) on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** When on: Alt+drag = slice offset (LR/AP/FH mm); Alt+Ctrl+drag = LR/AP angulation only (+x / +y). Z angle is UI-only. Shift = finer. Locks match LR/AP rows. */
-  const [fovOverlayInteractiveEnabled, setFovOverlayInteractiveEnabled] = useState(false);
+  /** Controlled by the "Translate Slice" / "Angle Slice" dropdown options in the viewer toolbar. */
+  const [fovInteractiveMode, setFovInteractiveMode] = useState<"translate" | "angle" | null>(null);
   /** When set, Alt+Ctrl canvas drag does not change that angle (manual text edits still apply). */
   const [fovInteractiveLockLR, setFovInteractiveLockLR] = useState(false);
   const [fovInteractiveLockAP, setFovInteractiveLockAP] = useState(false);
@@ -1492,11 +1492,13 @@ const Setup = () => {
       opacity: 1,
       name: "Axial FOV",
       fovInteractive: {
-        enabled: fovOverlayInteractiveEnabled,
+        enabled: fovInteractiveMode !== null,
+        altFree: fovInteractiveMode !== null,
         onAngulationSetDeg: handleFovAngulationSetDeg,
         onSliceOffsetMmChange: handleFovSliceOffsetMmChange,
-        lockAngulationLR: fovInteractiveLockLR,
-        lockAngulationAP: fovInteractiveLockAP,
+        lockAngulationLR: fovInteractiveMode === "translate" || fovInteractiveLockLR,
+        lockAngulationAP: fovInteractiveMode === "translate" || fovInteractiveLockAP,
+        lockTranslate: fovInteractiveMode === "angle",
       },
     }),
     [
@@ -1512,7 +1514,7 @@ const Setup = () => {
       activeForm.sagittalNumSlices,
       activeForm.sagittalSliceThicknessMm,
       activeForm.sagittalSliceGapMm,
-      fovOverlayInteractiveEnabled,
+      fovInteractiveMode,
       fovInteractiveLockLR,
       fovInteractiveLockAP,
       handleFovAngulationSetDeg,
@@ -2453,7 +2455,7 @@ const Setup = () => {
                         }}
                       >
                         <TextField
-                          label="Offset +x (LR) mm"
+                          label="Offset +X mm"
                           type="text"
                           inputMode="decimal"
                           size="small"
@@ -2479,7 +2481,7 @@ const Setup = () => {
                           sx={{ width: 168 }}
                         />
                         <TextField
-                          label="Offset +y (AP) mm"
+                          label="Offset +Y mm"
                           type="text"
                           inputMode="decimal"
                           size="small"
@@ -2505,7 +2507,7 @@ const Setup = () => {
                           sx={{ width: 168 }}
                         />
                         <TextField
-                          label="Offset +z (FH) mm"
+                          label="Offset +Z mm"
                           type="text"
                           inputMode="decimal"
                           size="small"
@@ -2531,7 +2533,7 @@ const Setup = () => {
                           sx={{ width: 168 }}
                         />
                         <Tooltip
-                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left–right): +x toward left. AP (anterior–posterior): +y toward posterior. FH (foot–head): +z toward head. Patient-fixed frame, head-first. Alt+drag updates these fields."
+                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left-right): +x toward left. AP (anterior-posterior): +y toward posterior. FH (foot-head): +z toward head. Patient-fixed frame, head-first. Alt+drag updates these fields."
                           placement="bottom"
                         >
                           <span>
@@ -2792,19 +2794,6 @@ const Setup = () => {
                             <Typography variant="body2" component="div">
                               Z:
                             </Typography>
-                            <Tooltip title="Z angulation: rotation in the slice plane about the slice normal (after LR/AP tilts). Right-hand rule; does not tilt the plane. Alt+Ctrl+drag does not change Z.">
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  aria-label="About Z angulation"
-                                  disabled={protocolSequences.length === 0}
-                                  tabIndex={protocolSequences.length === 0 ? -1 : 0}
-                                  sx={{ color: "text.secondary", p: 0.25 }}
-                                >
-                                  <InfoOutlinedIcon fontSize="small" />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
                           </Box>
                           <Box
                             sx={{
@@ -3003,48 +2992,6 @@ const Setup = () => {
                         Show Slices
                       </CmrCheckbox>
                     </Box>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.25,
-                        "& .MuiFormControlLabel-root": { margin: 0 },
-                      }}
-                    >
-                      <CmrCheckbox
-                        id="fov-overlay-interactive-drag"
-                        checked={fovOverlayInteractiveEnabled}
-                        checkedColor="#1578A1"
-                        disabled={!showFieldOfViewOverlay}
-                        onChange={(e) => setFovOverlayInteractiveEnabled(e.target.checked)}
-                      >
-                        Reposition Slices
-                      </CmrCheckbox>
-                      <Tooltip
-                        title={
-                          <>
-                            Alt+drag: translate the slice group (offsets along left–right, anterior–posterior, foot–head;
-                            mm, patient-fixed, head-first)
-                            <br />
-                            Alt+Ctrl+drag: LR/AP angulation about +x and +y (first two rows; Z is not driven from canvas)
-                            <br />
-                            Hold Shift while dragging for finer steps.
-                          </>
-                        }
-                      >
-                        <span>
-                          <IconButton
-                            size="small"
-                            aria-label="Reposition slice overlay shortcuts"
-                            disabled={!showFieldOfViewOverlay}
-                            tabIndex={!showFieldOfViewOverlay ? -1 : 0}
-                            sx={{ color: "text.secondary", p: 0.25 }}
-                          >
-                            <InfoOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </Box>
                   </Box>
                 <Divider orientation="horizontal" flexItem sx={{
                   mx: 0, mb: 2, mt: 1, borderColor: "rgba(0, 0, 0, 0.35)",
@@ -3068,6 +3015,11 @@ const Setup = () => {
                   accessToken={accessToken ?? ""}
                   showFovBoundingBox={Boolean(selectedProtocolSeqId) && showFieldOfViewOverlay}
                   fovBoxOptions={setupFovBoxOptions}
+                  onDragModeChange={(mode: string) => {
+                    if (mode === "translate-slice") setFovInteractiveMode("translate");
+                    else if (mode === "angle-slice") setFovInteractiveMode("angle");
+                    else setFovInteractiveMode(null);
+                  }}
                 // initialSliceType="sagittal"
                 />
               </CmrPanel>
