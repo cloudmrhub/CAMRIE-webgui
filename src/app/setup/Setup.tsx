@@ -190,6 +190,10 @@ const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
 const FOV_ANGULATION_DEG_MIN = -89.5;
 const FOV_ANGULATION_DEG_MAX = 89.5;
 
+/** Z angulation about slice normal (after LR/AP world tilts). */
+const FOV_Z_ANGULATION_DEG_MIN = -180;
+const FOV_Z_ANGULATION_DEG_MAX = 180;
+
 /** Fixed label column width (`sm+`) so LR/AP slider tracks share a common start edge. */
 const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 220 };
 
@@ -257,9 +261,9 @@ function resolveFovTriplet(
 }
 
 /**
- * Which stored field maps to each Angle row. Internally `angulationLRdeg` / `angulationAPdeg` are rotations about
- * fixed world +x and +y (see `applyWorldAxisAngulation` in fovBoundingBoxMesh). Labels here describe the **obliquity
- * the user sees** for that orientation (anterior–posterior vs left–right), not the rotation axis name.
+ * Which stored field maps to each LR/AP angle row. Internally `angulationLRdeg` / `angulationAPdeg` are rotations about
+ * fixed world +x and +y (see `applyWorldAxisAngulation` in fovBoundingBoxMesh). **Z** is rotation about the slice normal
+ * (third row). LR/AP labels describe **obliquity the user sees**, not axis names.
  */
 type FovAngulationAxisKey = "lr" | "ap";
 
@@ -404,11 +408,13 @@ const Setup = () => {
   const [warningOpen, setWarningOpen] = useState(false);
   /** Toggle scan / slice overlay (bounding box) on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** When on: Alt+drag = slice offset (LR/AP/FH mm); Alt+Ctrl+drag = angulation about +x / +y (row labels follow orientation). Shift = finer. Locks match angle rows. */
+  /** When on: Alt+drag = slice offset (LR/AP/FH mm); Alt+Ctrl+drag = LR/AP angulation only (+x / +y). Z angle is UI-only. Shift = finer. Locks match LR/AP rows. */
   const [fovOverlayInteractiveEnabled, setFovOverlayInteractiveEnabled] = useState(false);
   /** When set, Alt+Ctrl canvas drag does not change that angle (manual text edits still apply). */
   const [fovInteractiveLockLR, setFovInteractiveLockLR] = useState(false);
   const [fovInteractiveLockAP, setFovInteractiveLockAP] = useState(false);
+  /** When set, the Z (in-plane rotation) slider and text field are disabled to prevent accidental changes. */
+  const [fovInteractiveLockZ, setFovInteractiveLockZ] = useState(false);
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
   const [geometryBySequenceId, setGeometryBySequenceId] = useState<
     Record<string, SequenceGeometryFormState>
@@ -428,6 +434,7 @@ const Setup = () => {
   const [sliceOffsetZMmDraft, setSliceOffsetZMmDraft] = useState<string | null>(null);
   const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
+  const [fovAngulationZDraft, setFovAngulationZDraft] = useState<string | null>(null);
 
   const commitFovResMm = (raw: string, fallback: number) => {
     const t = raw.trim();
@@ -463,6 +470,14 @@ const Setup = () => {
     const n = parseFloat(t);
     if (!Number.isFinite(n)) return fallback;
     return Math.max(FOV_ANGULATION_DEG_MIN, Math.min(FOV_ANGULATION_DEG_MAX, n));
+  };
+
+  const commitAngulationZDeg = (raw: string, fallback: number) => {
+    const t = raw.trim();
+    if (t === "") return fallback;
+    const n = parseFloat(t);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(FOV_Z_ANGULATION_DEG_MIN, Math.min(FOV_Z_ANGULATION_DEG_MAX, n));
   };
 
   /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
@@ -1281,7 +1296,10 @@ const Setup = () => {
 
   const activeForm: SequenceGeometryFormState = useMemo(() => {
     if (!viewerSequenceId) return DEFAULT_SEQUENCE_GEOMETRY_FORM;
-    return geometryBySequenceId[viewerSequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
+    return {
+      ...DEFAULT_SEQUENCE_GEOMETRY_FORM,
+      ...geometryBySequenceId[viewerSequenceId],
+    };
   }, [viewerSequenceId, geometryBySequenceId]);
 
   const fovAngleRows = useMemo(
@@ -1309,6 +1327,7 @@ const Setup = () => {
     setSliceOffsetZMmDraft(null);
     setFovAngulationLRdraft(null);
     setFovAngulationAPdraft(null);
+    setFovAngulationZDraft(null);
   }, [viewerSequenceId]);
 
   useEffect(() => {
@@ -1423,11 +1442,12 @@ const Setup = () => {
     ],
   );
 
-  /** Alt+Ctrl+drag on FoV canvas: same degrees as the angulation fields (±89.5°), about world +x / +y. */
+  /** Alt+Ctrl+drag on FoV canvas: LR/AP only (±89.5°), about world +x / +y; Z unchanged. */
   const handleFovAngulationSetDeg = useCallback(
     (angulationLRdeg: number, angulationAPdeg: number) => {
       setFovAngulationLRdraft(null);
       setFovAngulationAPdraft(null);
+      setFovAngulationZDraft(null);
       patchActiveSequenceGeometry({ angulationLRdeg, angulationAPdeg });
     },
     [patchActiveSequenceGeometry],
@@ -1456,6 +1476,7 @@ const Setup = () => {
         orientation: activeForm.orientation,
         angulationLRdeg: activeForm.angulationLRdeg,
         angulationAPdeg: activeForm.angulationAPdeg,
+        angulationZDeg: activeForm.angulationZDeg,
       },
       sliceOffsetWorldMm: [
         activeForm.sliceOffsetXMM,
@@ -1484,6 +1505,7 @@ const Setup = () => {
       activeForm.orientation,
       activeForm.angulationLRdeg,
       activeForm.angulationAPdeg,
+      activeForm.angulationZDeg,
       activeForm.sliceOffsetXMM,
       activeForm.sliceOffsetYMM,
       activeForm.sliceOffsetZMM,
@@ -2198,16 +2220,16 @@ const Setup = () => {
                   >
                     {protocolSequences.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">
-                        Add sequences to the protocol to set geometry and FoV per sequence
+                        Add sequences to the protocol to set slice selection and FoV per sequence
                       </Typography>
                     ) : !selectedProtocolSeqId ? (
                       <Typography variant="body2" color="text.secondary">
-                        Select a sequence in the protocol to set geometry and FoV per sequence
+                        Select a sequence in the protocol to set slice selection and FoV per sequence
                       </Typography>
                     ) : (
                       <>
                         <Typography variant="body2" color="text.secondary">
-                          Editing geometry for:{" "}
+                          Editing:{" "}
                           <strong>
                             {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
                           </strong>
@@ -2598,7 +2620,6 @@ const Setup = () => {
                                 width: "100%",
                                 maxWidth: "100%",
                                 minWidth: 0,
-                                marginBottom: index === 0 ? 1 : 0,
                                 boxSizing: "border-box",
                               }}
                             >
@@ -2741,6 +2762,143 @@ const Setup = () => {
                             </Box>
                           );
                         })}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
+                            alignItems: { xs: "stretch", sm: "flex-start" },
+                            flexWrap: "nowrap",
+                            gap: 1.5,
+                            width: "100%",
+                            maxWidth: "100%",
+                            minWidth: 0,
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              flexShrink: 0,
+                              boxSizing: "border-box",
+                              width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              pr: { sm: 0.5 },
+                              lineHeight: 1.35,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <Typography variant="body2" component="div">
+                              Z:
+                            </Typography>
+                            <Tooltip title="Z angulation: rotation in the slice plane about the slice normal (after LR/AP tilts). Right-hand rule; does not tilt the plane. Alt+Ctrl+drag does not change Z.">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  aria-label="About Z angulation"
+                                  disabled={protocolSequences.length === 0}
+                                  tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                                  sx={{ color: "text.secondary", p: 0.25 }}
+                                >
+                                  <InfoOutlinedIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: { xs: "flex-start", sm: "space-between" },
+                              gap: { xs: 1.5, sm: 2 },
+                              flex: "1 1 0",
+                              flexWrap: "wrap",
+                              minWidth: 0,
+                              width: { xs: "100%", sm: "auto" },
+                              maxWidth: "100%",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <Slider
+                              size="medium"
+                              disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
+                              value={activeForm.angulationZDeg}
+                              min={FOV_Z_ANGULATION_DEG_MIN}
+                              max={FOV_Z_ANGULATION_DEG_MAX}
+                              step={0.1}
+                              valueLabelDisplay="auto"
+                              valueLabelFormat={(v) => `${v}°`}
+                              getAriaValueText={(v) => `${v} degrees`}
+                              onChange={(_, v) => {
+                                const num = typeof v === "number" ? v : v[0];
+                                setFovAngulationZDraft(null);
+                                patchActiveSequenceGeometry({ angulationZDeg: num });
+                              }}
+                              sx={{
+                                flex: "1 1 120px",
+                                minWidth: 0,
+                                maxWidth: "100%",
+                                width: "100%",
+                                color: "#1578A1",
+                                "& .MuiSlider-thumb": { color: "#1578A1" },
+                                "& .MuiSlider-track": { color: "#1578A1" },
+                              }}
+                            />
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                flexShrink: 0,
+                                flexWrap: "wrap",
+                                minWidth: 0,
+                              }}
+                            >
+                              <TextField
+                                type="text"
+                                inputMode="decimal"
+                                size="small"
+                                disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
+                                value={
+                                  fovAngulationZDraft !== null
+                                    ? fovAngulationZDraft
+                                    : String(activeForm.angulationZDeg)
+                                }
+                                onFocus={() =>
+                                  setFovAngulationZDraft(String(activeForm.angulationZDeg))
+                                }
+                                onChange={(e) => setFovAngulationZDraft(e.target.value)}
+                                onBlur={() => {
+                                  patchActiveSequenceGeometry({
+                                    angulationZDeg: commitAngulationZDeg(
+                                      fovAngulationZDraft ?? "",
+                                      activeForm.angulationZDeg,
+                                    ),
+                                  });
+                                  setFovAngulationZDraft(null);
+                                }}
+                                sx={{ width: 96, flexShrink: 0 }}
+                                InputProps={{
+                                  endAdornment: (
+                                    <InputAdornment position="end">°</InputAdornment>
+                                  ),
+                                }}
+                              />
+                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                <CmrCheckbox
+                                  id="fov-lock-z-angulation"
+                                  checked={fovInteractiveLockZ}
+                                  checkedColor="#1578A1"
+                                  disabled={protocolSequences.length === 0}
+                                  onChange={(e) => setFovInteractiveLockZ(e.target.checked)}
+                                >
+                                  Lock
+                                </CmrCheckbox>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Box>
                       </Box>
                       </Box>
                     </Box>
@@ -2868,7 +3026,7 @@ const Setup = () => {
                             Alt+drag: translate the slice group (offsets along left–right, anterior–posterior, foot–head;
                             mm, patient-fixed, head-first)
                             <br />
-                            Alt+Ctrl+drag: adjust angulation about +x and +y (same as the angle rows)
+                            Alt+Ctrl+drag: LR/AP angulation about +x and +y (first two rows; Z is not driven from canvas)
                             <br />
                             Hold Shift while dragging for finer steps.
                           </>

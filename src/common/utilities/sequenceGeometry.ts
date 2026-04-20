@@ -86,6 +86,10 @@ export type SequenceGeometryJson = {
     orientation: FovPlaneOrientation;
     angulation_lr_deg: number;
     angulation_ap_deg: number;
+    /** Z angulation about slice normal after LR/AP (deg). Prefer over deprecated `angulation_slice_deg`. */
+    angulation_z_deg?: number;
+    /** @deprecated Renamed to {@link SequenceGeometryJson.ui.angulation_z_deg}. */
+    angulation_slice_deg?: number;
     /**
      * Offset of the slice group center (central slice of the stack) from **volume isocenter**, mm,
      * in CAMRIE world axes (+x toward left, +y toward posterior, +z toward superior; patient-fixed, head-first).
@@ -176,6 +180,8 @@ export type SequenceGeometryFormState = {
   orientation: FovPlaneOrientation;
   angulationLRdeg: number;
   angulationAPdeg: number;
+  /** Z angulation about slice normal after LR/AP world tilts (deg). */
+  angulationZDeg: number;
   fovPixelsX: number;
   fovPixelsY: number;
   fovResXMM: number;
@@ -195,6 +201,7 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   orientation: "axial",
   angulationLRdeg: 0,
   angulationAPdeg: 0,
+  angulationZDeg: 0,
   fovPixelsX: 128,
   fovPixelsY: 128,
   fovResXMM: 1,
@@ -218,6 +225,7 @@ export function formStateToCaptureInput(
       orientation: form.orientation,
       angulationLRdeg: form.angulationLRdeg,
       angulationAPdeg: form.angulationAPdeg,
+      angulationZDeg: form.angulationZDeg,
     },
     sequenceFovXMM: Math.max(0, Math.round(form.fovPixelsX) * form.fovResXMM),
     sequenceFovYMM: Math.max(0, Math.round(form.fovPixelsY) * form.fovResYMM),
@@ -256,6 +264,7 @@ export function sequenceGeometryJsonToFormState(
       orientation: g.orientation,
       angulationLRdeg: g.angulation_lr_deg,
       angulationAPdeg: g.angulation_ap_deg,
+      angulationZDeg: 0,
       fovPixelsX: g.pixel_matrix.num_pixels_x,
       fovPixelsY: g.pixel_matrix.num_pixels_y,
       fovResXMM: g.pixel_matrix.resolution_x_mm,
@@ -287,6 +296,7 @@ export function sequenceGeometryJsonToFormState(
     orientation: o,
     angulationLRdeg: g.ui.angulation_lr_deg,
     angulationAPdeg: g.ui.angulation_ap_deg,
+    angulationZDeg: g.ui.angulation_z_deg ?? g.ui.angulation_slice_deg ?? 0,
     fovPixelsX: nx,
     fovPixelsY: ny,
     fovResXMM: nx > 0 ? g.fov_mm[0] / nx : 1,
@@ -314,6 +324,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
     prescription.orientation,
     prescription.angulationLRdeg ?? 0,
     prescription.angulationAPdeg ?? 0,
+    prescription.angulationZDeg ?? 0,
   );
   const iso: [number, number, number] | null = input.isocenterMm
     ? [input.isocenterMm[0], input.isocenterMm[1], input.isocenterMm[2]]
@@ -357,6 +368,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       orientation: prescription.orientation,
       angulation_lr_deg: prescription.angulationLRdeg ?? 0,
       angulation_ap_deg: prescription.angulationAPdeg ?? 0,
+      angulation_z_deg: prescription.angulationZDeg ?? 0,
       slice_offset_mm: [input.sliceOffsetXMM, input.sliceOffsetYMM, input.sliceOffsetZMM],
       phase_encoding_direction: input.phaseEncodingDirection,
       frequency_encoding_direction: input.frequencyEncodingDirection,

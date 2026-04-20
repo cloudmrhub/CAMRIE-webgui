@@ -76,6 +76,11 @@ export type FovImagePrescription = {
    * coronal plane (left–right obliquity).
    */
   angulationAPdeg: number;
+  /**
+   * **Z** angulation: rotation about the slice normal **after** LR/AP tilts (degrees, right-hand rule with slice = row × col).
+   * Spins readout vs phase in the slice plane without changing the plane orientation. Omitted / undefined treated as 0.
+   */
+  angulationZDeg?: number;
 };
 
 export type FovBoxOptions = {
@@ -285,54 +290,54 @@ export function isValidAxialSliceStack(st: AxialSliceStackMm | undefined): st is
   return Number.isFinite(n) && n >= 1 && Number.isFinite(t) && t > 0 && Number.isFinite(g) && g >= 0;
 }
 
-function pointInAabb(p: number[], min: number[], max: number[]): boolean {
-  const e = 1e-4;
-  return p[0] >= min[0] - e && p[0] <= max[0] + e && p[1] >= min[1] - e && p[1] <= max[1] + e && p[2] >= min[2] - e && p[2] <= max[2] + e;
-}
+// function pointInAabb(p: number[], min: number[], max: number[]): boolean {
+//   const e = 1e-4;
+//   return p[0] >= min[0] - e && p[0] <= max[0] + e && p[1] >= min[1] - e && p[1] <= max[1] + e && p[2] >= min[2] - e && p[2] <= max[2] + e;
+// }
 
-function cornersInside(
-  C: number[],
-  u0: number[],
-  u1: number[],
-  h0: number,
-  h1: number,
-  min: number[],
-  max: number[],
-): boolean {
-  const signs: [number, number][] = [
-    [-1, -1],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-  ];
-  for (const [s0, s1] of signs) {
-    const p = [C[0] + s0 * h0 * u0[0] + s1 * h1 * u1[0], C[1] + s0 * h0 * u0[1] + s1 * h1 * u1[1], C[2] + s0 * h0 * u0[2] + s1 * h1 * u1[2]];
-    if (!pointInAabb(p, min, max)) return false;
-  }
-  return true;
-}
+// function cornersInside(
+//   C: number[],
+//   u0: number[],
+//   u1: number[],
+//   h0: number,
+//   h1: number,
+//   min: number[],
+//   max: number[],
+// ): boolean {
+//   const signs: [number, number][] = [
+//     [-1, -1],
+//     [1, -1],
+//     [1, 1],
+//     [-1, 1],
+//   ];
+//   for (const [s0, s1] of signs) {
+//     const p = [C[0] + s0 * h0 * u0[0] + s1 * h1 * u1[0], C[1] + s0 * h0 * u0[1] + s1 * h1 * u1[1], C[2] + s0 * h0 * u0[2] + s1 * h1 * u1[2]];
+//     if (!pointInAabb(p, min, max)) return false;
+//   }
+//   return true;
+// }
 
-/** Uniformly scale half-extents so all four in-plane corners stay inside the volume AABB (same aspect). */
-export function clampHalvesUniformToVolumeAabb(
-  C: number[],
-  u0: number[],
-  u1: number[],
-  h0: number,
-  h1: number,
-  min: number[],
-  max: number[],
-): { h0: number; h1: number } {
-  if (h0 <= 0 || h1 <= 0) return { h0: 0, h1: 0 };
-  if (cornersInside(C, u0, u1, h0, h1, min, max)) return { h0, h1 };
-  let lo = 0;
-  let hi = 1;
-  for (let i = 0; i < 48; i++) {
-    const m = (lo + hi) / 2;
-    if (cornersInside(C, u0, u1, h0 * m, h1 * m, min, max)) lo = m;
-    else hi = m;
-  }
-  return { h0: h0 * lo, h1: h1 * lo };
-}
+// /** Uniformly scale half-extents so all four in-plane corners stay inside the volume AABB (same aspect). */
+// export function clampHalvesUniformToVolumeAabb(
+//   C: number[],
+//   u0: number[],
+//   u1: number[],
+//   h0: number,
+//   h1: number,
+//   min: number[],
+//   max: number[],
+// ): { h0: number; h1: number } {
+//   if (h0 <= 0 || h1 <= 0) return { h0: 0, h1: 0 };
+//   if (cornersInside(C, u0, u1, h0, h1, min, max)) return { h0, h1 };
+//   let lo = 0;
+//   let hi = 1;
+//   for (let i = 0; i < 48; i++) {
+//     const m = (lo + hi) / 2;
+//     if (cornersInside(C, u0, u1, h0 * m, h1 * m, min, max)) lo = m;
+//     else hi = m;
+//   }
+//   return { h0: h0 * lo, h1: h1 * lo };
+// }
 
 /** In-plane axes from voxel i/j steps in slice mm (Gram–Schmidt so u1 ⊥ u0). */
 function volumeInPlaneAxesMm(nv: { frac2mm: (...args: unknown[]) => unknown }): { u0: number[]; u1: number[] } {
@@ -421,16 +426,47 @@ function applyWorldAxisAngulation(
   return { row, col, slice };
 }
 
+/** Z rotation about slice normal after LR/AP world tilts (row/col spin; normal unchanged up to re-orthonormalize). */
+function applyInPlaneAngulation(basis: VolumeImageBasisMm, angulationZDeg: number): VolumeImageBasisMm {
+  let { row, col, slice } = basis;
+  const d = Number.isFinite(angulationZDeg) ? angulationZDeg : 0;
+  if (Math.abs(d) < 1e-12) {
+    return { row: [...row], col: [...col], slice: [...slice] };
+  }
+  const k = vnorm(slice);
+  row = vnorm(rodriguesRotateVector(row, k, d));
+  col = vnorm(rodriguesRotateVector(col, k, d));
+  row = vnorm(row);
+  col = vsub(col, vscale(row, vdot(row, col)));
+  if (vlen(col) < 1e-12) {
+    return basis;
+  }
+  col = vnorm(col);
+  let sl = vnorm(cross(row, col));
+  if (vdot(sl, k) < 0) {
+    col = vnorm(vscale(col, -1));
+    sl = vnorm(cross(row, col));
+  }
+  return { row, col, slice: sl };
+}
+
 /**
  * Full orthonormal basis from UI slice orientation. Slice normal **N** = `basis.slice` (unit); use for stack direction.
  * Image→world linear map (columns): **R** = [row | col | slice] (direction cosines in mm).
+ * Order: cardinal orientation → LR (+x) → AP (+y) → Z (about slice normal).
  */
 export function imageBasisFromOrientationAngulation(
   orientation: FovPlaneOrientation,
   angulationLRdeg: number,
   angulationAPdeg: number,
+  angulationZDeg?: number,
 ): VolumeImageBasisMm {
-  return applyWorldAxisAngulation(baseImageBasisWorld(orientation), angulationLRdeg, angulationAPdeg);
+  const tilted = applyWorldAxisAngulation(
+    baseImageBasisWorld(orientation),
+    angulationLRdeg,
+    angulationAPdeg,
+  );
+  return applyInPlaneAngulation(tilted, angulationZDeg ?? 0);
 }
 
 /**
@@ -1032,6 +1068,7 @@ function computeAxialFovPlacement(
         options.imagePrescription.orientation,
         options.imagePrescription.angulationLRdeg ?? 0,
         options.imagePrescription.angulationAPdeg ?? 0,
+        options.imagePrescription.angulationZDeg ?? 0,
       )
     : volumeImageBasisMm(nv);
   let u0 = [...prescribed.row];
@@ -1039,11 +1076,8 @@ function computeAxialFovPlacement(
   const nCross = cross(u0, u1);
   let nHat = vlen(nCross) > 1e-12 ? vnorm(nCross) : throughPlaneAxisMm(nv);
   if (!nHat) return null;
-  let h0 = (af.fovXMm / 2) * unitScale;
-  let h1 = (af.fovYMm / 2) * unitScale;
-  const clamped = clampHalvesUniformToVolumeAabb(C, u0, u1, h0, h1, min, max);
-  h0 = clamped.h0;
-  h1 = clamped.h1;
+  const h0 = (af.fovXMm / 2) * unitScale;
+  const h1 = (af.fovYMm / 2) * unitScale;
   return { C, u0, u1, nHat, h0, h1 };
 }
 
@@ -1222,8 +1256,8 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
  * - **Positions** (`isocenterMm`, `centerMm`, `userTransform.offsetMm`, `halfExtentsMm`) are converted to
  *   **physical millimetres** in the same world frame as Niivue’s `frac2mm` output (native units normalized to mm).
  * - **`axialFovMm`** is copied from the attach options — same user-entered FoV as the Setup form (not clamped).
- * - **`halfExtentsMm`** are the **rendered** half-extents after {@link clampHalvesUniformToVolumeAabb}; they can be
- *   smaller than `axialFovMm/2` when the box is clamped. For sequence JSON, use `SequenceGeometryJson.fov_mm` /
+ * - **`halfExtentsMm`** are the **rendered** half-extents (equal to `axialFovMm/2` in world scale; the overlay now
+ *   matches the prescribed FoV and may extend outside the volume). For sequence JSON, use `SequenceGeometryJson.fov_mm` /
  *   `slice` from {@link buildSequenceGeometryJson} (form inputs), not these half-extents.
  */
 export function getFovMeshAffineSnapshot(nv: any): {
