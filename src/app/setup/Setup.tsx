@@ -194,8 +194,15 @@ const FOV_ANGULATION_DEG_MAX = 89.5;
 const FOV_Z_ANGULATION_DEG_MIN = -180;
 const FOV_Z_ANGULATION_DEG_MAX = 180;
 
+/** Slider range for slice offset (mm). Text field still accepts values outside this range. */
+const FOV_OFFSET_MM_MIN = -250;
+const FOV_OFFSET_MM_MAX = 250;
+
 /** Fixed label column width (`sm+`) so X/Y/Z slider tracks share a common start edge. */
 const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 40 };
+
+/** Wider label column for the Translation rows whose labels include "Offset +X" etc. */
+const FOV_OFFSET_LABEL_COL_WIDTH_PX = { sm: 110 };
 
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
@@ -2447,117 +2454,131 @@ const Setup = () => {
                       <Box
                         sx={{
                           display: "flex",
-                          flexWrap: "wrap",
+                          flexDirection: "column",
                           gap: 1.5,
-                          alignItems: "flex-end",
-                          mb: 2,
                           width: "100%",
+                          maxWidth: "100%",
+                          minWidth: 0,
+                          boxSizing: "border-box",
+                          mb: 2,
                         }}
                       >
-                        <TextField
-                          label="Offset +X mm"
-                          type="text"
-                          inputMode="decimal"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            sliceOffsetXMmDraft !== null
-                              ? sliceOffsetXMmDraft
-                              : String(activeForm.sliceOffsetXMM)
-                          }
-                          onFocus={() =>
-                            setSliceOffsetXMmDraft(String(activeForm.sliceOffsetXMM))
-                          }
-                          onChange={(e) => setSliceOffsetXMmDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sliceOffsetXMM: commitSignedMm(
-                                sliceOffsetXMmDraft ?? "",
-                                activeForm.sliceOffsetXMM,
-                              ),
-                            });
-                            setSliceOffsetXMmDraft(null);
-                          }}
-                          sx={{ width: 168 }}
-                        />
-                        <TextField
-                          label="Offset +Y mm"
-                          type="text"
-                          inputMode="decimal"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            sliceOffsetYMmDraft !== null
-                              ? sliceOffsetYMmDraft
-                              : String(activeForm.sliceOffsetYMM)
-                          }
-                          onFocus={() =>
-                            setSliceOffsetYMmDraft(String(activeForm.sliceOffsetYMM))
-                          }
-                          onChange={(e) => setSliceOffsetYMmDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sliceOffsetYMM: commitSignedMm(
-                                sliceOffsetYMmDraft ?? "",
-                                activeForm.sliceOffsetYMM,
-                              ),
-                            });
-                            setSliceOffsetYMmDraft(null);
-                          }}
-                          sx={{ width: 168 }}
-                        />
-                        <TextField
-                          label="Offset +Z mm"
-                          type="text"
-                          inputMode="decimal"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            sliceOffsetZMmDraft !== null
-                              ? sliceOffsetZMmDraft
-                              : String(activeForm.sliceOffsetZMM)
-                          }
-                          onFocus={() =>
-                            setSliceOffsetZMmDraft(String(activeForm.sliceOffsetZMM))
-                          }
-                          onChange={(e) => setSliceOffsetZMmDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sliceOffsetZMM: commitSignedMm(
-                                sliceOffsetZMmDraft ?? "",
-                                activeForm.sliceOffsetZMM,
-                              ),
-                            });
-                            setSliceOffsetZMmDraft(null);
-                          }}
-                          sx={{ width: 168 }}
-                        />
-                        <Tooltip
-                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left-right): +x toward left. AP (anterior-posterior): +y toward posterior. FH (foot-head): +z toward head. Patient-fixed frame, head-first. Alt+drag updates these fields."
-                          placement="bottom"
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              aria-label="About slice offset from isocenter"
-                              disabled={protocolSequences.length === 0}
-                              tabIndex={protocolSequences.length === 0 ? -1 : 0}
-                              sx={{ color: "text.secondary", mb: 0.25 }}
+                        {(
+                          [
+                            { label: "Offset +X", draft: sliceOffsetXMmDraft, setDraft: setSliceOffsetXMmDraft, committed: activeForm.sliceOffsetXMM, field: "sliceOffsetXMM" as const },
+                            { label: "Offset +Y", draft: sliceOffsetYMmDraft, setDraft: setSliceOffsetYMmDraft, committed: activeForm.sliceOffsetYMM, field: "sliceOffsetYMM" as const },
+                            { label: "Offset +Z", draft: sliceOffsetZMmDraft, setDraft: setSliceOffsetZMmDraft, committed: activeForm.sliceOffsetZMM, field: "sliceOffsetZMM" as const },
+                          ] as const
+                        ).map(({ label, draft, setDraft, committed, field }) => (
+                          <Box
+                            key={label}
+                            sx={{
+                              display: "flex",
+                              flexDirection: { xs: "column", sm: "row" },
+                              alignItems: { xs: "stretch", sm: "flex-start" },
+                              flexWrap: "nowrap",
+                              gap: 1.5,
+                              width: "100%",
+                              maxWidth: "100%",
+                              minWidth: 0,
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              component="div"
+                              sx={{
+                                flexShrink: 0,
+                                boxSizing: "border-box",
+                                width: { xs: "100%", ...FOV_OFFSET_LABEL_COL_WIDTH_PX },
+                                minWidth: { xs: 0, ...FOV_OFFSET_LABEL_COL_WIDTH_PX },
+                                maxWidth: { xs: "100%", ...FOV_OFFSET_LABEL_COL_WIDTH_PX },
+                                pr: { sm: 0.5 },
+                                lineHeight: 1.35,
+                              }}
                             >
-                              <InfoOutlinedIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                              {label}:
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: { xs: "flex-start", sm: "space-between" },
+                                gap: { xs: 1.5, sm: 2 },
+                                flex: "1 1 0",
+                                flexWrap: "wrap",
+                                minWidth: 0,
+                                width: { xs: "100%", sm: "auto" },
+                                maxWidth: "100%",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <Slider
+                                size="medium"
+                                disabled={protocolSequences.length === 0}
+                                value={committed}
+                                min={FOV_OFFSET_MM_MIN}
+                                max={FOV_OFFSET_MM_MAX}
+                                step={0.5}
+                                valueLabelDisplay="auto"
+                                valueLabelFormat={(v) => `${v} mm`}
+                                getAriaValueText={(v) => `${v} mm`}
+                                onChange={(_, v) => {
+                                  const num = typeof v === "number" ? v : v[0];
+                                  setDraft(null);
+                                  patchActiveSequenceGeometry({ [field]: num });
+                                }}
+                                sx={{
+                                  flex: "1 1 120px",
+                                  minWidth: 0,
+                                  maxWidth: "100%",
+                                  width: "100%",
+                                  color: "#1578A1",
+                                  "& .MuiSlider-thumb": { color: "#1578A1" },
+                                  "& .MuiSlider-track": { color: "#1578A1" },
+                                }}
+                              />
+                              <TextField
+                                type="text"
+                                inputMode="decimal"
+                                size="small"
+                                disabled={protocolSequences.length === 0}
+                                value={draft !== null ? draft : String(committed)}
+                                onFocus={() => setDraft(String(committed))}
+                                onChange={(e) => setDraft(e.target.value)}
+                                onBlur={() => {
+                                  patchActiveSequenceGeometry({
+                                    [field]: commitSignedMm(draft ?? "", committed),
+                                  });
+                                  setDraft(null);
+                                }}
+                                sx={{ width: 96, flexShrink: 0 }}
+                                InputProps={{
+                                  endAdornment: (
+                                    <InputAdornment position="end">mm</InputAdornment>
+                                  ),
+                                }}
+                              />
+                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 }, visibility: "hidden" }} aria-hidden="true">
+                                <CmrCheckbox id={`offset-spacer-${label}`} checked={false} checkedColor="#1578A1">
+                                  Lock
+                                </CmrCheckbox>
+                              </Box>
+                            </Box>
+                          </Box>
+                        ))}
                       </Box>
                       <Box
                         sx={{
                           display: "flex",
                           justifyContent: "flex-start",
+                          alignItems: "center",
+                          gap: 1,
                           width: "100%",
                           mt: 1,
                         }}
                       >
-                        <Tooltip title="Clear slice offset (fields above and Alt+drag) and place the slice group center on the volume isocenter">
+                        <Tooltip title="Place the slice group center back on the volume isocenter">
                           <span>
                             <CmrButton
                               variant="outlined"
@@ -2579,6 +2600,22 @@ const Setup = () => {
                             >
                               Reset Translation
                             </CmrButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip
+                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left-right): +x toward left. AP (anterior-posterior): +y toward posterior. FH (foot-head): +z toward head. Patient-fixed frame, head-first."
+                          placement="bottom"
+                        >
+                          <span>
+                            <IconButton
+                              size="small"
+                              aria-label="About slice offset from isocenter"
+                              disabled={protocolSequences.length === 0}
+                              tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                              sx={{ color: "text.secondary" }}
+                            >
+                              <InfoOutlinedIcon fontSize="small" />
+                            </IconButton>
                           </span>
                         </Tooltip>
                       </Box>
