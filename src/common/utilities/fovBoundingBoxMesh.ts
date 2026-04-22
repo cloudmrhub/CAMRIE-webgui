@@ -958,7 +958,7 @@ function createAxialFovMeshList(
   const name = options?.name ?? "Axial FOV";
   const op = options?.opacity ?? 1;
   const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
-  mesh.opacity = Math.min(1, Math.max(0.05, op));
+  mesh.opacity = Math.min(1, Math.max(0, op));
   styleFovNvmesh(mesh, nv);
 
   const meshes: NVMesh[] = [mesh];
@@ -993,7 +993,7 @@ function createAxialFovMeshList(
         true,
         gl,
       );
-      fillMesh.opacity = 0.22;
+      fillMesh.opacity = Math.max(0, 0.22 * op);
       styleFovSliceFillMesh(fillMesh, nv);
       const scale2d =
         options?.sliceFillOpacityScale2D !== undefined
@@ -1039,7 +1039,7 @@ function createAxialFovMeshList(
         true,
         gl,
       );
-      stackMesh.opacity = Math.min(1, Math.max(0.05, op));
+      stackMesh.opacity = Math.min(1, Math.max(0, op));
       styleFovNvmesh(stackMesh, nv);
       meshes.push(stackMesh);
     }

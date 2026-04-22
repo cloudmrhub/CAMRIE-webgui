@@ -422,6 +422,7 @@ const Setup = () => {
   const [fovInteractiveLockAP, setFovInteractiveLockAP] = useState(false);
   /** When set, the Z (in-plane rotation) slider and text field are disabled to prevent accidental changes. */
   const [fovInteractiveLockZ, setFovInteractiveLockZ] = useState(false);
+  const [fovMeshOpacity, setFovMeshOpacity] = useState(1);
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
   const [geometryBySequenceId, setGeometryBySequenceId] = useState<
     Record<string, SequenceGeometryFormState>
@@ -1496,7 +1497,7 @@ const Setup = () => {
         sliceGapMm: Math.max(0, activeForm.sagittalSliceGapMm),
       },
       rgba255: [57, 255, 20, 255] as [number, number, number, number],
-      opacity: 1,
+      opacity: fovMeshOpacity,
       name: "Axial FOV",
       fovInteractive: {
         enabled: fovInteractiveMode !== null,
@@ -1524,6 +1525,7 @@ const Setup = () => {
       fovInteractiveMode,
       fovInteractiveLockLR,
       fovInteractiveLockAP,
+      fovMeshOpacity,
       handleFovAngulationSetDeg,
       handleFovSliceOffsetMmChange,
     ],
@@ -3001,6 +3003,35 @@ const Setup = () => {
                           inputProps={{ step: "any" }}
                           sx={{ width: 180 }}
                         />
+                      </Box>
+                    </Box>
+                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Opacity
+                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Slider
+                          size="medium"
+                          value={fovMeshOpacity}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          valueLabelDisplay="auto"
+                          valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
+                          getAriaValueText={(v) => `${Math.round(v * 100)}%`}
+                          onChange={(_, v) => setFovMeshOpacity(typeof v === "number" ? v : v[0])}
+                          sx={{
+                            flex: "1 1 120px",
+                            minWidth: 0,
+                            maxWidth: 320,
+                            color: "#1578A1",
+                            "& .MuiSlider-thumb": { color: "#1578A1" },
+                            "& .MuiSlider-track": { color: "#1578A1" },
+                          }}
+                        />
+                        <Typography variant="body2" sx={{ minWidth: 36, color: "text.secondary" }}>
+                          {Math.round(fovMeshOpacity * 100)}%
+                        </Typography>
                       </Box>
                     </Box>
                       </>
