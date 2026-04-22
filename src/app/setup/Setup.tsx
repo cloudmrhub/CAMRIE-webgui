@@ -324,7 +324,7 @@ const Setup = () => {
       transmitChannels: 0,
       emSimulator: 'MARIE_3.0_WSVIE_version',
       // description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/headSurface1.png"
+      image: "/models/headsurface.jpg"
     },
     {
       id: '2',
