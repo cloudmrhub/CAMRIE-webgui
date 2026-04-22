@@ -74,9 +74,9 @@ export default function Toolbar(props: ToolbarProps) {
 
   // let dragModes = ["Pan","Measurement","Contrast",'None'];
   let dragModes = [
-    { value: "pan", label: "Pan and Zoom" },
+    { value: "pan", label: "Zoom and Pan" },
     { value: "measurement", label: "Slice and Measurement" },
-    { value: "contrast", label: "Contrast" },
+    { value: "contrast", label: "Slice andContrast" },
     { value: "none", label: "Slice and None" },
     { value: "translate-slice", label: "Translate Slice" },
     { value: "angle-slice", label: "Angle Slice" },
