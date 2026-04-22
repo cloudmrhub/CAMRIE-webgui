@@ -59,6 +59,8 @@ import {
   Slider,
   InputAdornment,
 } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -201,8 +203,35 @@ const FOV_OFFSET_MM_MAX = 250;
 /** Fixed label column width (`sm+`) so X/Y/Z slider tracks share a common start edge. */
 const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 40 };
 
-/** Wider label column for the Translation rows whose labels include "Offset +X" etc. */
-const FOV_OFFSET_LABEL_COL_WIDTH_PX = { sm: 110 };
+/** Label column for Translation rows (matches Angulation — both now use single-letter labels). */
+const FOV_OFFSET_LABEL_COL_WIDTH_PX = { sm: 40 };
+
+/** Translation + angulation rows: shorter track so inputs stay compact in two-column layout. */
+const FOV_ROW_SLIDER_SX = {
+  flex: "1 1 88px",
+  minWidth: 0,
+  maxWidth: "100%",
+  width: "100%",
+  color: "#1578A1",
+  "& .MuiSlider-thumb": { color: "#1578A1" },
+  "& .MuiSlider-track": { color: "#1578A1" },
+};
+
+/** Stacked Translation/Angulation (phones & smaller laptops): classic full-width rows. */
+const FOV_STACKED_SLIDER_SX = {
+  flex: "1 1 120px",
+  minWidth: 0,
+  maxWidth: "100%",
+  width: "100%",
+  color: "#1578A1",
+  "& .MuiSlider-thumb": { color: "#1578A1" },
+  "& .MuiSlider-track": { color: "#1578A1" },
+};
+
+const FOV_OFFSET_LABEL_COL_STACKED_PX = { sm: 40 };
+
+/** Shared width for translation (mm) and angulation (°) numeric fields. */
+const FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX = 100;
 
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
@@ -423,6 +452,8 @@ const Setup = () => {
   /** When set, the Z (in-plane rotation) slider and text field are disabled to prevent accidental changes. */
   const [fovInteractiveLockZ, setFovInteractiveLockZ] = useState(false);
   const [fovMeshOpacity, setFovMeshOpacity] = useState(1);
+  const theme = useTheme();
+  const isFovTranslationAngulationDesktop = useMediaQuery(theme.breakpoints.up("lg"));
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
   const [geometryBySequenceId, setGeometryBySequenceId] = useState<
     Record<string, SequenceGeometryFormState>
@@ -2441,15 +2472,18 @@ const Setup = () => {
                         </Box>
                       </Box>
                     </Box>
+                    {isFovTranslationAngulationDesktop ? (
                     <Box
                       sx={{
                         marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 0,
+                        alignItems: "flex-start",
                         width: "100%",
-                        maxWidth: "100%",
-                        minWidth: 0,
-                        boxSizing: "border-box",
                       }}
                     >
+                      <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Translation
                       </Typography>
@@ -2467,9 +2501,9 @@ const Setup = () => {
                       >
                         {(
                           [
-                            { label: "Offset +X", draft: sliceOffsetXMmDraft, setDraft: setSliceOffsetXMmDraft, committed: activeForm.sliceOffsetXMM, field: "sliceOffsetXMM" as const },
-                            { label: "Offset +Y", draft: sliceOffsetYMmDraft, setDraft: setSliceOffsetYMmDraft, committed: activeForm.sliceOffsetYMM, field: "sliceOffsetYMM" as const },
-                            { label: "Offset +Z", draft: sliceOffsetZMmDraft, setDraft: setSliceOffsetZMmDraft, committed: activeForm.sliceOffsetZMM, field: "sliceOffsetZMM" as const },
+                            { label: "X", draft: sliceOffsetXMmDraft, setDraft: setSliceOffsetXMmDraft, committed: activeForm.sliceOffsetXMM, field: "sliceOffsetXMM" as const },
+                            { label: "Y", draft: sliceOffsetYMmDraft, setDraft: setSliceOffsetYMmDraft, committed: activeForm.sliceOffsetYMM, field: "sliceOffsetYMM" as const },
+                            { label: "Z", draft: sliceOffsetZMmDraft, setDraft: setSliceOffsetZMmDraft, committed: activeForm.sliceOffsetZMM, field: "sliceOffsetZMM" as const },
                           ] as const
                         ).map(({ label, draft, setDraft, committed, field }) => (
                           <Box
@@ -2477,7 +2511,7 @@ const Setup = () => {
                             sx={{
                               display: "flex",
                               flexDirection: { xs: "column", sm: "row" },
-                              alignItems: { xs: "stretch", sm: "flex-start" },
+                              alignItems: { xs: "stretch", sm: "center" },
                               flexWrap: "nowrap",
                               gap: 1.5,
                               width: "100%",
@@ -2530,41 +2564,530 @@ const Setup = () => {
                                   setDraft(null);
                                   patchActiveSequenceGeometry({ [field]: num });
                                 }}
-                                sx={{
-                                  flex: "1 1 120px",
-                                  minWidth: 0,
-                                  maxWidth: "100%",
-                                  width: "100%",
-                                  color: "#1578A1",
-                                  "& .MuiSlider-thumb": { color: "#1578A1" },
-                                  "& .MuiSlider-track": { color: "#1578A1" },
-                                }}
+                                sx={FOV_ROW_SLIDER_SX}
                               />
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  flexShrink: 0,
+                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                }}
+                              >
+                                <TextField
+                                  type="text"
+                                  inputMode="decimal"
+                                  size="small"
+                                  disabled={protocolSequences.length === 0}
+                                  value={draft !== null ? draft : String(committed)}
+                                  onFocus={() => setDraft(String(committed))}
+                                  onChange={(e) => setDraft(e.target.value)}
+                                  onBlur={() => {
+                                    patchActiveSequenceGeometry({
+                                      [field]: commitSignedMm(draft ?? "", committed),
+                                    });
+                                    setDraft(null);
+                                  }}
+                                  sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0, mr: 0 }}
+                                  InputProps={{
+                                    endAdornment: (
+                                      <InputAdornment position="end" sx={{ ml: 0.5 }}>
+                                        mm
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                          mt: 1,
+                        }}
+                      >
+                        <Tooltip title="Place the slice group center back on the volume isocenter">
+                          <span>
+                            <CmrButton
+                              variant="outlined"
+                              size="small"
+                              disabled={!nv?.volumes?.[0]}
+                              onClick={() => {
+                                patchActiveSequenceGeometry({
+                                  sliceOffsetXMM: 0,
+                                  sliceOffsetYMM: 0,
+                                  sliceOffsetZMM: 0,
+                                });
+                                try {
+                                  resetFovSliceTranslation(nv);
+                                } catch {
+                                  /* volume not ready */
+                                }
+                              }}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Reset Translation
+                            </CmrButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip
+                          title="Slice offset from volume isocenter (mm) for the central slice of the stack. LR (left-right): +x toward left. AP (anterior-posterior): +y toward posterior. FH (foot-head): +z toward head. Patient-fixed frame, head-first."
+                          placement="bottom"
+                        >
+                          <span>
+                            <IconButton
+                              size="small"
+                              aria-label="About slice offset from isocenter"
+                              disabled={protocolSequences.length === 0}
+                              tabIndex={protocolSequences.length === 0 ? -1 : 0}
+                              sx={{ color: "text.secondary" }}
+                            >
+                              <InfoOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                      </Box>
+                      <Divider
+                        orientation="vertical"
+                        flexItem
+                        sx={{
+                          display: { xs: "none", lg: "block" },
+                          mx: 3,
+                          borderColor: "rgba(0, 0, 0, 0.35)",
+                          borderRightWidth: 1.5,
+                        }}
+                      />
+                      <Divider
+                        sx={{
+                          display: { xs: "block", lg: "none" },
+                          width: "100%",
+                          my: 2,
+                          borderColor: "rgba(0, 0, 0, 0.35)",
+                          borderBottomWidth: 1.5,
+                        }}
+                      />
+                      <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Angulation
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.5,
+                          width: "100%",
+                          maxWidth: "100%",
+                          minWidth: 0,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        {fovAngleRows.map((row, index) => {
+                          const isLr = row.axisKey === "lr";
+                          const committedDeg = isLr
+                            ? activeForm.angulationLRdeg
+                            : activeForm.angulationAPdeg;
+                          return (
+                            <Box
+                              key={`${row.axisKey}-${index}`}
+                              sx={{
+                                display: "flex",
+                                flexDirection: { xs: "column", sm: "row" },
+                                alignItems: { xs: "stretch", sm: "center" },
+                                flexWrap: "nowrap",
+                                gap: 1.5,
+                                width: "100%",
+                                maxWidth: "100%",
+                                minWidth: 0,
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <Typography
+                                variant="body2"
+                                component="div"
+                                sx={{
+                                  flexShrink: 0,
+                                  boxSizing: "border-box",
+                                  width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                  pr: { sm: 0.5 },
+                                  lineHeight: 1.35,
+                                }}
+                              >
+                                {row.label}:
+                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: { xs: "flex-start", sm: "space-between" },
+                                  gap: { xs: 1.5, sm: 2 },
+                                  flex: "1 1 0",
+                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                  width: { xs: "100%", sm: "auto" },
+                                  maxWidth: "100%",
+                                  boxSizing: "border-box",
+                                }}
+                              >
+                                <Slider
+                                  size="medium"
+                                  disabled={protocolSequences.length === 0}
+                                  value={committedDeg}
+                                  min={FOV_ANGULATION_DEG_MIN}
+                                  max={FOV_ANGULATION_DEG_MAX}
+                                  step={0.1}
+                                  valueLabelDisplay="auto"
+                                  valueLabelFormat={(v) => `${v}°`}
+                                  getAriaValueText={(v) => `${v} degrees`}
+                                  onChange={(_, v) => {
+                                    const num = typeof v === "number" ? v : v[0];
+                                    if (isLr) {
+                                      setFovAngulationLRdraft(null);
+                                      patchActiveSequenceGeometry({ angulationLRdeg: num });
+                                    } else {
+                                      setFovAngulationAPdraft(null);
+                                      patchActiveSequenceGeometry({ angulationAPdeg: num });
+                                    }
+                                  }}
+                                  sx={FOV_ROW_SLIDER_SX}
+                                />
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5,
+                                    flexShrink: 0,
+                                    flexWrap: "wrap",
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  <TextField
+                                    type="text"
+                                    inputMode="decimal"
+                                    size="small"
+                                    disabled={protocolSequences.length === 0}
+                                    value={
+                                      isLr
+                                        ? fovAngulationLRdraft !== null
+                                          ? fovAngulationLRdraft
+                                          : String(committedDeg)
+                                        : fovAngulationAPdraft !== null
+                                          ? fovAngulationAPdraft
+                                          : String(committedDeg)
+                                    }
+                                    onFocus={() =>
+                                      isLr
+                                        ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
+                                        : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
+                                    }
+                                    onChange={(e) =>
+                                      isLr
+                                        ? setFovAngulationLRdraft(e.target.value)
+                                        : setFovAngulationAPdraft(e.target.value)
+                                    }
+                                    onBlur={() => {
+                                      if (isLr) {
+                                        patchActiveSequenceGeometry({
+                                          angulationLRdeg: commitAngulationDeg(
+                                            fovAngulationLRdraft ?? "",
+                                            activeForm.angulationLRdeg,
+                                          ),
+                                        });
+                                        setFovAngulationLRdraft(null);
+                                      } else {
+                                        patchActiveSequenceGeometry({
+                                          angulationAPdeg: commitAngulationDeg(
+                                            fovAngulationAPdraft ?? "",
+                                            activeForm.angulationAPdeg,
+                                          ),
+                                        });
+                                        setFovAngulationAPdraft(null);
+                                      }
+                                    }}
+                                    sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
+                                    InputProps={{
+                                      endAdornment: (
+                                        <InputAdornment position="end">°</InputAdornment>
+                                      ),
+                                    }}
+                                  />
+                                  {/* TEMP: angulation Lock checkboxes — restore when needed
+                                  <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                    <CmrCheckbox
+                                      id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
+                                      checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
+                                      checkedColor="#1578A1"
+                                      disabled={protocolSequences.length === 0}
+                                      onChange={(e) =>
+                                        isLr
+                                          ? setFovInteractiveLockLR(e.target.checked)
+                                          : setFovInteractiveLockAP(e.target.checked)
+                                      }
+                                    >
+                                      Lock
+                                    </CmrCheckbox>
+                                  </Box>
+                                  */}
+                                </Box>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
+                            alignItems: { xs: "stretch", sm: "center" },
+                            flexWrap: "nowrap",
+                            gap: 1.5,
+                            width: "100%",
+                            maxWidth: "100%",
+                            minWidth: 0,
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              flexShrink: 0,
+                              boxSizing: "border-box",
+                              width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                              pr: { sm: 0.5 },
+                              lineHeight: 1.35,
+                              display: "flex",
+                              alignItems: "center",
+                              alignSelf: { xs: "stretch", sm: "center" },
+                              gap: 0.5,
+                            }}
+                          >
+                            <Typography variant="body2" component="div">
+                              Z:
+                            </Typography>
+                          </Box>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: { xs: "flex-start", sm: "space-between" },
+                              gap: { xs: 1.5, sm: 2 },
+                              flex: "1 1 0",
+                              flexWrap: "wrap",
+                              minWidth: 0,
+                              width: { xs: "100%", sm: "auto" },
+                              maxWidth: "100%",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <Slider
+                              size="medium"
+                              disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
+                              value={activeForm.angulationZDeg}
+                              min={FOV_Z_ANGULATION_DEG_MIN}
+                              max={FOV_Z_ANGULATION_DEG_MAX}
+                              step={0.1}
+                              valueLabelDisplay="auto"
+                              valueLabelFormat={(v) => `${v}°`}
+                              getAriaValueText={(v) => `${v} degrees`}
+                              onChange={(_, v) => {
+                                const num = typeof v === "number" ? v : v[0];
+                                setFovAngulationZDraft(null);
+                                patchActiveSequenceGeometry({ angulationZDeg: num });
+                              }}
+                              sx={FOV_ROW_SLIDER_SX}
+                            />
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                flexShrink: 0,
+                                flexWrap: "wrap",
+                                minWidth: 0,
+                              }}
+                            >
                               <TextField
                                 type="text"
                                 inputMode="decimal"
                                 size="small"
-                                disabled={protocolSequences.length === 0}
-                                value={draft !== null ? draft : String(committed)}
-                                onFocus={() => setDraft(String(committed))}
-                                onChange={(e) => setDraft(e.target.value)}
+                                disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
+                                value={
+                                  fovAngulationZDraft !== null
+                                    ? fovAngulationZDraft
+                                    : String(activeForm.angulationZDeg)
+                                }
+                                onFocus={() =>
+                                  setFovAngulationZDraft(String(activeForm.angulationZDeg))
+                                }
+                                onChange={(e) => setFovAngulationZDraft(e.target.value)}
                                 onBlur={() => {
                                   patchActiveSequenceGeometry({
-                                    [field]: commitSignedMm(draft ?? "", committed),
+                                    angulationZDeg: commitAngulationZDeg(
+                                      fovAngulationZDraft ?? "",
+                                      activeForm.angulationZDeg,
+                                    ),
                                   });
-                                  setDraft(null);
+                                  setFovAngulationZDraft(null);
                                 }}
-                                sx={{ width: 96, flexShrink: 0 }}
+                                sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
                                 InputProps={{
                                   endAdornment: (
-                                    <InputAdornment position="end">mm</InputAdornment>
+                                    <InputAdornment position="end">°</InputAdornment>
                                   ),
                                 }}
                               />
-                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 }, visibility: "hidden" }} aria-hidden="true">
-                                <CmrCheckbox id={`offset-spacer-${label}`} checked={false} checkedColor="#1578A1">
+                              {/* TEMP: angulation Z Lock — restore when needed
+                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                <CmrCheckbox
+                                  id="fov-lock-z-angulation"
+                                  checked={fovInteractiveLockZ}
+                                  checkedColor="#1578A1"
+                                  disabled={protocolSequences.length === 0}
+                                  onChange={(e) => setFovInteractiveLockZ(e.target.checked)}
+                                >
                                   Lock
                                 </CmrCheckbox>
+                              </Box>
+                              */}
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Box>
+                      </Box>
+                    </Box>
+                    ) : (
+                    <Box
+                      sx={{
+                        marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Translation
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.5,
+                          width: "100%",
+                          maxWidth: "100%",
+                          minWidth: 0,
+                          boxSizing: "border-box",
+                          mb: 2,
+                        }}
+                      >
+                        {(
+                          [
+                            { label: "X", draft: sliceOffsetXMmDraft, setDraft: setSliceOffsetXMmDraft, committed: activeForm.sliceOffsetXMM, field: "sliceOffsetXMM" as const },
+                            { label: "Y", draft: sliceOffsetYMmDraft, setDraft: setSliceOffsetYMmDraft, committed: activeForm.sliceOffsetYMM, field: "sliceOffsetYMM" as const },
+                            { label: "Z", draft: sliceOffsetZMmDraft, setDraft: setSliceOffsetZMmDraft, committed: activeForm.sliceOffsetZMM, field: "sliceOffsetZMM" as const },
+                          ] as const
+                        ).map(({ label, draft, setDraft, committed, field }) => (
+                          <Box
+                            key={label}
+                            sx={{
+                              display: "flex",
+                              flexDirection: { xs: "column", sm: "row" },
+                              alignItems: { xs: "stretch", sm: "center" },
+                              flexWrap: "nowrap",
+                              gap: 1.5,
+                              width: "100%",
+                              maxWidth: "100%",
+                              minWidth: 0,
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              component="div"
+                              sx={{
+                                flexShrink: 0,
+                                boxSizing: "border-box",
+                                width: { xs: "100%", ...FOV_OFFSET_LABEL_COL_STACKED_PX },
+                                minWidth: { xs: 0, ...FOV_OFFSET_LABEL_COL_STACKED_PX },
+                                maxWidth: { xs: "100%", ...FOV_OFFSET_LABEL_COL_STACKED_PX },
+                                pr: { sm: 0.5 },
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              {label}:
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: { xs: "flex-start", sm: "space-between" },
+                                gap: { xs: 1.5, sm: 2 },
+                                flex: "1 1 0",
+                                flexWrap: "wrap",
+                                minWidth: 0,
+                                width: { xs: "100%", sm: "auto" },
+                                maxWidth: "100%",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <Slider
+                                size="medium"
+                                disabled={protocolSequences.length === 0}
+                                value={committed}
+                                min={FOV_OFFSET_MM_MIN}
+                                max={FOV_OFFSET_MM_MAX}
+                                step={0.5}
+                                valueLabelDisplay="auto"
+                                valueLabelFormat={(v) => `${v} mm`}
+                                getAriaValueText={(v) => `${v} mm`}
+                                onChange={(_, v) => {
+                                  const num = typeof v === "number" ? v : v[0];
+                                  setDraft(null);
+                                  patchActiveSequenceGeometry({ [field]: num });
+                                }}
+                                sx={FOV_STACKED_SLIDER_SX}
+                              />
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  flexShrink: 0,
+                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                }}
+                              >
+                                <TextField
+                                  type="text"
+                                  inputMode="decimal"
+                                  size="small"
+                                  disabled={protocolSequences.length === 0}
+                                  value={draft !== null ? draft : String(committed)}
+                                  onFocus={() => setDraft(String(committed))}
+                                  onChange={(e) => setDraft(e.target.value)}
+                                  onBlur={() => {
+                                    patchActiveSequenceGeometry({
+                                      [field]: commitSignedMm(draft ?? "", committed),
+                                    });
+                                    setDraft(null);
+                                  }}
+                                  sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
+                                  InputProps={{
+                                    endAdornment: (
+                                      <InputAdornment position="end">mm</InputAdornment>
+                                    ),
+                                  }}
+                                />
                               </Box>
                             </Box>
                           </Box>
@@ -2630,185 +3153,13 @@ const Setup = () => {
                           boxSizing: "border-box",
                         }}
                       >
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Angulation
-                      </Typography>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 1.5,
-                          width: "100%",
-                          maxWidth: "100%",
-                          minWidth: 0,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        {fovAngleRows.map((row, index) => {
-                          const isLr = row.axisKey === "lr";
-                          const committedDeg = isLr
-                            ? activeForm.angulationLRdeg
-                            : activeForm.angulationAPdeg;
-                          return (
-                            <Box
-                              key={`${row.axisKey}-${index}`}
-                              sx={{
-                                display: "flex",
-                                flexDirection: { xs: "column", sm: "row" },
-                                alignItems: { xs: "stretch", sm: "flex-start" },
-                                flexWrap: "nowrap",
-                                gap: 1.5,
-                                width: "100%",
-                                maxWidth: "100%",
-                                minWidth: 0,
-                                boxSizing: "border-box",
-                              }}
-                            >
-                              <Typography
-                                variant="body2"
-                                component="div"
-                                sx={{
-                                  flexShrink: 0,
-                                  boxSizing: "border-box",
-                                  width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                                  minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                                  maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                                  pr: { sm: 0.5 },
-                                  lineHeight: 1.35,
-                                }}
-                              >
-                                {row.label}:
-                              </Typography>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: { xs: "flex-start", sm: "space-between" },
-                                  gap: { xs: 1.5, sm: 2 },
-                                  flex: "1 1 0",
-                                  flexWrap: "wrap",
-                                  minWidth: 0,
-                                  width: { xs: "100%", sm: "auto" },
-                                  maxWidth: "100%",
-                                  boxSizing: "border-box",
-                                }}
-                              >
-                                <Slider
-                                  size="medium"
-                                  disabled={protocolSequences.length === 0}
-                                  value={committedDeg}
-                                  min={FOV_ANGULATION_DEG_MIN}
-                                  max={FOV_ANGULATION_DEG_MAX}
-                                  step={0.1}
-                                  valueLabelDisplay="auto"
-                                  valueLabelFormat={(v) => `${v}°`}
-                                  getAriaValueText={(v) => `${v} degrees`}
-                                  onChange={(_, v) => {
-                                    const num = typeof v === "number" ? v : v[0];
-                                    if (isLr) {
-                                      setFovAngulationLRdraft(null);
-                                      patchActiveSequenceGeometry({ angulationLRdeg: num });
-                                    } else {
-                                      setFovAngulationAPdraft(null);
-                                      patchActiveSequenceGeometry({ angulationAPdeg: num });
-                                    }
-                                  }}
-                                  sx={{
-                                    flex: "1 1 120px",
-                                    minWidth: 0,
-                                    maxWidth: "100%",
-                                    width: "100%",
-                                    color: "#1578A1",
-                                    "& .MuiSlider-thumb": { color: "#1578A1" },
-                                    "& .MuiSlider-track": { color: "#1578A1" },
-                                  }}
-                                />
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1.5,
-                                    flexShrink: 0,
-                                    flexWrap: "wrap",
-                                    minWidth: 0,
-                                  }}
-                                >
-                                  <TextField
-                                    type="text"
-                                    inputMode="decimal"
-                                    size="small"
-                                    disabled={protocolSequences.length === 0}
-                                    value={
-                                      isLr
-                                        ? fovAngulationLRdraft !== null
-                                          ? fovAngulationLRdraft
-                                          : String(committedDeg)
-                                        : fovAngulationAPdraft !== null
-                                          ? fovAngulationAPdraft
-                                          : String(committedDeg)
-                                    }
-                                    onFocus={() =>
-                                      isLr
-                                        ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
-                                        : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
-                                    }
-                                    onChange={(e) =>
-                                      isLr
-                                        ? setFovAngulationLRdraft(e.target.value)
-                                        : setFovAngulationAPdraft(e.target.value)
-                                    }
-                                    onBlur={() => {
-                                      if (isLr) {
-                                        patchActiveSequenceGeometry({
-                                          angulationLRdeg: commitAngulationDeg(
-                                            fovAngulationLRdraft ?? "",
-                                            activeForm.angulationLRdeg,
-                                          ),
-                                        });
-                                        setFovAngulationLRdraft(null);
-                                      } else {
-                                        patchActiveSequenceGeometry({
-                                          angulationAPdeg: commitAngulationDeg(
-                                            fovAngulationAPdraft ?? "",
-                                            activeForm.angulationAPdeg,
-                                          ),
-                                        });
-                                        setFovAngulationAPdraft(null);
-                                      }
-                                    }}
-                                    sx={{ width: 96, flexShrink: 0 }}
-                                    InputProps={{
-                                      endAdornment: (
-                                        <InputAdornment position="end">°</InputAdornment>
-                                      ),
-                                    }}
-                                  />
-                                  <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
-                                    <CmrCheckbox
-                                      id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
-                                      checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
-                                      checkedColor="#1578A1"
-                                      disabled={protocolSequences.length === 0}
-                                      onChange={(e) =>
-                                        isLr
-                                          ? setFovInteractiveLockLR(e.target.checked)
-                                          : setFovInteractiveLockAP(e.target.checked)
-                                      }
-                                    >
-                                      Lock
-                                    </CmrCheckbox>
-                                  </Box>
-                                </Box>
-                              </Box>
-                            </Box>
-                          );
-                        })}
+                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                          Angulation
+                        </Typography>
                         <Box
                           sx={{
                             display: "flex",
-                            flexDirection: { xs: "column", sm: "row" },
-                            alignItems: { xs: "stretch", sm: "flex-start" },
-                            flexWrap: "nowrap",
+                            flexDirection: "column",
                             gap: 1.5,
                             width: "100%",
                             maxWidth: "100%",
@@ -2816,120 +3167,281 @@ const Setup = () => {
                             boxSizing: "border-box",
                           }}
                         >
+                          {fovAngleRows.map((row, index) => {
+                            const isLr = row.axisKey === "lr";
+                            const committedDeg = isLr
+                              ? activeForm.angulationLRdeg
+                              : activeForm.angulationAPdeg;
+                            return (
+                              <Box
+                                key={`${row.axisKey}-${index}`}
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: { xs: "column", sm: "row" },
+                                  alignItems: { xs: "stretch", sm: "center" },
+                                  flexWrap: "nowrap",
+                                  gap: 1.5,
+                                  width: "100%",
+                                  maxWidth: "100%",
+                                  minWidth: 0,
+                                  boxSizing: "border-box",
+                                }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  component="div"
+                                  sx={{
+                                    flexShrink: 0,
+                                    boxSizing: "border-box",
+                                    width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                    minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                    maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                    pr: { sm: 0.5 },
+                                    lineHeight: 1.35,
+                                  }}
+                                >
+                                  {row.label}:
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: { xs: "flex-start", sm: "space-between" },
+                                    gap: { xs: 1.5, sm: 2 },
+                                    flex: "1 1 0",
+                                    flexWrap: "wrap",
+                                    minWidth: 0,
+                                    width: { xs: "100%", sm: "auto" },
+                                    maxWidth: "100%",
+                                    boxSizing: "border-box",
+                                  }}
+                                >
+                                  <Slider
+                                    size="medium"
+                                    disabled={protocolSequences.length === 0}
+                                    value={committedDeg}
+                                    min={FOV_ANGULATION_DEG_MIN}
+                                    max={FOV_ANGULATION_DEG_MAX}
+                                    step={0.1}
+                                    valueLabelDisplay="auto"
+                                    valueLabelFormat={(v) => `${v}°`}
+                                    getAriaValueText={(v) => `${v} degrees`}
+                                    onChange={(_, v) => {
+                                      const num = typeof v === "number" ? v : v[0];
+                                      if (isLr) {
+                                        setFovAngulationLRdraft(null);
+                                        patchActiveSequenceGeometry({ angulationLRdeg: num });
+                                      } else {
+                                        setFovAngulationAPdraft(null);
+                                        patchActiveSequenceGeometry({ angulationAPdeg: num });
+                                      }
+                                    }}
+                                    sx={FOV_STACKED_SLIDER_SX}
+                                  />
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1.5,
+                                      flexShrink: 0,
+                                      flexWrap: "wrap",
+                                      minWidth: 0,
+                                    }}
+                                  >
+                                    <TextField
+                                      type="text"
+                                      inputMode="decimal"
+                                      size="small"
+                                      disabled={protocolSequences.length === 0}
+                                      value={
+                                        isLr
+                                          ? fovAngulationLRdraft !== null
+                                            ? fovAngulationLRdraft
+                                            : String(committedDeg)
+                                          : fovAngulationAPdraft !== null
+                                            ? fovAngulationAPdraft
+                                            : String(committedDeg)
+                                      }
+                                      onFocus={() =>
+                                        isLr
+                                          ? setFovAngulationLRdraft(String(activeForm.angulationLRdeg))
+                                          : setFovAngulationAPdraft(String(activeForm.angulationAPdeg))
+                                      }
+                                      onChange={(e) =>
+                                        isLr
+                                          ? setFovAngulationLRdraft(e.target.value)
+                                          : setFovAngulationAPdraft(e.target.value)
+                                      }
+                                      onBlur={() => {
+                                        if (isLr) {
+                                          patchActiveSequenceGeometry({
+                                            angulationLRdeg: commitAngulationDeg(
+                                              fovAngulationLRdraft ?? "",
+                                              activeForm.angulationLRdeg,
+                                            ),
+                                          });
+                                          setFovAngulationLRdraft(null);
+                                        } else {
+                                          patchActiveSequenceGeometry({
+                                            angulationAPdeg: commitAngulationDeg(
+                                              fovAngulationAPdraft ?? "",
+                                              activeForm.angulationAPdeg,
+                                            ),
+                                          });
+                                          setFovAngulationAPdraft(null);
+                                        }
+                                      }}
+                                      sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
+                                      InputProps={{
+                                        endAdornment: (
+                                          <InputAdornment position="end">°</InputAdornment>
+                                        ),
+                                      }}
+                                    />
+                                    {/* TEMP: angulation Lock checkboxes (stacked) — restore when needed
+                                    <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                      <CmrCheckbox
+                                        id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
+                                        checked={isLr ? fovInteractiveLockLR : fovInteractiveLockAP}
+                                        checkedColor="#1578A1"
+                                        disabled={protocolSequences.length === 0}
+                                        onChange={(e) =>
+                                          isLr
+                                            ? setFovInteractiveLockLR(e.target.checked)
+                                            : setFovInteractiveLockAP(e.target.checked)
+                                        }
+                                      >
+                                        Lock
+                                      </CmrCheckbox>
+                                    </Box>
+                                    */}
+                                  </Box>
+                                </Box>
+                              </Box>
+                            );
+                          })}
                           <Box
                             sx={{
-                              flexShrink: 0,
-                              boxSizing: "border-box",
-                              width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                              minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                              maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
-                              pr: { sm: 0.5 },
-                              lineHeight: 1.35,
                               display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <Typography variant="body2" component="div">
-                              Z:
-                            </Typography>
-                          </Box>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: { xs: "flex-start", sm: "space-between" },
-                              gap: { xs: 1.5, sm: 2 },
-                              flex: "1 1 0",
-                              flexWrap: "wrap",
-                              minWidth: 0,
-                              width: { xs: "100%", sm: "auto" },
+                              flexDirection: { xs: "column", sm: "row" },
+                              alignItems: { xs: "stretch", sm: "center" },
+                              flexWrap: "nowrap",
+                              gap: 1.5,
+                              width: "100%",
                               maxWidth: "100%",
+                              minWidth: 0,
                               boxSizing: "border-box",
                             }}
                           >
-                            <Slider
-                              size="medium"
-                              disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
-                              value={activeForm.angulationZDeg}
-                              min={FOV_Z_ANGULATION_DEG_MIN}
-                              max={FOV_Z_ANGULATION_DEG_MAX}
-                              step={0.1}
-                              valueLabelDisplay="auto"
-                              valueLabelFormat={(v) => `${v}°`}
-                              getAriaValueText={(v) => `${v} degrees`}
-                              onChange={(_, v) => {
-                                const num = typeof v === "number" ? v : v[0];
-                                setFovAngulationZDraft(null);
-                                patchActiveSequenceGeometry({ angulationZDeg: num });
-                              }}
+                            <Box
                               sx={{
-                                flex: "1 1 120px",
-                                minWidth: 0,
-                                maxWidth: "100%",
-                                width: "100%",
-                                color: "#1578A1",
-                                "& .MuiSlider-thumb": { color: "#1578A1" },
-                                "& .MuiSlider-track": { color: "#1578A1" },
+                                flexShrink: 0,
+                                boxSizing: "border-box",
+                                width: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                minWidth: { xs: 0, ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                maxWidth: { xs: "100%", ...FOV_ANGLE_LABEL_COL_WIDTH_PX },
+                                pr: { sm: 0.5 },
+                                lineHeight: 1.35,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
                               }}
-                            />
+                            >
+                              <Typography variant="body2" component="div">
+                                Z:
+                              </Typography>
+                            </Box>
                             <Box
                               sx={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 1.5,
-                                flexShrink: 0,
+                                justifyContent: { xs: "flex-start", sm: "space-between" },
+                                gap: { xs: 1.5, sm: 2 },
+                                flex: "1 1 0",
                                 flexWrap: "wrap",
                                 minWidth: 0,
+                                width: { xs: "100%", sm: "auto" },
+                                maxWidth: "100%",
+                                boxSizing: "border-box",
                               }}
                             >
-                              <TextField
-                                type="text"
-                                inputMode="decimal"
-                                size="small"
+                              <Slider
+                                size="medium"
                                 disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
-                                value={
-                                  fovAngulationZDraft !== null
-                                    ? fovAngulationZDraft
-                                    : String(activeForm.angulationZDeg)
-                                }
-                                onFocus={() =>
-                                  setFovAngulationZDraft(String(activeForm.angulationZDeg))
-                                }
-                                onChange={(e) => setFovAngulationZDraft(e.target.value)}
-                                onBlur={() => {
-                                  patchActiveSequenceGeometry({
-                                    angulationZDeg: commitAngulationZDeg(
-                                      fovAngulationZDraft ?? "",
-                                      activeForm.angulationZDeg,
-                                    ),
-                                  });
+                                value={activeForm.angulationZDeg}
+                                min={FOV_Z_ANGULATION_DEG_MIN}
+                                max={FOV_Z_ANGULATION_DEG_MAX}
+                                step={0.1}
+                                valueLabelDisplay="auto"
+                                valueLabelFormat={(v) => `${v}°`}
+                                getAriaValueText={(v) => `${v} degrees`}
+                                onChange={(_, v) => {
+                                  const num = typeof v === "number" ? v : v[0];
                                   setFovAngulationZDraft(null);
+                                  patchActiveSequenceGeometry({ angulationZDeg: num });
                                 }}
-                                sx={{ width: 96, flexShrink: 0 }}
-                                InputProps={{
-                                  endAdornment: (
-                                    <InputAdornment position="end">°</InputAdornment>
-                                  ),
-                                }}
+                                sx={FOV_STACKED_SLIDER_SX}
                               />
-                              <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
-                                <CmrCheckbox
-                                  id="fov-lock-z-angulation"
-                                  checked={fovInteractiveLockZ}
-                                  checkedColor="#1578A1"
-                                  disabled={protocolSequences.length === 0}
-                                  onChange={(e) => setFovInteractiveLockZ(e.target.checked)}
-                                >
-                                  Lock
-                                </CmrCheckbox>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  flexShrink: 0,
+                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                }}
+                              >
+                                <TextField
+                                  type="text"
+                                  inputMode="decimal"
+                                  size="small"
+                                  disabled={protocolSequences.length === 0 || fovInteractiveLockZ}
+                                  value={
+                                    fovAngulationZDraft !== null
+                                      ? fovAngulationZDraft
+                                      : String(activeForm.angulationZDeg)
+                                  }
+                                  onFocus={() =>
+                                    setFovAngulationZDraft(String(activeForm.angulationZDeg))
+                                  }
+                                  onChange={(e) => setFovAngulationZDraft(e.target.value)}
+                                  onBlur={() => {
+                                    patchActiveSequenceGeometry({
+                                      angulationZDeg: commitAngulationZDeg(
+                                        fovAngulationZDraft ?? "",
+                                        activeForm.angulationZDeg,
+                                      ),
+                                    });
+                                    setFovAngulationZDraft(null);
+                                  }}
+                                  sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
+                                  InputProps={{
+                                    endAdornment: (
+                                      <InputAdornment position="end">°</InputAdornment>
+                                    ),
+                                  }}
+                                />
+                                {/* TEMP: angulation Z Lock (stacked) — restore when needed
+                                <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
+                                  <CmrCheckbox
+                                    id="fov-lock-z-angulation"
+                                    checked={fovInteractiveLockZ}
+                                    checkedColor="#1578A1"
+                                    disabled={protocolSequences.length === 0}
+                                    onChange={(e) => setFovInteractiveLockZ(e.target.checked)}
+                                  >
+                                    Lock
+                                  </CmrCheckbox>
+                                </Box>
+                                */}
                               </Box>
                             </Box>
                           </Box>
                         </Box>
                       </Box>
-                      </Box>
                     </Box>
+                    )}
                     <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Parallel Ranges
