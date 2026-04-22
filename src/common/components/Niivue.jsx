@@ -1560,6 +1560,10 @@ export default function NiiVueport(props) {
         labelsVisible={textsVisible}
         toggleLabelsVisible={nvToggleLabelVisible}
 
+        showFovSlicesToggle={props.showFovSlicesToggle}
+        showFovSlices={props.showFovSlices}
+        onShowFovSlicesChange={props.onShowFovSlicesChange}
+
         saving={saving}
         setSaving={setSaving}
 

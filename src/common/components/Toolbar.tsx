@@ -59,6 +59,11 @@ interface ToolbarProps {
   labelsVisible: boolean;
   toggleLabelsVisible: () => void;
 
+  /** Setup page: FoV slice overlay visibility (same as former “Show Slices” checkbox). */
+  showFovSlicesToggle?: boolean;
+  showFovSlices?: boolean;
+  onShowFovSlicesChange?: (visible: boolean) => void;
+
   saving: boolean;
   setSaving: (saving: boolean) => void;
 }
@@ -76,7 +81,7 @@ export default function Toolbar(props: ToolbarProps) {
   let dragModes = [
     { value: "pan", label: "Zoom and Pan" },
     { value: "measurement", label: "Slice and Measurement" },
-    { value: "contrast", label: "Slice andContrast" },
+    { value: "contrast", label: "Slice and Contrast" },
     { value: "none", label: "Slice and None" },
     { value: "translate-slice", label: "Translate Slice" },
     { value: "angle-slice", label: "Angle Slice" },
@@ -372,6 +377,31 @@ export default function Toolbar(props: ToolbarProps) {
                 sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
               />
             </Box>
+
+            {props.showFovSlicesToggle ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                m={1}
+              >
+                <Typography
+                  style={{
+                    marginRight: "auto",
+                  }}
+                >
+                  Show Slices
+                </Typography>
+                <Switch
+                  checked={props.showFovSlices ?? true}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    props.onShowFovSlicesChange?.(e.target.checked)
+                  }
+                  sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                />
+              </Box>
+            ) : null}
 
             <Stack flexDirection={"row"} sx={{ m: 2 }}>
               <Tooltip title={"Reset Views"} placement={"top"}>

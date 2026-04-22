@@ -233,6 +233,11 @@ const FOV_OFFSET_LABEL_COL_STACKED_PX = { sm: 40 };
 /** Shared width for translation (mm) and angulation (°) numeric fields. */
 const FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX = 100;
 
+/** Parallel Ranges row — compact fields; thickness label is wider. */
+const FOV_PARALLEL_RANGES_FIELD_WIDTH_PX = 132;
+/** Fits full “Slice thickness (mm)” label on small inputs. */
+const FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX = 178;
+
 /** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
 
@@ -451,7 +456,7 @@ const Setup = () => {
   const [fovInteractiveLockAP, setFovInteractiveLockAP] = useState(false);
   /** When set, the Z (in-plane rotation) slider and text field are disabled to prevent accidental changes. */
   const [fovInteractiveLockZ, setFovInteractiveLockZ] = useState(false);
-  const [fovMeshOpacity, setFovMeshOpacity] = useState(1);
+  const [fovMeshOpacity, setFovMeshOpacity] = useState(0.8);
   const theme = useTheme();
   const isFovTranslationAngulationDesktop = useMediaQuery(theme.breakpoints.up("lg"));
   /** Per protocol-sequence id: FoV, orientation, slice stack (viewer edits the active row). */
@@ -3442,142 +3447,149 @@ const Setup = () => {
                       </Box>
                     </Box>
                     )}
-                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Parallel Ranges
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
-                        <TextField
-                          label="Number of slices"
-                          type="number"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            sagittalNumSlicesDraft !== null
-                              ? sagittalNumSlicesDraft
-                              : activeForm.sagittalNumSlices
-                          }
-                          onFocus={() => setSagittalNumSlicesDraft(String(activeForm.sagittalNumSlices))}
-                          onChange={(e) => setSagittalNumSlicesDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sagittalNumSlices: commitSliceCount(
-                                sagittalNumSlicesDraft ?? "",
-                                activeForm.sagittalNumSlices,
-                              ),
-                            });
-                            setSagittalNumSlicesDraft(null);
-                          }}
-                          inputProps={{ step: "any" }}
-                          sx={{ width: 180 }}
-                        />
-                        <TextField
-                          label="Slice thickness (mm)"
-                          type="number"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            sagittalThicknessDraft !== null
-                              ? sagittalThicknessDraft
-                              : activeForm.sagittalSliceThicknessMm
-                          }
-                          onFocus={() => setSagittalThicknessDraft(String(activeForm.sagittalSliceThicknessMm))}
-                          onChange={(e) => setSagittalThicknessDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sagittalSliceThicknessMm: commitFovResMm(
-                                sagittalThicknessDraft ?? "",
-                                activeForm.sagittalSliceThicknessMm,
-                              ),
-                            });
-                            setSagittalThicknessDraft(null);
-                          }}
-                          inputProps={{ step: "any" }}
-                          sx={{ width: 180 }}
-                        />
-                        <TextField
-                          label="Slice gap (mm)"
-                          type="number"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={sagittalGapDraft !== null ? sagittalGapDraft : activeForm.sagittalSliceGapMm}
-                          onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapMm))}
-                          onChange={(e) => setSagittalGapDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              sagittalSliceGapMm: commitNonNegMm(
-                                sagittalGapDraft ?? "",
-                                activeForm.sagittalSliceGapMm,
-                              ),
-                            });
-                            setSagittalGapDraft(null);
-                          }}
-                          inputProps={{ step: "any" }}
-                          sx={{ width: 180 }}
-                        />
-                      </Box>
-                    </Box>
-                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Opacity
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Slider
-                          size="medium"
-                          value={fovMeshOpacity}
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          valueLabelDisplay="auto"
-                          valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
-                          getAriaValueText={(v) => `${Math.round(v * 100)}%`}
-                          onChange={(_, v) => setFovMeshOpacity(typeof v === "number" ? v : v[0])}
-                          sx={{
-                            flex: "1 1 120px",
-                            minWidth: 0,
-                            maxWidth: 320,
-                            color: "#1578A1",
-                            "& .MuiSlider-thumb": { color: "#1578A1" },
-                            "& .MuiSlider-track": { color: "#1578A1" },
-                          }}
-                        />
-                        <Typography variant="body2" sx={{ minWidth: 36, color: "text.secondary" }}>
-                          {Math.round(fovMeshOpacity * 100)}%
+                    <Box
+                      sx={{
+                        marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP,
+                        display: "flex",
+                        flexDirection: { xs: "column", sm: "row" },
+                        flexWrap: "wrap",
+                        alignItems: { xs: "stretch", sm: "flex-end" },
+                        gap: { xs: 2, sm: 2 },
+                        columnGap: { sm: 2 },
+                        rowGap: 1.5,
+                        width: "100%",
+                      }}
+                    >
+                      <Box sx={{ flex: { xs: "1 1 100%", sm: "0 1 auto" }, minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                          Parallel Ranges
                         </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-end" }}>
+                          <TextField
+                            label="Number of slices"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={
+                              sagittalNumSlicesDraft !== null
+                                ? sagittalNumSlicesDraft
+                                : activeForm.sagittalNumSlices
+                            }
+                            onFocus={() => setSagittalNumSlicesDraft(String(activeForm.sagittalNumSlices))}
+                            onChange={(e) => setSagittalNumSlicesDraft(e.target.value)}
+                            onBlur={() => {
+                              patchActiveSequenceGeometry({
+                                sagittalNumSlices: commitSliceCount(
+                                  sagittalNumSlicesDraft ?? "",
+                                  activeForm.sagittalNumSlices,
+                                ),
+                              });
+                              setSagittalNumSlicesDraft(null);
+                            }}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: FOV_PARALLEL_RANGES_FIELD_WIDTH_PX }}
+                          />
+                          <TextField
+                            label="Slice thickness (mm)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={
+                              sagittalThicknessDraft !== null
+                                ? sagittalThicknessDraft
+                                : activeForm.sagittalSliceThicknessMm
+                            }
+                            onFocus={() => setSagittalThicknessDraft(String(activeForm.sagittalSliceThicknessMm))}
+                            onChange={(e) => setSagittalThicknessDraft(e.target.value)}
+                            onBlur={() => {
+                              patchActiveSequenceGeometry({
+                                sagittalSliceThicknessMm: commitFovResMm(
+                                  sagittalThicknessDraft ?? "",
+                                  activeForm.sagittalSliceThicknessMm,
+                                ),
+                              });
+                              setSagittalThicknessDraft(null);
+                            }}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX }}
+                          />
+                          <TextField
+                            label="Slice gap (mm)"
+                            type="number"
+                            size="small"
+                            disabled={protocolSequences.length === 0}
+                            value={sagittalGapDraft !== null ? sagittalGapDraft : activeForm.sagittalSliceGapMm}
+                            onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapMm))}
+                            onChange={(e) => setSagittalGapDraft(e.target.value)}
+                            onBlur={() => {
+                              patchActiveSequenceGeometry({
+                                sagittalSliceGapMm: commitNonNegMm(
+                                  sagittalGapDraft ?? "",
+                                  activeForm.sagittalSliceGapMm,
+                                ),
+                              });
+                              setSagittalGapDraft(null);
+                            }}
+                            inputProps={{ step: "any" }}
+                            sx={{ width: FOV_PARALLEL_RANGES_FIELD_WIDTH_PX }}
+                          />
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          flex: { xs: "1 1 100%", sm: "1 1 0" },
+                          minWidth: { xs: 0, sm: 120 },
+                          width: { xs: "100%", sm: "auto" },
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                          Opacity
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            width: "100%",
+                            minWidth: 0,
+                          }}
+                        >
+                          <Slider
+                            size="medium"
+                            value={fovMeshOpacity}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            valueLabelDisplay="auto"
+                            valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
+                            getAriaValueText={(v) => `${Math.round(v * 100)}%`}
+                            onChange={(_, v) => setFovMeshOpacity(typeof v === "number" ? v : v[0])}
+                            sx={{
+                              flex: "1 1 0",
+                              minWidth: 0,
+                              color: "#1578A1",
+                              mx: 0,
+                              "& .MuiSlider-thumb": { color: "#1578A1" },
+                              "& .MuiSlider-track": { color: "#1578A1" },
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ flexShrink: 0, minWidth: "2.5rem", color: "text.secondary", textAlign: "right" }}
+                          >
+                            {Math.round(fovMeshOpacity * 100)}%
+                          </Typography>
+                        </Box>
                       </Box>
                     </Box>
                       </>
                     )}
                   </Box>
                   {selectedProtocolSeqId ? (
-                    <>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                      gap: 2,
-                      width: "100%",
-                      userSelect: "none",
-                    }}
-                  >
-                    <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
-                      <CmrCheckbox
-                        id="show-field-of-view-overlay"
-                        checked={showFieldOfViewOverlay}
-                        checkedColor="#1578A1"
-                        onChange={(e) => setShowFieldOfViewOverlay(e.target.checked)}
-                      >
-                        Show Slices
-                      </CmrCheckbox>
-                    </Box>
-                  </Box>
                 <Divider orientation="horizontal" flexItem sx={{
-                  mx: 0, mb: 2, mt: 1, borderColor: "rgba(0, 0, 0, 0.35)",
+                  mx: 0, mb: 1, mt: 4, borderColor: "rgba(0, 0, 0, 0.35)",
                   borderRightWidth: 1.5,
                 }} />
-                    </>
                   ) : null}
                 </Box>
 
@@ -3594,6 +3606,9 @@ const Setup = () => {
                   saveROICallback={() => { }}
                   accessToken={accessToken ?? ""}
                   showFovBoundingBox={Boolean(selectedProtocolSeqId) && showFieldOfViewOverlay}
+                  showFovSlicesToggle={Boolean(selectedProtocolSeqId)}
+                  showFovSlices={showFieldOfViewOverlay}
+                  onShowFovSlicesChange={setShowFieldOfViewOverlay}
                   fovBoxOptions={setupFovBoxOptions}
                   onDragModeChange={(mode: string) => {
                     if (mode === "translate-slice") setFovInteractiveMode("translate");
