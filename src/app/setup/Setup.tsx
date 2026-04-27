@@ -233,8 +233,10 @@ const FOV_STACKED_SLIDER_SX = {
 
 const FOV_OFFSET_LABEL_COL_STACKED_PX = { sm: 40 };
 
-/** Shared width for translation (mm) and angulation (°) numeric fields. */
+/** Width for angulation (°) numeric fields. */
 const FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX = 100;
+/** Width for translation (mm) numeric fields — slightly wider to comfortably fit negative values. */
+const FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX = 120;
 
 /** Parallel Ranges row — compact fields; thickness label is wider. */
 const FOV_PARALLEL_RANGES_FIELD_WIDTH_PX = 132;
@@ -503,12 +505,12 @@ const Setup = () => {
     return Number.isFinite(n) ? Math.max(0, n) : fallback;
   };
 
-  /** Signed offset in mm (slice group center vs volume isocenter). */
+  /** Signed offset in mm (slice group center vs volume isocenter), rounded to 3 decimal places. */
   const commitSignedMm = (raw: string, fallback: number) => {
     const t = raw.trim();
     if (t === "") return fallback;
     const n = parseFloat(t);
-    return Number.isFinite(n) ? n : fallback;
+    return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : fallback;
   };
 
   const commitAngulationDeg = (raw: string, fallback: number) => {
@@ -1522,10 +1524,11 @@ const Setup = () => {
       setSliceOffsetXMmDraft(null);
       setSliceOffsetYMmDraft(null);
       setSliceOffsetZMmDraft(null);
+      const r = (v: number) => Math.round(v * 1000) / 1000;
       patchActiveSequenceGeometry({
-        sliceOffsetXMM: offsetWorldMm[0],
-        sliceOffsetYMM: offsetWorldMm[1],
-        sliceOffsetZMM: offsetWorldMm[2],
+        sliceOffsetXMM: r(offsetWorldMm[0]),
+        sliceOffsetYMM: r(offsetWorldMm[1]),
+        sliceOffsetZMM: r(offsetWorldMm[2]),
       });
     },
     [patchActiveSequenceGeometry],
@@ -2630,7 +2633,7 @@ const Setup = () => {
                                     });
                                     setDraft(null);
                                   }}
-                                  sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0, mr: 0 }}
+                                  sx={{ width: FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX, flexShrink: 0, mr: 0 }}
                                   InputProps={{
                                     endAdornment: (
                                       <InputAdornment position="end" sx={{ ml: 0.5 }}>
@@ -3121,7 +3124,7 @@ const Setup = () => {
                                     });
                                     setDraft(null);
                                   }}
-                                  sx={{ width: FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX, flexShrink: 0 }}
+                                  sx={{ width: FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX, flexShrink: 0 }}
                                   InputProps={{
                                     endAdornment: (
                                       <InputAdornment position="end">mm</InputAdornment>
