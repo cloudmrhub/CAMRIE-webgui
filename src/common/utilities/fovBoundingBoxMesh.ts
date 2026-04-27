@@ -191,37 +191,50 @@ export type SliceFillOpacityByView = {
  * When passing `sliceFillOpacityByView`, unspecified keys use these values.
  */
 export const DEFAULT_SLICE_FILL_OPACITY_BY_VIEW: Required<SliceFillOpacityByView> = {
-  axial: 0.85,
+  axial: 6,
   coronal: 6,
   sagittal: 6,
-  view3d: 6,
+  view3d: 2,
 };
+
+/**
+ * Multiplier used for the view tile that matches the **active prescription orientation**.
+ * The selected plane looks at the slice face-on, so a lower value prevents it from
+ * appearing over-saturated compared to the orthogonal tiles.
+ */
+export const ACTIVE_ORIENTATION_SLICE_FILL_OPACITY = 0.5;
 
 /** Default extra dimming for slice fill on 2D (see `FovBoxOptions.sliceFillOpacityScale2D`). */
 export const DEFAULT_SLICE_FILL_OPACITY_SCALE_2D = 1;
 
 function clampSliceFillOpacityScale(n: number): number {
   if (!Number.isFinite(n) || n < 0) return 1;
-  return Math.min(4, n);
+  return Math.min(20, n);
 }
 
+/**
+ * Merge caller-supplied per-view overrides with defaults.
+ *
+ * When `activeOrientation` is provided (from `imagePrescription.orientation`),
+ * the matching 2D tile defaults to {@link ACTIVE_ORIENTATION_SLICE_FILL_OPACITY}
+ * instead of the normal `6` — unless the caller explicitly sets that key in
+ * `partial`. The orthogonal tiles always keep their standard defaults.
+ */
 function mergeSliceFillOpacityByView(
   partial?: SliceFillOpacityByView,
+  activeOrientation?: FovPlaneOrientation,
 ): { axial: number; coronal: number; sagittal: number; view3d: number } {
   const b = DEFAULT_SLICE_FILL_OPACITY_BY_VIEW;
-  if (!partial) {
-    return {
-      axial: b.axial,
-      coronal: b.coronal,
-      sagittal: b.sagittal,
-      view3d: b.view3d,
-    };
-  }
+  const active = ACTIVE_ORIENTATION_SLICE_FILL_OPACITY;
+
+  const defaultFor = (key: "axial" | "coronal" | "sagittal"): number =>
+    activeOrientation === key ? active : b[key];
+
   return {
-    axial: clampSliceFillOpacityScale(partial.axial !== undefined ? partial.axial : b.axial),
-    coronal: clampSliceFillOpacityScale(partial.coronal !== undefined ? partial.coronal : b.coronal),
-    sagittal: clampSliceFillOpacityScale(partial.sagittal !== undefined ? partial.sagittal : b.sagittal),
-    view3d: clampSliceFillOpacityScale(partial.view3d !== undefined ? partial.view3d : b.view3d),
+    axial: clampSliceFillOpacityScale(partial?.axial !== undefined ? partial.axial : defaultFor("axial")),
+    coronal: clampSliceFillOpacityScale(partial?.coronal !== undefined ? partial.coronal : defaultFor("coronal")),
+    sagittal: clampSliceFillOpacityScale(partial?.sagittal !== undefined ? partial.sagittal : defaultFor("sagittal")),
+    view3d: clampSliceFillOpacityScale(partial?.view3d !== undefined ? partial.view3d : b.view3d),
   };
 }
 
@@ -251,6 +264,27 @@ export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown
 
 export function volumeIsocenterMm(nv: { frac2mm: (...args: unknown[]) => unknown }): number[] {
   return sliceMmFromFrac(nv, [0.5, 0.5, 0.5]);
+}
+
+/**
+ * Volume AABB extents in **physical millimetres** along the three patient axes
+ * (patient-fixed head-first: +x = left, +y = posterior, +z = superior).
+ * Unlike {@link volumeWorldAabbMm} these are always in mm regardless of whether
+ * Niivue stores coordinates in metres or millimetres internally.
+ */
+export function volumePhysicalExtentMm(nv: { frac2mm: (...args: unknown[]) => unknown }): {
+  lrMm: number;
+  apMm: number;
+  siMm: number;
+} {
+  const { min, max } = volumeWorldAabbMm(nv);
+  const scale = getMmToNiivueWorldScale(min, max); // mm → world
+  const inv = scale > 0 ? 1 / scale : 1; // world → mm
+  return {
+    lrMm: (max[0] - min[0]) * inv,
+    apMm: (max[1] - min[1]) * inv,
+    siMm: (max[2] - min[2]) * inv,
+  };
 }
 
 function vsub(a: number[], b: number[]): number[] {
@@ -818,7 +852,7 @@ void main() {
  * Slice-volume fill — low vertex A; final alpha is `uniform_opacity * vClr.a` where `uniform_opacity` is set per draw
  * pass in `NiivuePatcher` as `alpha * fillMesh.opacity` (Niivue upstream ignores `mesh.opacity` in `drawMesh3D`).
  */
-const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 28];
+const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 55];
 
 /** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
@@ -999,7 +1033,10 @@ function createAxialFovMeshList(
         options?.sliceFillOpacityScale2D !== undefined
           ? Math.min(1, Math.max(0, options.sliceFillOpacityScale2D))
           : DEFAULT_SLICE_FILL_OPACITY_SCALE_2D;
-      const byView = mergeSliceFillOpacityByView(options?.sliceFillOpacityByView);
+      const byView = mergeSliceFillOpacityByView(
+        options?.sliceFillOpacityByView,
+        options?.imagePrescription?.orientation,
+      );
       const fillTagged = fillMesh as NVMesh & {
         __camrieFovSliceFillMesh?: boolean;
         __camrieSliceFillOpacityScale2D?: number;

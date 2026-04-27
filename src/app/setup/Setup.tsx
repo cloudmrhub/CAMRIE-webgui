@@ -5,6 +5,7 @@ import NiiVue, { nv } from "../../common/components/Niivue";
 import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
+  volumePhysicalExtentMm,
   getSliceCenterMmForGeometryExport,
   resetFovSliceTranslation,
   type FovPlaneOrientation,
@@ -12,10 +13,12 @@ import {
 import {
   buildBackendSequencesPayload,
   buildSequenceGeometryJson,
+  areEncodingDirectionsOnSameAnatomicalAxis,
   clampEncodingDirectionToOrientation,
   DEFAULT_SEQUENCE_GEOMETRY_FORM,
   ENCODING_DIRECTION_OPTIONS,
   formStateToCaptureInput,
+  resolveOrthogonalEncodingDirections,
   sequenceGeometryJsonToFormState,
   type EncodingDirectionId,
   type SequenceGeometryFormState,
@@ -524,11 +527,11 @@ const Setup = () => {
     return Math.max(FOV_Z_ANGULATION_DEG_MIN, Math.min(FOV_Z_ANGULATION_DEG_MAX, n));
   };
 
-  /** Bounding-box size of the volume in slice-mm (for comparing prescribed FoV to model extent). */
+  /** Physical extents of the loaded volume in millimetres along LR / AP / SI axes. */
   const [loadedVolumeExtentMm, setLoadedVolumeExtentMm] = useState<{
-    dx: number;
-    dy: number;
-    dz: number;
+    lrMm: number;
+    apMm: number;
+    siMm: number;
   } | null>(null);
 
   useEffect(() => {
@@ -540,13 +543,9 @@ const Setup = () => {
     const readExtent = (): boolean => {
       try {
         if (nv?.volumes?.[0] && nv.gl) {
-          const { min, max } = volumeWorldAabbMm(nv as Parameters<typeof volumeWorldAabbMm>[0]);
+          const ext = volumePhysicalExtentMm(nv as Parameters<typeof volumePhysicalExtentMm>[0]);
           if (!cancelled) {
-            setLoadedVolumeExtentMm({
-              dx: max[0] - min[0],
-              dy: max[1] - min[1],
-              dz: max[2] - min[2],
-            });
+            setLoadedVolumeExtentMm(ext);
           }
           return true;
         }
@@ -564,6 +563,26 @@ const Setup = () => {
       window.clearInterval(id);
     };
   }, [availableVolumes, selectedVolume]);
+
+  /**
+   * Default geometry form state seeded from the loaded volume's physical extents.
+   * Uses the axial orientation (the form default): fovX = LR extent, fovY = AP extent,
+   * at 1 mm/px resolution. Falls back to DEFAULT_SEQUENCE_GEOMETRY_FORM when no volume is loaded.
+   */
+  const defaultGeometryFromVolume = useMemo((): SequenceGeometryFormState => {
+    if (!loadedVolumeExtentMm) return { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+    const { lrMm, apMm } = loadedVolumeExtentMm;
+    const fovXMm = Math.round(lrMm);
+    const fovYMm = Math.round(apMm);
+    const res = 1;
+    return {
+      ...DEFAULT_SEQUENCE_GEOMETRY_FORM,
+      fovResXMM: res,
+      fovResYMM: res,
+      fovPixelsX: Math.max(1, Math.round(fovXMm / res)),
+      fovPixelsY: Math.max(1, Math.round(fovYMm / res)),
+    };
+  }, [loadedVolumeExtentMm]);
 
   // Convert availableVolumes to niis format expected by NiiVue
   const setupNiis = Object.entries(availableVolumes).map(([name, url], index) => ({
@@ -1003,7 +1022,7 @@ const Setup = () => {
 
       setProtocolSequences(loaded);
       setGeometryBySequenceId(
-        Object.fromEntries(loaded.map((s) => [s.id, { ...DEFAULT_SEQUENCE_GEOMETRY_FORM }])),
+        Object.fromEntries(loaded.map((s) => [s.id, { ...defaultGeometryFromVolume }])),
       );
 
       if (loaded.length > 0) {
@@ -1027,7 +1046,7 @@ const Setup = () => {
       const geom: Record<string, SequenceGeometryFormState> = {};
       for (const s of loaded) {
         const g = saved.sequenceGeometry?.[s.id];
-        geom[s.id] = g ? sequenceGeometryJsonToFormState(g) : { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+        geom[s.id] = g ? sequenceGeometryJsonToFormState(g) : { ...defaultGeometryFromVolume };
       }
       setGeometryBySequenceId(geom);
 
@@ -1127,7 +1146,7 @@ const Setup = () => {
 
     setGeometryBySequenceId((prev) => ({
       ...prev,
-      [selectedSequence.id]: prev[selectedSequence.id] ?? { ...DEFAULT_SEQUENCE_GEOMETRY_FORM },
+      [selectedSequence.id]: prev[selectedSequence.id] ?? { ...defaultGeometryFromVolume },
     }));
 
     // default to unchecked (false)
@@ -1380,13 +1399,13 @@ const Setup = () => {
       const next = { ...prev };
       for (const s of protocolSequences) {
         if (next[s.id] === undefined) {
-          next[s.id] = { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+          next[s.id] = { ...defaultGeometryFromVolume };
           changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [protocolSequences]);
+  }, [protocolSequences, defaultGeometryFromVolume]);
 
   const sequenceFovXMM = useMemo(
     () => Math.max(0, Math.round(activeForm.fovPixelsX) * activeForm.fovResXMM),
@@ -2296,14 +2315,12 @@ const Setup = () => {
                               const next = e.target.value as FovPlaneOrientation;
                               patchActiveSequenceGeometry({
                                 orientation: next,
-                                phaseEncodingDirection: clampEncodingDirectionToOrientation(
-                                  next,
-                                  activeForm.phaseEncodingDirection,
-                                ),
-                                frequencyEncodingDirection: clampEncodingDirectionToOrientation(
-                                  next,
-                                  activeForm.frequencyEncodingDirection,
-                                ),
+                                phaseEncodingDirection: activeForm.phaseEncodingDirection
+                                  ? clampEncodingDirectionToOrientation(next, activeForm.phaseEncodingDirection)
+                                  : null,
+                                frequencyEncodingDirection: activeForm.frequencyEncodingDirection
+                                  ? clampEncodingDirectionToOrientation(next, activeForm.frequencyEncodingDirection)
+                                  : null,
                               });
                             }}
                           >
@@ -2364,18 +2381,27 @@ const Setup = () => {
                             sx={{ width: 160 }}
                           />
                           <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
-                            <FormControl size="small" sx={{ minWidth: 168 }} disabled={protocolSequences.length === 0}>
-                              <InputLabel id="fov-phase-encoding-direction-label">Direction</InputLabel>
+                            <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
+                              <InputLabel id="fov-phase-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-phase-encoding-direction-label"
                                 label="Direction"
-                                value={activeForm.phaseEncodingDirection}
-                                onChange={(e) =>
+                                displayEmpty
+                                value={activeForm.phaseEncodingDirection ?? ""}
+                                onChange={(e) => {
+                                  const next = e.target.value as EncodingDirectionId;
+                                  const conflictsWithFreq =
+                                    activeForm.frequencyEncodingDirection !== null &&
+                                    areEncodingDirectionsOnSameAnatomicalAxis(next, activeForm.frequencyEncodingDirection);
                                   patchActiveSequenceGeometry({
-                                    phaseEncodingDirection: e.target.value as EncodingDirectionId,
-                                  })
-                                }
+                                    phaseEncodingDirection: next,
+                                    ...(conflictsWithFreq ? { frequencyEncodingDirection: null } : {}),
+                                  });
+                                }}
                               >
+                                <MenuItem value="" disabled sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                                  Select
+                                </MenuItem>
                                 {encodingDirectionChoices.map((opt) => (
                                   <MenuItem key={opt.value} value={opt.value}>
                                     {opt.label}
@@ -2383,7 +2409,7 @@ const Setup = () => {
                                 ))}
                               </MuiSelect>
                             </FormControl>
-                            <Tooltip title="Choose the phase encoding direction">
+                            <Tooltip title="Phase encoding axis. Must be perpendicular to readout — not both on the same anatomical axis (e.g. not both left–right). Picking a conflicting option clears readout so you can pick a valid one.">
                               <span>
                                 <IconButton
                                   size="small"
@@ -2441,18 +2467,27 @@ const Setup = () => {
                             sx={{ width: 160 }}
                           />
                           <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
-                            <FormControl size="small" sx={{ minWidth: 168 }} disabled={protocolSequences.length === 0}>
-                              <InputLabel id="fov-frequency-encoding-direction-label">Direction</InputLabel>
+                            <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
+                              <InputLabel id="fov-frequency-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-frequency-encoding-direction-label"
                                 label="Direction"
-                                value={activeForm.frequencyEncodingDirection}
-                                onChange={(e) =>
+                                displayEmpty
+                                value={activeForm.frequencyEncodingDirection ?? ""}
+                                onChange={(e) => {
+                                  const next = e.target.value as EncodingDirectionId;
+                                  const conflictsWithPhase =
+                                    activeForm.phaseEncodingDirection !== null &&
+                                    areEncodingDirectionsOnSameAnatomicalAxis(next, activeForm.phaseEncodingDirection);
                                   patchActiveSequenceGeometry({
-                                    frequencyEncodingDirection: e.target.value as EncodingDirectionId,
-                                  })
-                                }
+                                    frequencyEncodingDirection: next,
+                                    ...(conflictsWithPhase ? { phaseEncodingDirection: null } : {}),
+                                  });
+                                }}
                               >
+                                <MenuItem value="" disabled sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                                  Select
+                                </MenuItem>
                                 {encodingDirectionChoices.map((opt) => (
                                   <MenuItem key={opt.value} value={opt.value}>
                                     {opt.label}
@@ -2460,7 +2495,7 @@ const Setup = () => {
                                 ))}
                               </MuiSelect>
                             </FormControl>
-                            <Tooltip title="Choose the frequency encoding direction">
+                            <Tooltip title="Frequency (readout) axis. Must be perpendicular to phase — not both on the same anatomical axis (e.g. not both anterior–posterior). Picking a conflicting option clears phase so you can pick a valid one.">
                               <span>
                                 <IconButton
                                   size="small"

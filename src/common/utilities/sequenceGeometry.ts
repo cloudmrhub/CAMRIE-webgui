@@ -23,22 +23,22 @@ export const ENCODING_DIRECTION_OPTIONS: Record<
   readonly { value: EncodingDirectionId; label: string }[]
 > = {
   axial: [
-    { value: "left", label: "Left" },
-    { value: "right", label: "Right" },
-    { value: "posterior", label: "Posterior" },
-    { value: "anterior", label: "Anterior" },
+    { value: "left", label: "Right - Left" },
+    { value: "right", label: "Left - Right" },
+    { value: "posterior", label: "Anterior - Posterior" },
+    { value: "anterior", label: "Posterior - Anterior" },
   ],
   sagittal: [
-    { value: "posterior", label: "Posterior" },
-    { value: "anterior", label: "Anterior" },
-    { value: "down", label: "Feet" },
-    { value: "up", label: "Head" },
+    { value: "posterior", label: "Anterior - Posterior" },
+    { value: "anterior", label: "Posterior - Anterior" },
+    { value: "down", label: "Head - Feet" },
+    { value: "up", label: "Feet - Head" },
   ],
   coronal: [
-    { value: "left", label: "Left" },
-    { value: "right", label: "Right" },
-    { value: "down", label: "Feet" },
-    { value: "up", label: "Head" },
+    { value: "left", label: "Right - Left" },
+    { value: "right", label: "Left - Right" },
+    { value: "down", label: "Head - Feet" },
+    { value: "up", label: "Feet - Head" },
   ],
 };
 
@@ -49,6 +49,65 @@ export function clampEncodingDirectionToOrientation(
   const opts = ENCODING_DIRECTION_OPTIONS[orientation];
   if (opts.some((o) => o.value === direction)) return direction;
   return opts[0].value;
+}
+
+/**
+ * In-plane **anatomical axis** (not polarity). Left/right share LR; anterior/posterior share AP;
+ * up/down share head–feet (SI). Phase and readout must sit on two **different** of these in the slice.
+ */
+export type EncodingAnatomicalAxis = "lr" | "ap" | "si";
+
+export const ENCODING_DIRECTION_ANATOMICAL_AXIS: Record<EncodingDirectionId, EncodingAnatomicalAxis> = {
+  left: "lr",
+  right: "lr",
+  anterior: "ap",
+  posterior: "ap",
+  up: "si",
+  down: "si",
+};
+
+export function areEncodingDirectionsOnSameAnatomicalAxis(
+  a: EncodingDirectionId,
+  b: EncodingDirectionId,
+): boolean {
+  return ENCODING_DIRECTION_ANATOMICAL_AXIS[a] === ENCODING_DIRECTION_ANATOMICAL_AXIS[b];
+}
+
+/**
+ * Phase and frequency encoding must use **perpendicular in-plane axes** (e.g. LR + AP, not L + R).
+ * If the two sit on the same anatomical axis, adjusts {@link options.preferAdjust} (default `frequency`)
+ * to the first option that lies on a different axis.
+ */
+export function resolveOrthogonalEncodingDirections(
+  orientation: FovPlaneOrientation,
+  phase: EncodingDirectionId,
+  frequency: EncodingDirectionId,
+  options?: { preferAdjust?: "phase" | "frequency" },
+): { phaseEncodingDirection: EncodingDirectionId; frequencyEncodingDirection: EncodingDirectionId } {
+  const p = clampEncodingDirectionToOrientation(orientation, phase);
+  const f = clampEncodingDirectionToOrientation(orientation, frequency);
+  if (!areEncodingDirectionsOnSameAnatomicalAxis(p, f)) {
+    return { phaseEncodingDirection: p, frequencyEncodingDirection: f };
+  }
+  const opts = ENCODING_DIRECTION_OPTIONS[orientation];
+  const firstOnDifferentAxisThan = (dir: EncodingDirectionId): EncodingDirectionId => {
+    const avoid = ENCODING_DIRECTION_ANATOMICAL_AXIS[dir];
+    return (
+      opts.find((o) => ENCODING_DIRECTION_ANATOMICAL_AXIS[o.value] !== avoid)?.value ??
+      opts.find((o) => o.value !== dir)?.value ??
+      opts[1].value
+    );
+  };
+  if (options?.preferAdjust === "phase") {
+    return {
+      phaseEncodingDirection: firstOnDifferentAxisThan(f),
+      frequencyEncodingDirection: f,
+    };
+  }
+  return {
+    phaseEncodingDirection: p,
+    frequencyEncodingDirection: firstOnDifferentAxisThan(p),
+  };
 }
 
 /**
@@ -193,8 +252,12 @@ export type SequenceGeometryFormState = {
   sliceOffsetXMM: number;
   sliceOffsetYMM: number;
   sliceOffsetZMM: number;
-  phaseEncodingDirection: EncodingDirectionId;
-  frequencyEncodingDirection: EncodingDirectionId;
+  /**
+   * `null` means the user cleared this field due to a conflict with the other encoding axis and
+   * must re-select before the geometry can be exported.
+   */
+  phaseEncodingDirection: EncodingDirectionId | null;
+  frequencyEncodingDirection: EncodingDirectionId | null;
 };
 
 export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
@@ -207,13 +270,13 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   fovResXMM: 1,
   fovResYMM: 1,
   sagittalNumSlices: 10,
-  sagittalSliceThicknessMm: 1,
+  sagittalSliceThicknessMm: 3,
   sagittalSliceGapMm: 5,
   sliceOffsetXMM: 0,
   sliceOffsetYMM: 0,
   sliceOffsetZMM: 0,
-  phaseEncodingDirection: "left",
-  frequencyEncodingDirection: "anterior",
+  phaseEncodingDirection: null,
+  frequencyEncodingDirection: null,
 };
 
 export function formStateToCaptureInput(
@@ -240,8 +303,8 @@ export function formStateToCaptureInput(
     sliceOffsetYMM: form.sliceOffsetYMM,
     sliceOffsetZMM: form.sliceOffsetZMM,
     isocenterMm,
-    phaseEncodingDirection: form.phaseEncodingDirection,
-    frequencyEncodingDirection: form.frequencyEncodingDirection,
+    phaseEncodingDirection: form.phaseEncodingDirection ?? "left",
+    frequencyEncodingDirection: form.frequencyEncodingDirection ?? "anterior",
   };
 }
 
@@ -275,11 +338,8 @@ export function sequenceGeometryJsonToFormState(
       sliceOffsetXMM: 0,
       sliceOffsetYMM: 0,
       sliceOffsetZMM: 0,
-      phaseEncodingDirection: clampEncodingDirectionToOrientation(g.orientation, DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection),
-      frequencyEncodingDirection: clampEncodingDirectionToOrientation(
-        g.orientation,
-        DEFAULT_SEQUENCE_GEOMETRY_FORM.frequencyEncodingDirection,
-      ),
+      phaseEncodingDirection: clampEncodingDirectionToOrientation(g.orientation, "left"),
+      frequencyEncodingDirection: clampEncodingDirectionToOrientation(g.orientation, "anterior"),
     };
   }
 
@@ -307,14 +367,8 @@ export function sequenceGeometryJsonToFormState(
     sliceOffsetXMM: off[0] ?? 0,
     sliceOffsetYMM: off[1] ?? 0,
     sliceOffsetZMM: off[2] ?? 0,
-    phaseEncodingDirection: clampEncodingDirectionToOrientation(
-      o,
-      phaseIn ?? DEFAULT_SEQUENCE_GEOMETRY_FORM.phaseEncodingDirection,
-    ),
-    frequencyEncodingDirection: clampEncodingDirectionToOrientation(
-      o,
-      freqIn ?? DEFAULT_SEQUENCE_GEOMETRY_FORM.frequencyEncodingDirection,
-    ),
+    phaseEncodingDirection: clampEncodingDirectionToOrientation(o, phaseIn ?? "left"),
+    frequencyEncodingDirection: clampEncodingDirectionToOrientation(o, freqIn ?? "anterior"),
   };
 }
 
