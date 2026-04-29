@@ -89,6 +89,19 @@ import Select from "react-select";
 
 // Add volumes from public/volumes here: display name -> filename (order by ascending numeric id in info.json data)
 const SETUP_VOLUME_MAP: Record<string, string> = {
+  "T1": "t1.nii.gz",
+  "T2": "t2.nii.gz",
+  "T2*": "t2star.nii.gz",
+  "Proton Density": "rhoh.nii.gz",
+  "Mass Density": "rhom.nii.gz",
+  "Chemical Shift": "dw.nii.gz",
+  "Relative Permittivity": "epsilon_r.nii.gz",
+  "Conductivity": "sigma_e.nii.gz",
+  "Relative Permeability": "mur.nii.gz",
+  "Heat Capacity": "c.nii.gz",
+  "Thermal Conductivity": "k.nii.gz",
+  "Perfusion": "w.nii.gz",
+  "Heat Generation Rate": "q.nii.gz",
   "Noise Coefficient Matrix": "psi.nii.gz",
   "Coil Sensitivity 1": "b1m_001.nii.gz",
   "Coil Sensitivity 2": "b1m_002.nii.gz",
@@ -106,19 +119,6 @@ const SETUP_VOLUME_MAP: Record<string, string> = {
   "Coil Sensitivity 14": "b1m_014.nii.gz",
   "Coil Sensitivity 15": "b1m_015.nii.gz",
   "Coil Sensitivity 16": "b1m_016.nii.gz",
-  "T1": "t1.nii.gz",
-  "T2": "t2.nii.gz",
-  "T2*": "t2star.nii.gz",
-  "Proton Density": "rhoh.nii.gz",
-  "Mass Density": "rhom.nii.gz",
-  "Chemical Shift": "dw.nii.gz",
-  "Relative Permittivity": "epsilon_r.nii.gz",
-  "Conductivity": "sigma_e.nii.gz",
-  "Relative Permeability": "mur.nii.gz",
-  "Heat Capacity": "c.nii.gz",
-  "Thermal Conductivity": "k.nii.gz",
-  "Perfusion": "w.nii.gz",
-  "Heat Generation Rate": "q.nii.gz",
 };
 
 /** Display name → filename under `public/volumes/7T-Head-Triangular-Coil/` (8 Rx + 8 Tx; see info.json). */
@@ -191,11 +191,11 @@ const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
 /** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
 const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
 
-/** Matches `fovBoundingBoxMesh` angulation clamps (interactive drag + backend). */
+/** Matches `fovBoundingBoxMesh` rotation clamps (interactive drag + backend). */
 const FOV_ANGULATION_DEG_MIN = -89.5;
 const FOV_ANGULATION_DEG_MAX = 89.5;
 
-/** Z angulation about slice normal (after LR/AP world tilts). */
+/** Z rotation about slice normal (after LR/AP world tilts). */
 const FOV_Z_ANGULATION_DEG_MIN = -180;
 const FOV_Z_ANGULATION_DEG_MAX = 180;
 
@@ -206,10 +206,10 @@ const FOV_OFFSET_MM_MAX = 250;
 /** Fixed label column width (`sm+`) so X/Y/Z slider tracks share a common start edge. */
 const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 40 };
 
-/** Label column for Translation rows (matches Angulation — both now use single-letter labels). */
+/** Label column for Translation rows (matches Rotation — both now use single-letter labels). */
 const FOV_OFFSET_LABEL_COL_WIDTH_PX = { sm: 40 };
 
-/** Translation + angulation rows: shorter track so inputs stay compact in two-column layout. */
+/** Translation + rotation rows: shorter track so inputs stay compact in two-column layout. */
 const FOV_ROW_SLIDER_SX = {
   flex: "1 1 88px",
   minWidth: 0,
@@ -220,7 +220,7 @@ const FOV_ROW_SLIDER_SX = {
   "& .MuiSlider-track": { color: "#1578A1" },
 };
 
-/** Stacked Translation/Angulation (phones & smaller laptops): classic full-width rows. */
+/** Stacked Translation/Rotation (phones & smaller laptops): classic full-width rows. */
 const FOV_STACKED_SLIDER_SX = {
   flex: "1 1 120px",
   minWidth: 0,
@@ -233,7 +233,7 @@ const FOV_STACKED_SLIDER_SX = {
 
 const FOV_OFFSET_LABEL_COL_STACKED_PX = { sm: 40 };
 
-/** Width for angulation (°) numeric fields. */
+/** Width for rotation (°) numeric fields. */
 const FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX = 100;
 /** Width for translation (mm) numeric fields — slightly wider to comfortably fit negative values. */
 const FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX = 120;
@@ -454,7 +454,7 @@ const Setup = () => {
   const [warningOpen, setWarningOpen] = useState(false);
   /** Toggle scan / slice overlay (bounding box) on the viewer. */
   const [showFieldOfViewOverlay, setShowFieldOfViewOverlay] = useState(true);
-  /** Controlled by the "Translate Slice" / "Angle Slice" dropdown options in the viewer toolbar. */
+  /** Controlled by the "Translate Slice" / "Rotate Slice" dropdown options in the viewer toolbar. */
   const [fovInteractiveMode, setFovInteractiveMode] = useState<"translate" | "angle" | null>(null);
   /** When set, Alt+Ctrl canvas drag does not change that angle (manual text edits still apply). */
   const [fovInteractiveLockLR, setFovInteractiveLockLR] = useState(false);
@@ -611,8 +611,8 @@ const Setup = () => {
   useEffect(() => {
     if (Object.keys(availableVolumes).length > 0) {
       const entries = Object.entries(availableVolumes);
-      const t1Index = entries.findIndex(([displayName]) => displayName === "T1");
-      const initialIndex = t1Index >= 0 ? t1Index : 0;
+      const protonDensityIndex = entries.findIndex(([displayName]) => displayName === "Proton Density");
+      const initialIndex = protonDensityIndex >= 0 ? protonDensityIndex : 0;
       const [name, url] = entries[initialIndex];
       const vol = {
         url,
@@ -1552,7 +1552,7 @@ const Setup = () => {
       axialSliceStack: {
         numSlices: Math.max(1, Math.round(activeForm.sagittalNumSlices)),
         sliceThicknessMm: Math.max(0.01, activeForm.sagittalSliceThicknessMm),
-        sliceGapMm: Math.max(0, activeForm.sagittalSliceGapMm),
+        sliceGapMm: Math.max(0, (activeForm.sagittalSliceGapPct / 100) * activeForm.sagittalSliceThicknessMm),
       },
       rgba255: [57, 255, 20, 255] as [number, number, number, number],
       opacity: fovMeshOpacity,
@@ -1579,7 +1579,7 @@ const Setup = () => {
       activeForm.sliceOffsetZMM,
       activeForm.sagittalNumSlices,
       activeForm.sagittalSliceThicknessMm,
-      activeForm.sagittalSliceGapMm,
+      activeForm.sagittalSliceGapPct,
       fovInteractiveMode,
       fovInteractiveLockLR,
       fovInteractiveLockAP,
@@ -2412,7 +2412,7 @@ const Setup = () => {
                                 ))}
                               </MuiSelect>
                             </FormControl>
-                            <Tooltip title="Phase encoding axis. Must be perpendicular to readout — not both on the same anatomical axis (e.g. not both left–right). Picking a conflicting option clears readout so you can pick a valid one.">
+                            <Tooltip title="Phase encoding axis">
                               <span>
                                 <IconButton
                                   size="small"
@@ -2498,7 +2498,7 @@ const Setup = () => {
                                 ))}
                               </MuiSelect>
                             </FormControl>
-                            <Tooltip title="Frequency (readout) axis. Must be perpendicular to phase — not both on the same anatomical axis (e.g. not both anterior–posterior). Picking a conflicting option clears phase so you can pick a valid one.">
+                            <Tooltip title="Frequency encoding axis">
                               <span>
                                 <IconButton
                                   size="small"
@@ -2720,7 +2720,7 @@ const Setup = () => {
                       />
                       <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Angulation
+                        Rotation
                       </Typography>
                       <Box
                         sx={{
@@ -2864,7 +2864,7 @@ const Setup = () => {
                                       ),
                                     }}
                                   />
-                                  {/* TEMP: angulation Lock checkboxes — restore when needed
+                                  {/* TEMP: rotation Lock checkboxes — restore when needed
                                   <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                     <CmrCheckbox
                                       id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
@@ -2989,7 +2989,7 @@ const Setup = () => {
                                   ),
                                 }}
                               />
-                              {/* TEMP: angulation Z Lock — restore when needed
+                              {/* TEMP: rotation Z Lock — restore when needed
                               <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                 <CmrCheckbox
                                   id="fov-lock-z-angulation"
@@ -3197,7 +3197,7 @@ const Setup = () => {
                         }}
                       >
                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                          Angulation
+                          Rotation
                         </Typography>
                         <Box
                           sx={{
@@ -3341,7 +3341,7 @@ const Setup = () => {
                                         ),
                                       }}
                                     />
-                                    {/* TEMP: angulation Lock checkboxes (stacked) — restore when needed
+                                    {/* TEMP: rotation Lock checkboxes (stacked) — restore when needed
                                     <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                       <CmrCheckbox
                                         id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
@@ -3465,7 +3465,7 @@ const Setup = () => {
                                     ),
                                   }}
                                 />
-                                {/* TEMP: angulation Z Lock (stacked) — restore when needed
+                                {/* TEMP: rotation Z Lock (stacked) — restore when needed
                                 <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                   <CmrCheckbox
                                     id="fov-lock-z-angulation"
@@ -3499,9 +3499,6 @@ const Setup = () => {
                       }}
                     >
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "0 1 auto" }, minWidth: 0 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                          Parallel Ranges
-                        </Typography>
                         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-end" }}>
                           <TextField
                             label="Number of slices"
@@ -3552,18 +3549,18 @@ const Setup = () => {
                             sx={{ width: FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX }}
                           />
                           <TextField
-                            label="Slice gap (mm)"
+                            label="Slice gap (%)"
                             type="number"
                             size="small"
                             disabled={protocolSequences.length === 0}
-                            value={sagittalGapDraft !== null ? sagittalGapDraft : activeForm.sagittalSliceGapMm}
-                            onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapMm))}
+                            value={sagittalGapDraft !== null ? sagittalGapDraft : activeForm.sagittalSliceGapPct}
+                            onFocus={() => setSagittalGapDraft(String(activeForm.sagittalSliceGapPct))}
                             onChange={(e) => setSagittalGapDraft(e.target.value)}
                             onBlur={() => {
                               patchActiveSequenceGeometry({
-                                sagittalSliceGapMm: commitNonNegMm(
+                                sagittalSliceGapPct: commitNonNegMm(
                                   sagittalGapDraft ?? "",
-                                  activeForm.sagittalSliceGapMm,
+                                  activeForm.sagittalSliceGapPct,
                                 ),
                               });
                               setSagittalGapDraft(null);

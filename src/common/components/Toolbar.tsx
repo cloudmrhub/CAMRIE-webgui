@@ -84,7 +84,7 @@ export default function Toolbar(props: ToolbarProps) {
     { value: "contrast", label: "Slice and Contrast" },
     { value: "none", label: "Slice and None" },
     { value: "translate-slice", label: "Translate Slice" },
-    { value: "angle-slice", label: "Angle Slice" },
+    { value: "angle-slice", label: "Rotate Slice" },
   ];
   let pipeline = useAppSelector((state) => state.result.activeJob?.pipeline_id);
 
@@ -160,15 +160,26 @@ export default function Toolbar(props: ToolbarProps) {
               size="small"
               sx={{
                 m: 2,
-                minWidth: 120,
+                minWidth: 180,
+                maxWidth: "100%",
               }}
             >
-              <InputLabel id="drag-mode-label">Scroll and Right Click</InputLabel>
+              <InputLabel
+                id="drag-mode-label"
+                sx={{
+                  maxWidth: "unset",
+                  overflow: "visible",
+                  textOverflow: "clip",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Scroll and Right Click Drag
+              </InputLabel>
               <Select
                 labelId="drag-mode-label"
                 id="drag-mode"
                 value={props.dragMode}
-                label="Scroll and Right Click"
+                label="Scroll and Right Click Drag"
                 onChange={(e) => {
                   console.log(e.target.value);
                   props.setDragMode(e.target.value);

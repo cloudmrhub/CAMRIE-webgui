@@ -61,7 +61,7 @@ export type AxialSliceStackMm = {
 export type FovPlaneOrientation = "axial" | "sagittal" | "coronal";
 
 /**
- * User-facing slice geometry (orientation + angulation). Internally we derive unit slice normal **N**, orthonormal
+ * User-facing slice geometry (orientation + rotation). Internally we derive unit slice normal **N**, orthonormal
  * row/column (FoVx/FoVy), and the 3×3 image-to-world rotation [row | col | slice] for mesh / affine use.
  */
 export type FovImagePrescription = {
@@ -77,7 +77,7 @@ export type FovImagePrescription = {
    */
   angulationAPdeg: number;
   /**
-   * **Z** angulation: rotation about the slice normal **after** LR/AP tilts (degrees, right-hand rule with slice = row × col).
+   * **Z** rotation about the slice normal **after** LR/AP tilts (degrees, right-hand rule with slice = row × col).
    * Spins readout vs phase in the slice plane without changing the plane orientation. Omitted / undefined treated as 0.
    */
   angulationZDeg?: number;
@@ -95,7 +95,7 @@ export type FovBoxOptions = {
    */
   sliceOffsetWorldMm?: [number, number, number];
   /**
-   * When set, FoV follows cardinal orientation + LR/AP angulation (computed internally); otherwise voxel i/j/k basis.
+   * When set, FoV follows cardinal orientation + LR/AP rotation (computed internally); otherwise voxel i/j/k basis.
    */
   imagePrescription?: FovImagePrescription;
   /** Wireframe slab boxes for each slice (thickness + gap); same in-plane half-extents as axial FoV after clamp. */
@@ -118,15 +118,15 @@ export type FovBoxOptions = {
   name?: string;
   /**
    * When true, **Alt+drag** translates FoV meshes in world mm (Niivue `screenXY2mm`). **Alt+Ctrl+drag** adjusts
-   * LR/AP angulation if {@link fovInteractive.onAngulationSetDeg} is provided. Horizontal delta → LR°, vertical → AP°
+   * LR/AP rotation if {@link fovInteractive.onAngulationSetDeg} is provided. Horizontal delta → LR°, vertical → AP°
    * (diagonal changes both). **Shift** = finer steps. Optional {@link fovInteractive.lockAngulationLR} /
-   * {@link fovInteractive.lockAngulationAP} freeze that axis during canvas drag (see Setup Angle checkboxes).
+   * {@link fovInteractive.lockAngulationAP} freeze that axis during canvas drag (see Setup Rotation checkboxes).
    */
   fovInteractive?: {
     enabled?: boolean;
     /**
      * Called while Alt+Ctrl+dragging with absolute angles (deg), clamped ±89.5° here; parent should mirror into the
-     * same LR/AP fields as the angulation inputs.
+     * same LR/AP fields as the rotation inputs.
      */
     onAngulationSetDeg?: (angulationLRdeg: number, angulationAPdeg: number) => void;
     /**
@@ -134,16 +134,16 @@ export type FovBoxOptions = {
      * Parent should mirror into Setup numeric fields.
      */
     onSliceOffsetMmChange?: (offsetWorldMm: [number, number, number]) => void;
-    /** When true, canvas angulation drag does not change LR° (only AP updates, if not also locked). */
+    /** When true, canvas rotation drag does not change LR° (only AP updates, if not also locked). */
     lockAngulationLR?: boolean;
-    /** When true, canvas angulation drag does not change AP° (only LR updates, if not also locked). */
+    /** When true, canvas rotation drag does not change AP° (only LR updates, if not also locked). */
     lockAngulationAP?: boolean;
-    /** When true, Alt+drag translation is disabled (angulation drag still works if enabled). */
+    /** When true, Alt+drag translation is disabled (rotation drag still works if enabled). */
     lockTranslate?: boolean;
     /**
      * When true, plain left-button drag activates the FoV interaction without requiring Alt.
-     * The drag mode (translate vs angulation) is inferred from the lock flags: if `lockTranslate`
-     * is set the drag angulates; if both angulation axes are locked the drag translates.
+     * The drag mode (translate vs rotation) is inferred from the lock flags: if `lockTranslate`
+     * is set the drag rotates LR/AP angles; if both rotation axes are locked the drag translates.
      */
     altFree?: boolean;
   };
@@ -154,7 +154,7 @@ export type FovBoxOptions = {
   preserveFovUserTransform?: boolean;
 };
 
-/** User-applied translation on top of volume isocenter (for drag + backend export). Angulation lives in `imagePrescription`. */
+/** User-applied translation on top of volume isocenter (for drag + backend export). Rotation lives in `imagePrescription`. */
 export type FovUserMeshTransform = {
   offsetMm: [number, number, number];
 };
@@ -417,7 +417,7 @@ const WORLD_LR = [1, 0, 0];
 const WORLD_AP = [0, 1, 0];
 
 /**
- * Cardinal image basis before angulation: row × col = slice (RAS-style world slice-mm).
+ * Cardinal image basis before rotation: row × col = slice (RAS-style world slice-mm).
  * Columns of the 3×3 image→world rotation are [row, col, slice].
  */
 function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasisMm {
@@ -433,7 +433,7 @@ function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasis
   }
 }
 
-/** Apply LR (+x) then AP (+y) world angulation to the full row/col/slice triad. */
+/** Apply LR (+x) then AP (+y) world rotation to the full row/col/slice triad. */
 function applyWorldAxisAngulation(
   basis: VolumeImageBasisMm,
   angulationLRdeg: number,
@@ -943,10 +943,10 @@ const DEFAULT_FOV_USER_TRANSFORM: FovUserMeshTransform = {
   offsetMm: [0, 0, 0],
 };
 
-/** Device pixels → LR / AP angulation degrees (Alt+Ctrl+drag), matched to Setup text field convention. */
+/** Device pixels → LR / AP rotation degrees (Alt+Ctrl+drag), matched to Setup text field convention. */
 const FOV_INTERACTIVE_DEG_PER_PIXEL_LR = 0.065;
 const FOV_INTERACTIVE_DEG_PER_PIXEL_AP = 0.065;
-/** Hold Shift while dragging for smaller steps (translate mm and angulation °). */
+/** Hold Shift while dragging for smaller steps (translate mm and rotation °). */
 const FOV_INTERACTIVE_FINE_SCALE = 0.22;
 
 function ensureFovUserTransform(host: NiivueMeshHost): FovUserMeshTransform {
@@ -1162,6 +1162,10 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
   let mode: "translate" | "angulation" | null = null;
   let lastX = 0;
   let lastY = 0;
+  /** Latest translate destination accumulated during drag; flushed to React state only on release. */
+  let pendingTranslateMm: [number, number, number] | null = null;
+  /** Latest angulation accumulated during drag; flushed to React state only on release. */
+  let pendingAngulation: [number, number] | null = null;
 
   /** Same as Niivue `mouseClick`: CSS pixels relative to canvas, then × `uiData.dpr`. Do not extract nv methods — `this` must stay bound. */
   const toDevicePx = (e: PointerEvent): [number, number] | null => {
@@ -1176,18 +1180,46 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
   };
 
   const onPointerDown = (e: PointerEvent): void => {
-    if (e.button !== 0) return;
     const altFree = options.fovInteractive?.altFree;
+
+    // Right-click drag: translate when translate is available, angulation when in Rotate Slice mode.
+    if (e.button === 2) {
+      let rightMode: "translate" | "angulation" | null = null;
+      if (!options.fovInteractive?.lockTranslate) {
+        rightMode = "translate";
+      } else if (!options.fovInteractive?.lockAngulationLR || !options.fovInteractive?.lockAngulationAP) {
+        rightMode = "angulation";
+      }
+      if (!rightMode) return;
+      const px = toDevicePx(e);
+      if (!px) return;
+      e.preventDefault();
+      e.stopPropagation();
+      mode = rightMode;
+      pendingTranslateMm = null;
+      pendingAngulation = null;
+      lastX = px[0];
+      lastY = px[1];
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      return;
+    }
+
+    // Left-click: existing behaviour (alt-free mode or alt+drag).
+    if (e.button !== 0) return;
     if (!altFree && !e.altKey) return;
     const px = toDevicePx(e);
     if (!px) return;
     e.preventDefault();
     e.stopPropagation();
     if (altFree) {
-      // Mode is fixed by the lock flags: translate-only or angulation-only.
+      // Mode is fixed by the lock flags: translate-only or rotation-only.
       mode = options.fovInteractive?.lockTranslate ? "angulation" : "translate";
+      pendingTranslateMm = null;
+      pendingAngulation = null;
     } else {
       mode = e.ctrlKey || e.metaKey ? "angulation" : "translate";
+      pendingTranslateMm = null;
+      pendingAngulation = null;
     }
     lastX = px[0];
     lastY = px[1];
@@ -1196,6 +1228,11 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
     } catch {
       /* ignore */
     }
+  };
+
+  /** Suppress browser context menu while the FOV interactive is active so right-click drag works cleanly. */
+  const onContextMenu = (e: MouseEvent): void => {
+    e.preventDefault();
   };
 
   const onPointerMove = (e: PointerEvent): void => {
@@ -1244,7 +1281,8 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
         ...op,
         sliceOffsetWorldMm: newMm,
       };
-      options.fovInteractive?.onSliceOffsetMmChange?.(newMm);
+      // Accumulate for release flush — do NOT call onSliceOffsetMmChange here to avoid per-frame React re-renders.
+      pendingTranslateMm = newMm;
       lastX = px[0];
       lastY = px[1];
       rebuildFovBoundingBoxMeshFromUserTransform(nv);
@@ -1274,7 +1312,9 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
           angulationAPdeg: ap,
         },
       };
-      options.fovInteractive?.onAngulationSetDeg?.(lr, ap);
+      // Accumulate for release flush — do NOT call onAngulationSetDeg here to avoid per-frame React re-renders
+      // (each call would trigger setupFovBoxOptions recompute → handler reinstall → mode reset mid-drag).
+      pendingAngulation = [lr, ap];
       rebuildFovBoundingBoxMeshFromUserTransform(nv);
     }
   };
@@ -1283,6 +1323,15 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
     if (!mode) return;
     e.preventDefault();
     e.stopPropagation();
+    // Flush accumulated values to React state now that the drag is done.
+    if (mode === "translate" && pendingTranslateMm !== null) {
+      options.fovInteractive?.onSliceOffsetMmChange?.(pendingTranslateMm);
+      pendingTranslateMm = null;
+    }
+    if (mode === "angulation" && pendingAngulation !== null) {
+      options.fovInteractive?.onAngulationSetDeg?.(pendingAngulation[0], pendingAngulation[1]);
+      pendingAngulation = null;
+    }
     mode = null;
     try {
       if (canvas.hasPointerCapture(e.pointerId)) {
@@ -1297,12 +1346,14 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
   canvas.addEventListener("pointermove", onPointerMove, true);
   canvas.addEventListener("pointerup", endDrag, true);
   canvas.addEventListener("pointercancel", endDrag, true);
+  canvas.addEventListener("contextmenu", onContextMenu, true);
 
   host.__camrieFovDragCleanup = () => {
     canvas.removeEventListener("pointerdown", onPointerDown, true);
     canvas.removeEventListener("pointermove", onPointerMove, true);
     canvas.removeEventListener("pointerup", endDrag, true);
     canvas.removeEventListener("pointercancel", endDrag, true);
+    canvas.removeEventListener("contextmenu", onContextMenu, true);
     host.__camrieFovDragCleanup = undefined;
   };
 }

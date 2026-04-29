@@ -31,14 +31,14 @@ export const ENCODING_DIRECTION_OPTIONS: Record<
   sagittal: [
     { value: "posterior", label: "Anterior - Posterior" },
     { value: "anterior", label: "Posterior - Anterior" },
-    { value: "down", label: "Head - Feet" },
-    { value: "up", label: "Feet - Head" },
+    { value: "down", label: "Superior - Inferior" },
+    { value: "up", label: "Inferior - Superior" },
   ],
   coronal: [
     { value: "left", label: "Right - Left" },
     { value: "right", label: "Left - Right" },
-    { value: "down", label: "Head - Feet" },
-    { value: "up", label: "Feet - Head" },
+    { value: "down", label: "Superior - Inferior" },
+    { value: "up", label: "Inferior - Superior" },
   ],
 };
 
@@ -145,7 +145,7 @@ export type SequenceGeometryJson = {
     orientation: FovPlaneOrientation;
     angulation_lr_deg: number;
     angulation_ap_deg: number;
-    /** Z angulation about slice normal after LR/AP (deg). Prefer over deprecated `angulation_slice_deg`. */
+    /** Z rotation about slice normal after LR/AP (deg). Prefer over deprecated `angulation_slice_deg`. */
     angulation_z_deg?: number;
     /** @deprecated Renamed to {@link SequenceGeometryJson.ui.angulation_z_deg}. */
     angulation_slice_deg?: number;
@@ -239,7 +239,7 @@ export type SequenceGeometryFormState = {
   orientation: FovPlaneOrientation;
   angulationLRdeg: number;
   angulationAPdeg: number;
-  /** Z angulation about slice normal after LR/AP world tilts (deg). */
+  /** Z rotation about slice normal after LR/AP world tilts (deg). */
   angulationZDeg: number;
   fovPixelsX: number;
   fovPixelsY: number;
@@ -247,7 +247,8 @@ export type SequenceGeometryFormState = {
   fovResYMM: number;
   sagittalNumSlices: number;
   sagittalSliceThicknessMm: number;
-  sagittalSliceGapMm: number;
+  /** Slice gap expressed as a percentage of slice thickness (e.g. 10 = 10%). Converted to mm at export time. */
+  sagittalSliceGapPct: number;
   /** Offset of slice group center from volume isocenter (mm; +x toward left, +y toward posterior, +z toward superior; head-first). */
   sliceOffsetXMM: number;
   sliceOffsetYMM: number;
@@ -269,9 +270,9 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   fovPixelsY: 128,
   fovResXMM: 1,
   fovResYMM: 1,
-  sagittalNumSlices: 10,
-  sagittalSliceThicknessMm: 3,
-  sagittalSliceGapMm: 5,
+  sagittalNumSlices: 5,
+  sagittalSliceThicknessMm: 2,
+  sagittalSliceGapPct: 0,
   sliceOffsetXMM: 0,
   sliceOffsetYMM: 0,
   sliceOffsetZMM: 0,
@@ -298,7 +299,7 @@ export function formStateToCaptureInput(
     fovResYMM: form.fovResYMM,
     sagittalNumSlices: form.sagittalNumSlices,
     sagittalSliceThicknessMm: form.sagittalSliceThicknessMm,
-    sagittalSliceGapMm: form.sagittalSliceGapMm,
+    sagittalSliceGapMm: Math.max(0, (form.sagittalSliceGapPct / 100) * form.sagittalSliceThicknessMm),
     sliceOffsetXMM: form.sliceOffsetXMM,
     sliceOffsetYMM: form.sliceOffsetYMM,
     sliceOffsetZMM: form.sliceOffsetZMM,
@@ -334,7 +335,7 @@ export function sequenceGeometryJsonToFormState(
       fovResYMM: g.pixel_matrix.resolution_y_mm,
       sagittalNumSlices: g.num_slices,
       sagittalSliceThicknessMm: g.slice_thickness_mm,
-      sagittalSliceGapMm: g.slice_gap_mm,
+      sagittalSliceGapPct: g.slice_thickness_mm > 0 ? (g.slice_gap_mm / g.slice_thickness_mm) * 100 : 0,
       sliceOffsetXMM: 0,
       sliceOffsetYMM: 0,
       sliceOffsetZMM: 0,
@@ -363,7 +364,7 @@ export function sequenceGeometryJsonToFormState(
     fovResYMM: ny > 0 ? g.fov_mm[1] / ny : 1,
     sagittalNumSlices: g.slice.num_slices,
     sagittalSliceThicknessMm: g.slice.thickness_mm,
-    sagittalSliceGapMm: g.slice.gap_mm,
+    sagittalSliceGapPct: g.slice.thickness_mm > 0 ? (g.slice.gap_mm / g.slice.thickness_mm) * 100 : 0,
     sliceOffsetXMM: off[0] ?? 0,
     sliceOffsetYMM: off[1] ?? 0,
     sliceOffsetZMM: off[2] ?? 0,

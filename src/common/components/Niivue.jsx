@@ -40,6 +40,7 @@ export const nv = new Niivue({
   isNearestInterpolation: true,
   isFilledPen: true,
   drawPen: 1,
+  isOrientCube: true,
 });
 
 window.nv = nv;
@@ -871,7 +872,7 @@ export default function NiiVueport(props) {
     nv.setSelectionBoxColor([...rgb01, 0.5])
   }
 
-  const [sliceType, setSliceType] = React.useState(() => props.initialSliceType ?? 'axial')
+  const [sliceType, setSliceType] = React.useState(() => props.initialSliceType ?? 'multi')
   function nvUpdateSliceType(newSliceType) {
     setSliceType(newSliceType);
     if (newSliceType === 'axial') {
