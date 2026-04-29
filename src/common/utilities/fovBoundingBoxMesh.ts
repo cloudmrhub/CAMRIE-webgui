@@ -194,7 +194,7 @@ export const DEFAULT_SLICE_FILL_OPACITY_BY_VIEW: Required<SliceFillOpacityByView
   axial: 6,
   coronal: 6,
   sagittal: 6,
-  view3d: 2,
+  view3d: 6,
 };
 
 /**
@@ -696,6 +696,46 @@ function buildAxialSliceStackSolidFillBuffers(
   return { positions: new Float32Array(positions), indices: new Uint32Array(indices) };
 }
 
+/**
+ * Flat outline rectangle (zero thickness) at the center plane of each slice in the stack.
+ * Visually marks the imaging plane itself, distinct from the top/bottom slab edges.
+ */
+function buildSlicePlanesOutlineBuffers(
+  C: number[],
+  u0: number[],
+  u1: number[],
+  nHat: number[],
+  h0: number,
+  h1: number,
+  numSlices: number,
+  thicknessMm: number,
+  gapMm: number,
+  borderWidthMm: number,
+  minB: number[],
+  maxB: number[],
+): { positions: Float32Array; indices: Uint32Array } | null {
+  const g = sliceStackScaledGeometry(C, nHat, numSlices, thicknessMm, gapMm, minB, maxB);
+  if (!g) return null;
+  const { N, sp2 } = g;
+
+  const allPositions: number[] = [];
+  const allIndices: number[] = [];
+
+  for (let k = 0; k < N; k++) {
+    const t = (k - (N - 1) / 2) * sp2;
+    const Ck = vadd(C, vscale(nHat, t));
+    const buf = buildAxialFovOutlineRectangleBuffers(Ck, u0, u1, h0, h1, borderWidthMm);
+    if (buf) {
+      const base = allPositions.length / 3;
+      for (let i = 0; i < buf.positions.length; i++) allPositions.push(buf.positions[i]);
+      for (let i = 0; i < buf.indices.length; i++) allIndices.push(buf.indices[i] + base);
+    }
+  }
+
+  if (allPositions.length === 0) return null;
+  return { positions: new Float32Array(allPositions), indices: new Uint32Array(allIndices) };
+}
+
 function buildAxialSliceStackWireframeBuffers(
   C: number[],
   u0: number[],
@@ -856,6 +896,9 @@ const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0
 
 /** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
+
+/** Plane-center outline — a distinct pure green (#00C850) so each slice plane is distinguishable from the slab edges. */
+const SLICE_PLANE_OUTLINE_RGBA255: [number, number, number, number] = [0, 200, 80, 255];
 
 /**
  * Default Niivue mesh fragment shaders scale RGB by ambient+diffuse (≈0.85–0.95 of albedo); nudge vertices so
@@ -1079,6 +1122,30 @@ function createAxialFovMeshList(
       stackMesh.opacity = Math.min(1, Math.max(0, op));
       styleFovNvmesh(stackMesh, nv);
       meshes.push(stackMesh);
+    }
+
+    // Distinct green outline at the center plane of each slice (the actual imaging plane, not the slab edges).
+    // Use ~1.5% of the shorter FoV half-extent — close to the internal cap so the border is clearly visible.
+    const planeBw = Math.min(h0, h1) * 0.015;
+    const planeOutlineBuf = buildSlicePlanesOutlineBuffers(
+      C, u0, u1, nHat, h0, h1,
+      st!.numSlices, st!.sliceThicknessMm, st!.sliceGapMm,
+      planeBw, min, max,
+    );
+    if (planeOutlineBuf) {
+      const planeRgba = boostFovRgb255(SLICE_PLANE_OUTLINE_RGBA255, 1.1);
+      const planeMesh = new NVMesh(
+        planeOutlineBuf.positions,
+        planeOutlineBuf.indices,
+        `${name} slice planes`,
+        [...planeRgba],
+        1,
+        true,
+        gl,
+      );
+      planeMesh.opacity = Math.min(1, Math.max(0, op));
+      styleFovNvmesh(planeMesh, nv);
+      meshes.push(planeMesh);
     }
   }
 
