@@ -83,8 +83,8 @@ export default function Toolbar(props: ToolbarProps) {
     { value: "measurement", label: "Slice and Measurement" },
     { value: "contrast", label: "Slice and Contrast" },
     { value: "none", label: "Slice and None" },
-    { value: "translate-slice", label: "Translate Slice" },
-    { value: "angle-slice", label: "Rotate Slice" },
+    { value: "translate-slice", label: "None and Translate Slice" },
+    { value: "angle-slice", label: "None and Rotate Slice" },
   ];
   let pipeline = useAppSelector((state) => state.result.activeJob?.pipeline_id);
 
