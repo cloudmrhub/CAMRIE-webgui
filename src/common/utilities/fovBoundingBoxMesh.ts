@@ -894,11 +894,11 @@ void main() {
  */
 const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 55];
 
-/** Default outline / stack wire — neon green (#39FF14) when `rgba255` is omitted. */
+/** Default outline / stack wire — neon green (#39FF14). */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
 
-/** Plane-center outline — a distinct pure green (#00C850) so each slice plane is distinguishable from the slab edges. */
-const SLICE_PLANE_OUTLINE_RGBA255: [number, number, number, number] = [0, 200, 80, 255];
+/** Plane-center outline — neon cyan-green (#00FF78) so each slice plane is distinguishable from the slab edges. */
+const SLICE_PLANE_OUTLINE_RGBA255: [number, number, number, number] = [0, 255, 120, 255];
 
 /**
  * Default Niivue mesh fragment shaders scale RGB by ambient+diffuse (≈0.85–0.95 of albedo); nudge vertices so
@@ -1019,14 +1019,16 @@ function createAxialFovMeshList(
   max: number[],
 ): NVMesh[] | null {
   const mmToWorld = getMmToNiivueWorldScale(min, max);
+  /** Increase this multiplier to make all FoV outlines thicker (1.0 = original baseline). */
+  const FOV_LINE_WIDTH_SCALE = 3.0;
   const borderWorld = Math.min(
-    0.0065 * mmToWorld,
-    Math.max(0.002 * mmToWorld, Math.min(h0, h1) * 0.00012),
+    0.0065 * FOV_LINE_WIDTH_SCALE * mmToWorld,
+    Math.max(0.002 * FOV_LINE_WIDTH_SCALE * mmToWorld, Math.min(h0, h1) * 0.00012 * FOV_LINE_WIDTH_SCALE),
   );
 
   let buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, borderWorld);
   if (!buf) {
-    const fallbackBw = Math.min(0.0055 * mmToWorld, Math.max(0.002 * mmToWorld, Math.min(h0, h1) * 0.0001));
+    const fallbackBw = Math.min(0.0055 * FOV_LINE_WIDTH_SCALE * mmToWorld, Math.max(0.002 * FOV_LINE_WIDTH_SCALE * mmToWorld, Math.min(h0, h1) * 0.0001 * FOV_LINE_WIDTH_SCALE));
     buf = buildAxialFovOutlineRectangleBuffers(C, u0, u1, h0, h1, fallbackBw);
   }
   if (!buf) return null;
@@ -1035,16 +1037,16 @@ function createAxialFovMeshList(
   const name = options?.name ?? "Axial FOV";
   const op = options?.opacity ?? 1;
   const mesh = new NVMesh(buf.positions, buf.indices, name, [...rgba], 1, true, gl);
-  mesh.opacity = Math.min(1, Math.max(0, op));
-  styleFovNvmesh(mesh, nv);
+  mesh.opacity = 1;
+  styleFovSliceFillMesh(mesh, nv);
 
   const meshes: NVMesh[] = [mesh];
 
   const st = options?.axialSliceStack;
   if (nHat && isValidAxialSliceStack(st)) {
     const stackLw = Math.min(
-      0.0075 * mmToWorld,
-      Math.max(0.0025 * mmToWorld, Math.min(h0, h1) * 0.00014),
+      0.0075 * FOV_LINE_WIDTH_SCALE * mmToWorld,
+      Math.max(0.0025 * FOV_LINE_WIDTH_SCALE * mmToWorld, Math.min(h0, h1) * 0.00014 * FOV_LINE_WIDTH_SCALE),
     );
     const stackFillBuf = buildAxialSliceStackSolidFillBuffers(
       C,
@@ -1119,8 +1121,8 @@ function createAxialFovMeshList(
         true,
         gl,
       );
-      stackMesh.opacity = Math.min(1, Math.max(0, op));
-      styleFovNvmesh(stackMesh, nv);
+      stackMesh.opacity = 1;
+      styleFovSliceFillMesh(stackMesh, nv);
       meshes.push(stackMesh);
     }
 
@@ -1143,8 +1145,8 @@ function createAxialFovMeshList(
         true,
         gl,
       );
-      planeMesh.opacity = Math.min(1, Math.max(0, op));
-      styleFovNvmesh(planeMesh, nv);
+      planeMesh.opacity = 1;
+      styleFovSliceFillMesh(planeMesh, nv);
       meshes.push(planeMesh);
     }
   }
