@@ -1984,7 +1984,7 @@ const Setup = () => {
                           )}
                         </Box>
 
-                        <Typography><strong>FA:</strong>&nbsp;{selectedSequence.fa}</Typography>
+                        <Typography><strong>FA:</strong>&nbsp;{Array.isArray(selectedSequence.fa) ? selectedSequence.fa.join(' - ') : selectedSequence.fa}</Typography>
                         <Typography><strong>ACC:</strong>&nbsp;1x1</Typography>
                       </Box>
                     </CardContent>
@@ -2305,14 +2305,14 @@ const Setup = () => {
                         </Typography>
                         <Box sx={{ marginTop: 1 }}>
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Orientation
+                       Slice Orientation 
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
                         <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
-                          <InputLabel id="fov-orientation-label">Orientation</InputLabel>
+                          <InputLabel id="fov-orientation-label">Slice Orientation</InputLabel>
                           <MuiSelect
                             labelId="fov-orientation-label"
-                            label="Orientation"
+                            label="Slice Orientation"
                             value={activeForm.orientation}
                             onChange={(e) => {
                               const next = e.target.value as FovPlaneOrientation;
@@ -3006,6 +3006,39 @@ const Setup = () => {
                           </Box>
                         </Box>
                       </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                          mt: 1,
+                        }}
+                      >
+                        <Tooltip title="Set rotation angles back to zero">
+                          <span>
+                            <CmrButton
+                              variant="outlined"
+                              size="small"
+                              disabled={!nv?.volumes?.[0]}
+                              onClick={() => {
+                                setFovAngulationLRdraft(null);
+                                setFovAngulationAPdraft(null);
+                                setFovAngulationZDraft(null);
+                                patchActiveSequenceGeometry({
+                                  angulationLRdeg: 0,
+                                  angulationAPdeg: 0,
+                                  angulationZDeg: 0,
+                                });
+                              }}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Reset Rotation
+                            </CmrButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
                       </Box>
                     </Box>
                     ) : (
@@ -3482,6 +3515,39 @@ const Setup = () => {
                             </Box>
                           </Box>
                         </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                          mt: 1,
+                        }}
+                      >
+                        <Tooltip title="Set LR, AP, and Z rotation angles back to zero">
+                          <span>
+                            <CmrButton
+                              variant="outlined"
+                              size="small"
+                              disabled={!nv?.volumes?.[0]}
+                              onClick={() => {
+                                setFovAngulationLRdraft(null);
+                                setFovAngulationAPdraft(null);
+                                setFovAngulationZDraft(null);
+                                patchActiveSequenceGeometry({
+                                  angulationLRdeg: 0,
+                                  angulationAPdeg: 0,
+                                  angulationZDeg: 0,
+                                });
+                              }}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Reset Rotation
+                            </CmrButton>
+                          </span>
+                        </Tooltip>
                       </Box>
                     </Box>
                     )}

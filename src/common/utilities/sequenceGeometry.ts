@@ -14,7 +14,7 @@ export type Affine4x4 = [
 
 /**
  * Stored ids for phase/frequency encoding direction pickers (labels vary by slice orientation).
- * For the foot–head axis, `up` / `down` mean **head** / **feet** (patient-fixed, head-first; same as superior/inferior); ids are unchanged for JSON compatibility.
+ * For the foot–head axis, `up` / `down` mean **feet → head** / **head → feet** in the picker labels (patient-fixed, head-first; equivalent superior/inferior); ids are unchanged for JSON compatibility.
  */
 export type EncodingDirectionId = "left" | "right" | "anterior" | "posterior" | "up" | "down";
 
@@ -31,14 +31,14 @@ export const ENCODING_DIRECTION_OPTIONS: Record<
   sagittal: [
     { value: "posterior", label: "Anterior - Posterior" },
     { value: "anterior", label: "Posterior - Anterior" },
-    { value: "down", label: "Superior - Inferior" },
-    { value: "up", label: "Inferior - Superior" },
+    { value: "down", label: "Head - Feet" },
+    { value: "up", label: "Feet - Head" },
   ],
   coronal: [
     { value: "left", label: "Right - Left" },
     { value: "right", label: "Left - Right" },
-    { value: "down", label: "Superior - Inferior" },
-    { value: "up", label: "Inferior - Superior" },
+    { value: "down", label: "Head - Feet" },
+    { value: "up", label: "Feet - Head" },
   ],
 };
 

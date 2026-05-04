@@ -253,7 +253,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         {/* Slice Position */}
         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <Box id={"controlDock"} className={'title'} style={{ width: '100%' }} ref={sliceControl}>
-            Slice Position
+            Displayed Section
           </Box>
           <Card variant="outlined" sx={{ flex: 1, display: 'flex', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
           <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
