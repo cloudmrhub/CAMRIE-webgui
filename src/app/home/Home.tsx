@@ -250,7 +250,7 @@ const Home = () => {
             dataSource={[...files]
               .filter((file) => {
                 const name = file.fileName.toLowerCase();
-                return !name.endsWith(".zip") && !name.endsWith(".nii");
+                return !name.endsWith(".doc") && !name.endsWith(".nii");
               })
               .reverse()}
             rowSelectionModel={selectedData}
@@ -261,6 +261,7 @@ const Home = () => {
             headerBgColor="#E3F1F6"
             headerTextColor="#333"
             headerIconColor="#1578A1"
+            checkboxCheckedColor="#1578A1"
           />
           <div className="row mt-2">
             <div className="col-4">
@@ -328,6 +329,7 @@ const Home = () => {
                   ".npy",
                   ".pkl",
                   ".mat",
+                  ".zip"
                 ]}
                 color={"primary"}
                 key={uploadKey}
