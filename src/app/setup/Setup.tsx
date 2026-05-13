@@ -29,7 +29,7 @@ import {
   getUploadedData,
   uploadData,
 } from "cloudmr-ux/core/features/data/dataActionCreation";
-import { useAppSelector } from "../../features/hooks";
+import { useAppDispatch, useAppSelector } from "../../features/hooks";
 import {
   getFiles,
   setupGetters,
@@ -51,6 +51,7 @@ import {
   CardActions,
   Grid,
   Alert,
+  CircularProgress,
   TextField,
   FormControl,
   InputLabel,
@@ -81,11 +82,33 @@ import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import type { AxiosResponse } from "axios";
 import { store } from "../../features/store";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadFromText";
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import Select from "react-select";
+import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
+import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
+import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
+
+/** Preset row or a MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
+interface SetupModelOption {
+  id: string;
+  name: string;
+  objectName: string;
+  b0: string;
+  nucleus: string;
+  frequency: string;
+  resolution: string;
+  numOfTissues: string;
+  coil: string;
+  receiveChannels: number;
+  transmitChannels: number;
+  emSimulator: string;
+  image: string;
+  volumeMapFromZip?: Record<string, string>;
+}
 
 // Add volumes from public/volumes here: display name -> filename (order by ascending numeric id in info.json data)
 const SETUP_VOLUME_MAP: Record<string, string> = {
@@ -187,6 +210,84 @@ const BASE_VOL = `${import.meta.env.BASE_URL}volumes/`;
 const baseUrlHeadSurfaceCoil = `${BASE_VOL}3T-Head-Surface-Coil/`;
 const baseUrl3TBirdcageCoil = `${BASE_VOL}3T-Head-Birdcage-Coil/`;
 const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
+
+/**
+ * MARIE `info.json` volume names use underscores (e.g. `Proton_Density`); built-in maps use spaces.
+ * Pick the same logical default (proton density / rhoh) for Niivue’s initial load.
+ */
+function indexOfPreferredMarieVolume(entries: [string, string][]): number {
+  const labels = ["Proton Density", "Proton_Density"];
+  for (const label of labels) {
+    const i = entries.findIndex(([name]) => name === label);
+    if (i >= 0) return i;
+  }
+  const byName = entries.findIndex(([name]) => /rhoh/i.test(name.replace(/\s+/g, "_")));
+  if (byName >= 0) return byName;
+  const byUrl = entries.findIndex(([, url]) => /rhoh/i.test(url));
+  if (byUrl >= 0) return byUrl;
+  return 0;
+}
+
+/** Built-in phantom/coil presets for the Model dropdown (non-zip). */
+const CAMRIE_PRESET_MODELS: SetupModelOption[] = [
+  {
+    id: "1",
+    name: "16-Ch 3T Head Surface Coil",
+    objectName: "Duke_2mm",
+    b0: "3T",
+    nucleus: "1 H",
+    frequency: "127.73",
+    resolution: "2 mm isotropic",
+    numOfTissues: "21",
+    coil: "16-Ch 3T Head Surface Coil",
+    receiveChannels: 16,
+    transmitChannels: 0,
+    emSimulator: "MARIE_3.0_WSVIE_version",
+    image: "/models/headsurface.jpg",
+  },
+  {
+    id: "2",
+    name: "3T Head Birdcage Coil",
+    objectName: "Duke_2mm",
+    b0: "3T",
+    nucleus: "1 H",
+    frequency: "127.73",
+    resolution: "2 mm isotropic",
+    numOfTissues: "21",
+    coil: "3T Head Birdcage Coil",
+    receiveChannels: 2,
+    transmitChannels: 2,
+    emSimulator: "MARIE_3.0_WSVIE_version",
+    image: "/models/headbirdcage.png",
+  },
+  {
+    id: "3",
+    name: "8-Ch 7T Head Triangular Coil",
+    objectName: "Duke_2mm",
+    b0: "7T",
+    nucleus: "1 H",
+    frequency: "298.04",
+    resolution: "2 mm isotropic",
+    numOfTissues: "22",
+    coil: "8-Ch 7T Head Triangular Coil",
+    receiveChannels: 8,
+    transmitChannels: 8,
+    emSimulator: "MARIE_3.0_WSVIE_version",
+    image: "/models/headtriangular.png",
+  },
+];
+
+const CAMRIE_PRESET_MODEL_UPLOAD_FILES: UploadedFile[] = CAMRIE_PRESET_MODELS.map((opt, index) => ({
+  id: -(index + 1),
+  fileName: opt.name,
+  link: opt.id,
+  location: "local",
+  database: "local",
+  size: "—",
+  status: "local",
+  createdAt: "",
+  updatedAt: "",
+}));
 
 /** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
 const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
@@ -341,86 +442,35 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
 }
 
 const Setup = () => {
-  const { accessToken } = useAppSelector((state) => state.authenticate);
+  const dispatch = useAppDispatch();
+  const { accessToken, uploadToken } = useAppSelector((state) => state.authenticate);
+  const dataFiles = useAppSelector((state) => state.data.files);
 
   const [openModelPanel, setOpenModelPanel] = useState<Array<string | number>>([0]); // open by default
   const [openPulsePanel, setOpenPulsePanel] = useState<Array<string | number>>([]); // closed by default
-  const [openFieldofViewPanel, setOpenFieldofViewPanel] = useState<Array<string | number>>([0]); // closed by default
+  const [openFieldofViewPanel, setOpenFieldofViewPanel] = useState<Array<string | number>>([0]); // open by default
 
-  // temporarily use local data for models
-  const modelOptions = [
-    {
-      id: '1',
-      name: '16-Ch 3T Head Surface Coil',
-      objectName: 'Duke_2mm',
-      b0: '3T',
-      nucleus: '1 H',
-      frequency: '127.73',
-      resolution: '2 mm isotropic',
-      numOfTissues: '21',
-      coil: '16-Ch 3T Head Surface Coil',
-      receiveChannels: 16,
-      transmitChannels: 0,
-      emSimulator: 'MARIE_3.0_WSVIE_version',
-      // description: 'Overlap 16 Channels Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/headsurface.jpg"
-    },
-    {
-      id: '2',
-      name: '3T Head Birdcage Coil',
-      objectName: 'Duke_2mm',
-      b0: '3T',
-      nucleus: '1 H',
-      frequency: '127.73',
-      resolution: '2 mm isotropic',
-      numOfTissues: '21',
-      coil: '3T Head Birdcage Coil',
-      receiveChannels: 2,
-      transmitChannels: 2,
-      emSimulator: 'MARIE_3.0_WSVIE_version',
-      // description: 'Birdcage single Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/headbirdcage.png"
-    },
-    {
-      id: '3',
-      name: '8-Ch 7T Head Triangular Coil',
-      objectName: 'Duke_2mm',
-      b0: '7T',
-      nucleus: '1 H',
-      frequency: '298.04',
-      resolution: '2 mm isotropic',
-      numOfTissues: '22',
-      coil: '8-Ch 7T Head Triangular Coil',
-      receiveChannels: 8,
-      transmitChannels: 8,
-      emSimulator: 'MARIE_3.0_WSVIE_version',
+  const modelFileSelection = useMemo(() => {
+    const serverZips = dataFiles.filter((f) => f.fileName.toLowerCase().endsWith(".zip"));
+    return [...CAMRIE_PRESET_MODEL_UPLOAD_FILES, ...serverZips];
+  }, [dataFiles]);
 
-      // description: 'Triangular single Coil for 3T MRI scanner with Duke Phantom',
-      image: "/models/headtriangular.png"
-    },
-  ];
+  useEffect(() => {
+    dispatch(getUploadedData() as never);
+  }, [dispatch]);
 
-  const uploadedFiles: UploadedFile[] = modelOptions.map((opt, index) => ({
-    id: index + 1,          // numeric ID for SelectUpload
-    fileName: opt.name,    // what shows in dropdown
-    link: opt.id,          // store real ID here
-    location: 'local',
-    database: 'local',
-    size: '—',
-    status: 'local',
-    createdAt: '',
-    updatedAt: '',
-  }));
-
-  const [selectedModel, setSelectedModel] = useState<
-    (typeof modelOptions)[number] | null
-  >(null);
+  const [selectedModel, setSelectedModel] = useState<SetupModelOption | null>(null);
+  const [marieZipLoading, setMarieZipLoading] = useState(false);
 
   const is16chHeadSurface = selectedModel?.name === MODEL_16CH_SURFACE;
   const isBirdcageCoil = selectedModel?.name === MODEL_BIRDCAGE;
   const isTriangularCoil = selectedModel?.name === MODEL_TRIANGULAR;
 
   const availableVolumes = useMemo((): Record<string, string> => {
+    const zipMap = selectedModel?.volumeMapFromZip;
+    if (zipMap && Object.keys(zipMap).length > 0) {
+      return zipMap;
+    }
     if (is16chHeadSurface) {
       return Object.fromEntries(
         Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [
@@ -446,7 +496,7 @@ const Setup = () => {
       );
     }
     return {};
-  }, [is16chHeadSurface, isBirdcageCoil, isTriangularCoil]);
+  }, [selectedModel?.volumeMapFromZip, is16chHeadSurface, isBirdcageCoil, isTriangularCoil]);
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
@@ -591,7 +641,7 @@ const Setup = () => {
     id: index,
     dim: 3,
     name,
-    filename: url.split("/").pop() || `${name}.nii.gz`,
+    filename: niivueSafeVolumeName(url, `${name}.nii.gz`),
     type: "nifti",
     link: url,
   }));
@@ -611,12 +661,11 @@ const Setup = () => {
   useEffect(() => {
     if (Object.keys(availableVolumes).length > 0) {
       const entries = Object.entries(availableVolumes);
-      const protonDensityIndex = entries.findIndex(([displayName]) => displayName === "Proton Density");
-      const initialIndex = protonDensityIndex >= 0 ? protonDensityIndex : 0;
+      const initialIndex = indexOfPreferredMarieVolume(entries);
       const [name, url] = entries[initialIndex];
       const vol = {
         url,
-        name: url.split("/").pop() || `${name}.nii.gz`,
+        name: niivueSafeVolumeName(url, `${name}.nii.gz`),
         alias: name,
       };
       nv.loadVolumes([vol]);
@@ -634,16 +683,59 @@ const Setup = () => {
   }, [availableVolumes]);
 
   const handleModelSelected = (file?: UploadedFile) => {
-    if (!file) {
-      setSelectedModel(null);
-      return;
-    }
+    void (async () => {
+      if (!file) {
+        setSelectedModel(null);
+        return;
+      }
 
-    const match = modelOptions.find(
-      (opt) => opt.id === file.link
-    );
+      if (file.location === "local") {
+        const match = CAMRIE_PRESET_MODELS.find((opt) => opt.id === file.link);
+        setSelectedModel(match ?? null);
+        return;
+      }
 
-    setSelectedModel(match ?? null);
+      if (!file.fileName.toLowerCase().endsWith(".zip")) {
+        warn("Select a .zip MARIE model archive from storage, or pick a built-in preset.");
+        return;
+      }
+
+      setMarieZipLoading(true);
+      try {
+        const locationPayload = JSON.parse(file.location) as unknown;
+        const { volumes, card, previewImageLink } = await fetchMarieZipManifest(
+          locationPayload,
+          file.fileName,
+        );
+        setSelectedModel({
+          id: `zip-${file.id}`,
+          name: file.fileName,
+          objectName: card.objectName,
+          b0: card.b0,
+          nucleus: card.nucleus,
+          frequency: card.frequency,
+          resolution: card.resolution,
+          numOfTissues: card.numOfTissues,
+          coil: card.coil,
+          receiveChannels: card.receiveChannels,
+          transmitChannels: card.transmitChannels,
+          emSimulator: card.emSimulator,
+          image: previewImageLink ?? "/models/headsurface.jpg",
+          volumeMapFromZip: volumes,
+        });
+      } catch (e) {
+        console.error(e);
+        const detail = e instanceof Error ? e.message : String(e);
+        warn(
+          detail
+            ? `Could not load MARIE zip: ${detail}`
+            : "Could not load MARIE zip from the server. The `/unzip` response must include volume links and `info` from info.json (see marieZipManifest.ts).",
+        );
+        setSelectedModel(null);
+      } finally {
+        setMarieZipLoading(false);
+      }
+    })();
   };
 
   const clearSelectedModel = () => {
@@ -1068,18 +1160,16 @@ const Setup = () => {
     setSelectedProtocolSeqId(null);
   };
 
-  // placeholder remove later
+  const modelZipUploadHandler = uploadHandlerFactory(uploadToken, dispatch, uploadData);
+
   const noopUploadHandler = async (
     file: File,
     fileAlias: string,
     fileDatabase: string,
     onProgress?: (progress: number) => void,
-    onUploaded?: (res: any, file: File) => void
+    onUploaded?: (res: AxiosResponse<any, any, {}>, file: File) => void,
   ): Promise<number> => {
-    // optional: make progress look “done”
     onProgress?.(100);
-
-    // no real upload — just return a fake numeric id
     return 0;
   };
 
@@ -1702,15 +1792,22 @@ const Setup = () => {
                       </CmrLabel>
 
                       <CMRSelectUpload
-                        fileSelection={uploadedFiles}
+                        fileSelection={modelFileSelection}
                         onSelected={handleModelSelected}
-                        onUploaded={() => { }}
+                        onUploaded={() => {
+                          dispatch(getUploadedData() as never);
+                        }}
                         chosenFile={selectedModel?.name}
                         maxCount={1}
-                        uploadHandler={noopUploadHandler}
+                        preprocess={preprocessMarieModelZip}
+                        uploadHandler={modelZipUploadHandler}
                         buttonText="Choose"
                         selectStyles={selectStyles}
                       />
+
+                      {marieZipLoading && (
+                        <CircularProgress size={22} sx={{ color: "#1578a1" }} />
+                      )}
 
                       {/* Clear Button */}
                       {selectedModel && (
