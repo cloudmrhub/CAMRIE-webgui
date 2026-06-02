@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { NVImage } from '@niivue/niivue';
 import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh } from '../utilities/fovBoundingBoxMesh';
+import { niivueSafeVolumeName } from '../utilities/niivueVolumeUrl';
 import { SettingsPanel } from './SettingsPanel.jsx';
 import { NumberPicker } from './NumberPicker.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -1634,11 +1635,14 @@ export default function NiiVueport(props) {
 
 
 function niiToVolume(nii) {
+  const fallback =
+    (typeof nii.filename === 'string' && nii.filename.split('/').pop()) ||
+    `${nii.name || 'volume'}.nii.gz`;
   return {
     //URL is for NiiVue blob loading
     url: nii.link,
-    //name is for NiiVue name replacer (needs proper extension like .nii)
-    name: (nii.filename.split('/').pop()),
+    //name is for NiiVue name replacer (needs proper extension like .nii); strip ?query from presigned URLs
+    name: niivueSafeVolumeName(nii.link, fallback),
     //alias is for user selection in toolbar
     alias: nii.name,
   };
