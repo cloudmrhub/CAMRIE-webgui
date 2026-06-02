@@ -237,10 +237,121 @@ function inferPreviewImageLink(entries: MarieZipVolumeEntry[]): string | undefin
   return preview?.link;
 }
 
+/** `task.options.marie_inputs` in CAMRIE backend JSON (see `public/examplePayload.json`). */
+export type MarieBackendInputs = {
+  b0: number;
+  nucleus: string;
+  freq: number;
+  basis_vie: string;
+  basis_sie: string;
+  basis_wie: string;
+  phantom: string;
+  Number_of_tissues: number;
+  resolution: [number, number, number];
+  coil: string;
+  wire: string;
+  shield: string;
+  basis_support: string;
+  basis_file: string;
+  Number_of_Rx_channels: number;
+  Number_of_Tx_channels: number;
+  co_simulation: string;
+  EM_Simulator: string;
+};
+
+function marieStringField(inputs: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = inputs[k];
+    if (v === undefined || v === null) continue;
+    const s = String(v).trim();
+    if (s !== "") return s;
+  }
+  return "";
+}
+
+function marieNumberField(inputs: Record<string, unknown>, ...keys: string[]): number {
+  for (const k of keys) {
+    const v = inputs[k];
+    if (v === undefined || v === null) continue;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function marieB0Tesla(inputs: Record<string, unknown>): number {
+  const raw = inputs.b0 ?? inputs.B0;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const m = raw.match(/[\d.]+/);
+    if (m) return Number(m[0]);
+  }
+  return 3;
+}
+
+function marieFreqHz(inputs: Record<string, unknown>): number {
+  const raw = inputs.freq ?? inputs.Freq;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.abs(n) >= 1e4 ? n : n * 1e6;
+}
+
+function marieResolutionMeters(inputs: Record<string, unknown>): [number, number, number] {
+  const raw = inputs.resolution ?? inputs.Resolution;
+  if (Array.isArray(raw) && raw.length >= 3) {
+    return [Number(raw[0]), Number(raw[1]), Number(raw[2])];
+  }
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return [raw, raw, raw];
+  }
+  return [0.002, 0.002, 0.002];
+}
+
+/** Build `marie_inputs` for the backend from parsed MARIE `info.json`. */
+export function buildMarieInputsFromInfo(info: Record<string, unknown>): MarieBackendInputs {
+  const inputs = getMarieInputsSection(info);
+  return {
+    b0: marieB0Tesla(inputs),
+    nucleus: marieStringField(inputs, "nucleus", "Nucleus") || "1H",
+    freq: marieFreqHz(inputs),
+    basis_vie: marieStringField(inputs, "basis_vie", "Basis_VIE") || "PWC",
+    basis_sie: marieStringField(inputs, "basis_sie", "Basis_SIE") || "RWG",
+    basis_wie: marieStringField(inputs, "basis_wie", "Basis_WIE") || "Triangle",
+    phantom: marieStringField(inputs, "phantom", "Phantom") || marieStringField(info, "Object_Name", "object_name"),
+    Number_of_tissues: marieNumberField(
+      inputs,
+      "Number_of_tissues",
+      "number_of_tissues",
+      "Number_of_Tissues",
+    ),
+    resolution: marieResolutionMeters(inputs),
+    coil: marieStringField(inputs, "coil", "Coil"),
+    wire: marieStringField(inputs, "wire", "Wire"),
+    shield: marieStringField(inputs, "shield", "Shield"),
+    basis_support: marieStringField(inputs, "basis_support", "Basis_support"),
+    basis_file: marieStringField(inputs, "basis_file", "Basis_file"),
+    Number_of_Rx_channels: marieNumberField(
+      inputs,
+      "Number_of_Rx_channels",
+      "number_of_rx_channels",
+    ),
+    Number_of_Tx_channels: marieNumberField(
+      inputs,
+      "number_of_Tx_channels",
+      "Number_of_Tx_channels",
+      "number_of_tx_channels",
+    ),
+    co_simulation: marieStringField(inputs, "co_simulation", "Co_simulation") || "YES",
+    EM_Simulator: marieStringField(inputs, "EM_Simulator", "em_simulator"),
+  };
+}
+
 export type MarieZipManifestResult = {
   volumes: Record<string, string>;
   card: MarieSetupModelFields;
   previewImageLink?: string;
+  /** Parsed MARIE `info.json` root (for backend `marie_inputs`). */
+  info?: Record<string, unknown>;
 };
 
 /**
@@ -294,5 +405,6 @@ export async function fetchMarieZipManifest(
     volumes,
     card,
     previewImageLink: body.previewImageLink ?? inferPreviewImageLink(entries),
+    info,
   };
 }

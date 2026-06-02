@@ -438,8 +438,8 @@ export type SequenceWithGeometryExport = {
 };
 
 /**
- * Build the JSON body shape for the backend: one entry per sequence with `filename` + `geometry`.
- * Requires geometry saved on the protocol (`sequenceGeometry` from save); throws if a sequence is missing data.
+ * @deprecated Use {@link buildCamrieBackendPayload} from `camrieBackendPayload.ts` for the full
+ * `examplePayload.json` shape. Kept for callers that only need filename + geometry slices.
  */
 export function buildBackendSequencesPayload(
   sequences: { id: string; fileName: string }[],

@@ -10,8 +10,8 @@ import {
   resetFovSliceTranslation,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
+import { buildCamrieBackendPayload } from "../../common/utilities/camrieBackendPayload";
 import {
-  buildBackendSequencesPayload,
   buildSequenceGeometryJson,
   areEncodingDirectionsOnSameAnatomicalAxis,
   clampEncodingDirectionToOrientation,
@@ -295,6 +295,8 @@ const Setup = () => {
   }, [dispatch]);
 
   const [selectedModel, setSelectedModel] = useState<SetupModelOption | null>(null);
+  const [selectedModelZipFile, setSelectedModelZipFile] = useState<UploadedFile | null>(null);
+  const [selectedMarieInfo, setSelectedMarieInfo] = useState<Record<string, unknown> | null>(null);
   const [marieZipLoading, setMarieZipLoading] = useState(false);
 
   const availableVolumes = useMemo(
@@ -490,6 +492,8 @@ const Setup = () => {
     void (async () => {
       if (!file) {
         setSelectedModel(null);
+        setSelectedModelZipFile(null);
+        setSelectedMarieInfo(null);
         return;
       }
 
@@ -501,10 +505,12 @@ const Setup = () => {
       setMarieZipLoading(true);
       try {
         const locationPayload = JSON.parse(file.location) as unknown;
-        const { volumes, card, previewImageLink } = await fetchMarieZipManifest(
+        const { volumes, card, previewImageLink, info } = await fetchMarieZipManifest(
           locationPayload,
           file.fileName,
         );
+        setSelectedModelZipFile(file);
+        setSelectedMarieInfo(info ?? null);
         setSelectedModel({
           id: `zip-${file.id}`,
           name: file.fileName,
@@ -530,6 +536,8 @@ const Setup = () => {
             : "Could not load MARIE zip from the server. The `/unzip` response must include volume links and `info` from info.json (see marieZipManifest.ts).",
         );
         setSelectedModel(null);
+        setSelectedModelZipFile(null);
+        setSelectedMarieInfo(null);
       } finally {
         setMarieZipLoading(false);
       }
@@ -538,6 +546,8 @@ const Setup = () => {
 
   const clearSelectedModel = () => {
     setSelectedModel(null);
+    setSelectedModelZipFile(null);
+    setSelectedMarieInfo(null);
   };
   // end
 
@@ -1326,10 +1336,22 @@ const Setup = () => {
       const geometryById = Object.fromEntries(
         protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
       );
-      const payload = buildBackendSequencesPayload(
-        protocolSequences.map((s) => ({ id: s.id, fileName: s.fileName ?? s.id })),
-        geometryById,
-      );
+      const protocolLabel =
+        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "test";
+      const slug = protocolLabel.replace(/\s+/g, "") || "camrieJob";
+      const payload = buildCamrieBackendPayload({
+        alias: protocolLabel,
+        taskAlias: `${slug}Test`,
+        previewMode: true,
+        sequences: protocolSequences.map((s) => ({
+          id: s.id,
+          fileName: s.fileName ?? s.id,
+        })),
+        geometryBySequenceId: geometryById,
+        bodymodelFile: selectedModelZipFile,
+        marieInfo: selectedMarieInfo,
+        dataFiles,
+      });
       setBackendPayloadText(JSON.stringify(payload, null, 2));
       setBackendPayloadError(null);
     } catch (err) {
@@ -1337,7 +1359,15 @@ const Setup = () => {
       setBackendPayloadError(err instanceof Error ? err.message : String(err));
     }
     setBackendPayloadDialogOpen(true);
-  }, [protocolSequences, captureSequenceGeometryForId]);
+  }, [
+    protocolSequences,
+    captureSequenceGeometryForId,
+    protocol,
+    protocolOptions,
+    selectedModelZipFile,
+    selectedMarieInfo,
+    dataFiles,
+  ]);
 
   const patchActiveSequenceGeometry = useCallback(
     (patch: Partial<SequenceGeometryFormState>) => {
