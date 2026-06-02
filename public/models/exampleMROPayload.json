@@ -1,0 +1,79 @@
+{
+    "version": "v0",
+    "alias": "test",
+    "output": {
+        "coilsensitivity": false,
+        "gfactor": false,
+        "matlab": true
+    },
+    "task": {
+        "name": "ac",
+        "queued": false,
+        "version": "v0",
+        "acquisition": 2,
+        "type": "snr",
+        "id": 0,
+        "options": {
+            "reconstructor": {
+                "type": "recon",
+                "options": {
+                    "sensitivityMap": {
+                        "type": "sensitivityMap",
+                        "name": "inner",
+                        "id": 2,
+                        "options": {
+                            "loadSensitivity": false,
+                            "sensitivityMapMethod": "inner",
+                            "mask": {
+                                "method": "no"
+                            }
+                        }
+                    },
+                    "correction": {
+                        "useCorrection": false
+                    },
+                    "gfactor": false,
+                    "noise": {
+                        "type": "file",
+                        "id": "dffe42ae-c043-41be-8ad2-8d58907a8be5",
+                        "options": {
+                            "type": "s3",
+                            "filename": "BrainSingleSliceNoise.dat",
+                            "options": {},
+                            "multiraid": false,
+                            "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                            "key": "MR Optimum/2d39bc29-3a7c-4e89-a6a9-1dc5fce0dea4/d1a48cbe-42c9-498d-b40b-a8361fd5adf9_Brain_Noise_SingleSlice.dat",
+                            "vendor": "Siemens"
+                        }
+                    },
+                    "signal": {
+                        "type": "file",
+                        "id": "c34d7e09-c5d5-4192-87ed-3cf41c0ae803",
+                        "options": {
+                            "type": "s3",
+                            "filename": "BrainSingleSliceSignal.dat",
+                            "options": {},
+                            "multiraid": false,
+                            "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                            "key": "MR Optimum/2d39bc29-3a7c-4e89-a6a9-1dc5fce0dea4/6dd36aaf-4776-468d-9760-79786dfead59_Brain_Signal_SingleSlice.dat",
+                            "vendor": "Siemens"
+                        }
+                    }
+                },
+                "id": 0,
+                "name": "rss"
+            },
+            "NR": 6,
+            "boxSize": 9
+        },
+        "files": [
+            "signal",
+            "noise"
+        ],
+        "mode": "mode_1",
+        "computing_unit_id": "615ba8be-0e45-4375-a3c5-c048d34614a9"
+    },
+    "mode": "mode_1",
+    "computing_unit_id": "615ba8be-0e45-4375-a3c5-c048d34614a9",
+    "cloudapp_name": "MR Optimum"
+}

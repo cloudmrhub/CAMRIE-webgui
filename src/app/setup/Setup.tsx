@@ -92,7 +92,7 @@ import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
 import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
 import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
 
-/** Preset row or a MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
+/** MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
 interface SetupModelOption {
   id: string;
   name: string;
@@ -110,111 +110,7 @@ interface SetupModelOption {
   volumeMapFromZip?: Record<string, string>;
 }
 
-// Add volumes from public/volumes here: display name -> filename (order by ascending numeric id in info.json data)
-const SETUP_VOLUME_MAP: Record<string, string> = {
-  "T1": "t1.nii.gz",
-  "T2": "t2.nii.gz",
-  "T2*": "t2star.nii.gz",
-  "Proton Density": "rhoh.nii.gz",
-  "Mass Density": "rhom.nii.gz",
-  "Chemical Shift": "dw.nii.gz",
-  "Relative Permittivity": "epsilon_r.nii.gz",
-  "Conductivity": "sigma_e.nii.gz",
-  "Relative Permeability": "mur.nii.gz",
-  "Heat Capacity": "c.nii.gz",
-  "Thermal Conductivity": "k.nii.gz",
-  "Perfusion": "w.nii.gz",
-  "Heat Generation Rate": "q.nii.gz",
-  "Noise Coefficient Matrix": "psi.nii.gz",
-  "Coil Sensitivity 1": "b1m_001.nii.gz",
-  "Coil Sensitivity 2": "b1m_002.nii.gz",
-  "Coil Sensitivity 3": "b1m_003.nii.gz",
-  "Coil Sensitivity 4": "b1m_004.nii.gz",
-  "Coil Sensitivity 5": "b1m_005.nii.gz",
-  "Coil Sensitivity 6": "b1m_006.nii.gz",
-  "Coil Sensitivity 7": "b1m_007.nii.gz",
-  "Coil Sensitivity 8": "b1m_008.nii.gz",
-  "Coil Sensitivity 9": "b1m_009.nii.gz",
-  "Coil Sensitivity 10": "b1m_010.nii.gz",
-  "Coil Sensitivity 11": "b1m_011.nii.gz",
-  "Coil Sensitivity 12": "b1m_012.nii.gz",
-  "Coil Sensitivity 13": "b1m_013.nii.gz",
-  "Coil Sensitivity 14": "b1m_014.nii.gz",
-  "Coil Sensitivity 15": "b1m_015.nii.gz",
-  "Coil Sensitivity 16": "b1m_016.nii.gz",
-};
-
-/** Display name → filename under `public/volumes/7T-Head-Triangular-Coil/` (8 Rx + 8 Tx; see info.json). */
-const SETUP_VOLUME_MAP_TRIANGULAR: Record<string, string> = {
-  "Noise Covariance Matrix": "phi.nii.gz",
-  "Noise Coefficient Matrix": "psi.nii.gz",
-  "Coil Sensitivity 1": "b1m_001.nii.gz",
-  "Coil Sensitivity 2": "b1m_002.nii.gz",
-  "Coil Sensitivity 3": "b1m_003.nii.gz",
-  "Coil Sensitivity 4": "b1m_004.nii.gz",
-  "Coil Sensitivity 5": "b1m_005.nii.gz",
-  "Coil Sensitivity 6": "b1m_006.nii.gz",
-  "Coil Sensitivity 7": "b1m_007.nii.gz",
-  "Coil Sensitivity 8": "b1m_008.nii.gz",
-  "Transmit Field 1": "b1p_001.nii.gz",
-  "Transmit Field 2": "b1p_002.nii.gz",
-  "Transmit Field 3": "b1p_003.nii.gz",
-  "Transmit Field 4": "b1p_004.nii.gz",
-  "Transmit Field 5": "b1p_005.nii.gz",
-  "Transmit Field 6": "b1p_006.nii.gz",
-  "Transmit Field 7": "b1p_007.nii.gz",
-  "Transmit Field 8": "b1p_008.nii.gz",
-  "T1": "t1.nii.gz",
-  "T2": "t2.nii.gz",
-  "T2*": "t2star.nii.gz",
-  "Proton Density": "rhoh.nii.gz",
-  "Mass Density": "rhom.nii.gz",
-  "Chemical Shift": "dw.nii.gz",
-  "Relative Permittivity": "epsilon_r.nii.gz",
-  "Conductivity": "sigma_e.nii.gz",
-  "Relative Permeability": "mur.nii.gz",
-  "Heat Capacity": "c.nii.gz",
-  "Thermal Conductivity": "k.nii.gz",
-  "Perfusion": "w.nii.gz",
-  "Heat Generation Rate": "q.nii.gz",
-};
-
-/** Display name → filename under `public/volumes/3T-Head-Birdcage-Coil/` (2 Rx + 2 Tx; see info.json). */
-const SETUP_VOLUME_MAP_BIRDCAGE: Record<string, string> = {
-  "Noise Covariance Matrix": "phi.nii.gz",
-  "Noise Coefficient Matrix": "psi.nii.gz",
-  "Coil Sensitivity 1": "b1m_001.nii.gz",
-  "Coil Sensitivity 2": "b1m_002.nii.gz",
-  "Transmit Field 1": "b1p_001.nii.gz",
-  "Transmit Field 2": "b1p_002.nii.gz",
-  "T1": "t1.nii.gz",
-  "T2": "t2.nii.gz",
-  "T2*": "t2star.nii.gz",
-  "Proton Density": "rhoh.nii.gz",
-  "Mass Density": "rhom.nii.gz",
-  "Chemical Shift": "dw.nii.gz",
-  "Relative Permittivity": "epsilon_r.nii.gz",
-  "Conductivity": "sigma_e.nii.gz",
-  "Relative Permeability": "mur.nii.gz",
-  "Heat Capacity": "c.nii.gz",
-  "Thermal Conductivity": "k.nii.gz",
-  "Perfusion": "w.nii.gz",
-  "Heat Generation Rate": "q.nii.gz",
-};
-
-const MODEL_16CH_SURFACE = "16-Ch 3T Head Surface Coil";
-const MODEL_BIRDCAGE = "3T Head Birdcage Coil";
-const MODEL_TRIANGULAR = "8-Ch 7T Head Triangular Coil";
-
-const BASE_VOL = `${import.meta.env.BASE_URL}volumes/`;
-const baseUrlHeadSurfaceCoil = `${BASE_VOL}3T-Head-Surface-Coil/`;
-const baseUrl3TBirdcageCoil = `${BASE_VOL}3T-Head-Birdcage-Coil/`;
-const baseUrl7TTriangularCoil = `${BASE_VOL}7T-Head-Triangular-Coil/`;
-
-/**
- * MARIE `info.json` volume names use underscores (e.g. `Proton_Density`); built-in maps use spaces.
- * Pick the same logical default (proton density / rhoh) for Niivue’s initial load.
- */
+/** Pick proton density / rhoh as Niivue’s initial load when present in the zip manifest. */
 function indexOfPreferredMarieVolume(entries: [string, string][]): number {
   const labels = ["Proton Density", "Proton_Density"];
   for (const label of labels) {
@@ -227,67 +123,6 @@ function indexOfPreferredMarieVolume(entries: [string, string][]): number {
   if (byUrl >= 0) return byUrl;
   return 0;
 }
-
-/** Built-in phantom/coil presets for the Model dropdown (non-zip). */
-const CAMRIE_PRESET_MODELS: SetupModelOption[] = [
-  {
-    id: "1",
-    name: "16-Ch 3T Head Surface Coil",
-    objectName: "Duke_2mm",
-    b0: "3T",
-    nucleus: "1 H",
-    frequency: "127.73",
-    resolution: "2 mm isotropic",
-    numOfTissues: "21",
-    coil: "16-Ch 3T Head Surface Coil",
-    receiveChannels: 16,
-    transmitChannels: 0,
-    emSimulator: "MARIE_3.0_WSVIE_version",
-    image: "/models/headsurface.jpg",
-  },
-  {
-    id: "2",
-    name: "3T Head Birdcage Coil",
-    objectName: "Duke_2mm",
-    b0: "3T",
-    nucleus: "1 H",
-    frequency: "127.73",
-    resolution: "2 mm isotropic",
-    numOfTissues: "21",
-    coil: "3T Head Birdcage Coil",
-    receiveChannels: 2,
-    transmitChannels: 2,
-    emSimulator: "MARIE_3.0_WSVIE_version",
-    image: "/models/headbirdcage.png",
-  },
-  {
-    id: "3",
-    name: "8-Ch 7T Head Triangular Coil",
-    objectName: "Duke_2mm",
-    b0: "7T",
-    nucleus: "1 H",
-    frequency: "298.04",
-    resolution: "2 mm isotropic",
-    numOfTissues: "22",
-    coil: "8-Ch 7T Head Triangular Coil",
-    receiveChannels: 8,
-    transmitChannels: 8,
-    emSimulator: "MARIE_3.0_WSVIE_version",
-    image: "/models/headtriangular.png",
-  },
-];
-
-const CAMRIE_PRESET_MODEL_UPLOAD_FILES: UploadedFile[] = CAMRIE_PRESET_MODELS.map((opt, index) => ({
-  id: -(index + 1),
-  fileName: opt.name,
-  link: opt.id,
-  location: "local",
-  database: "local",
-  size: "—",
-  status: "local",
-  createdAt: "",
-  updatedAt: "",
-}));
 
 /** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
 const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
@@ -450,10 +285,10 @@ const Setup = () => {
   const [openPulsePanel, setOpenPulsePanel] = useState<Array<string | number>>([]); // closed by default
   const [openFieldofViewPanel, setOpenFieldofViewPanel] = useState<Array<string | number>>([0]); // open by default
 
-  const modelFileSelection = useMemo(() => {
-    const serverZips = dataFiles.filter((f) => f.fileName.toLowerCase().endsWith(".zip"));
-    return [...CAMRIE_PRESET_MODEL_UPLOAD_FILES, ...serverZips];
-  }, [dataFiles]);
+  const modelFileSelection = useMemo(
+    () => dataFiles.filter((f) => f.fileName.toLowerCase().endsWith(".zip")),
+    [dataFiles],
+  );
 
   useEffect(() => {
     dispatch(getUploadedData() as never);
@@ -462,41 +297,10 @@ const Setup = () => {
   const [selectedModel, setSelectedModel] = useState<SetupModelOption | null>(null);
   const [marieZipLoading, setMarieZipLoading] = useState(false);
 
-  const is16chHeadSurface = selectedModel?.name === MODEL_16CH_SURFACE;
-  const isBirdcageCoil = selectedModel?.name === MODEL_BIRDCAGE;
-  const isTriangularCoil = selectedModel?.name === MODEL_TRIANGULAR;
-
-  const availableVolumes = useMemo((): Record<string, string> => {
-    const zipMap = selectedModel?.volumeMapFromZip;
-    if (zipMap && Object.keys(zipMap).length > 0) {
-      return zipMap;
-    }
-    if (is16chHeadSurface) {
-      return Object.fromEntries(
-        Object.entries(SETUP_VOLUME_MAP).map(([name, filename]) => [
-          name,
-          baseUrlHeadSurfaceCoil + filename,
-        ]),
-      );
-    }
-    if (isBirdcageCoil) {
-      return Object.fromEntries(
-        Object.entries(SETUP_VOLUME_MAP_BIRDCAGE).map(([name, filename]) => [
-          name,
-          baseUrl3TBirdcageCoil + filename,
-        ]),
-      );
-    }
-    if (isTriangularCoil) {
-      return Object.fromEntries(
-        Object.entries(SETUP_VOLUME_MAP_TRIANGULAR).map(([name, filename]) => [
-          name,
-          baseUrl7TTriangularCoil + filename,
-        ]),
-      );
-    }
-    return {};
-  }, [selectedModel?.volumeMapFromZip, is16chHeadSurface, isBirdcageCoil, isTriangularCoil]);
+  const availableVolumes = useMemo(
+    (): Record<string, string> => selectedModel?.volumeMapFromZip ?? {},
+    [selectedModel?.volumeMapFromZip],
+  );
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
@@ -689,14 +493,8 @@ const Setup = () => {
         return;
       }
 
-      if (file.location === "local") {
-        const match = CAMRIE_PRESET_MODELS.find((opt) => opt.id === file.link);
-        setSelectedModel(match ?? null);
-        return;
-      }
-
       if (!file.fileName.toLowerCase().endsWith(".zip")) {
-        warn("Select a .zip MARIE model archive from storage, or pick a built-in preset.");
+        warn("Select a .zip MARIE model archive from storage.");
         return;
       }
 
@@ -720,7 +518,7 @@ const Setup = () => {
           receiveChannels: card.receiveChannels,
           transmitChannels: card.transmitChannels,
           emSimulator: card.emSimulator,
-          image: previewImageLink ?? "/models/headsurface.jpg",
+          image: previewImageLink ?? "",
           volumeMapFromZip: volumes,
         });
       } catch (e) {
@@ -1836,32 +1634,34 @@ const Setup = () => {
                   />
                   <CardContent>
                     <Grid container spacing={2} alignItems="center">
-                      {/* LEFT: Image */}
-                      <Grid item xs={12} md={4}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            height: "100%",
-                            minHeight: 220,
-                          }}
-                        >
+                      {/* LEFT: Image (optional preview from zip) */}
+                      {selectedModel.image ? (
+                        <Grid item xs={12} md={4}>
                           <Box
-                            component="img"
-                            src={selectedModel.image}
-                            alt={selectedModel.name}
                             sx={{
-                              maxWidth: "100%",
-                              maxHeight: 265,
-                              objectFit: "contain",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              height: "100%",
+                              minHeight: 220,
                             }}
-                          />
-                        </Box>
-                      </Grid>
+                          >
+                            <Box
+                              component="img"
+                              src={selectedModel.image}
+                              alt={selectedModel.name}
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: 265,
+                                objectFit: "contain",
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                      ) : null}
 
                       {/* RIGHT: Details */}
-                      <Grid item xs={12} md={8}>
+                      <Grid item xs={12} md={selectedModel.image ? 8 : 12}>
                         {/* <Typography variant="h6" sx={{ mb: 2, fontSize: "16px" }}>
                         {selectedModel.name}
                       </Typography> */}

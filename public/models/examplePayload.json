@@ -1,0 +1,171 @@
+{
+    "version": "v1",
+    "alias": "test",
+    "output": {
+        "matlab": true,
+        "SNR": false,
+        "RSSreconstruction": true
+    },
+    "task": {
+        "name": "camrieJob",
+        "version": "v1",
+        "acquisition": 2,
+        "type": "simulation",
+        "application": "CAMRIE",
+        "alias": "camrieJobTest",
+        "pipeline": "b6078683-8d7f-3b5c-aeb1-cd9698ad571d",
+        "options": {
+            "sequences": [
+                {
+                    "file": {
+                        "type": "file",
+                        "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                        "options": {
+                            "type": "s3",
+                            "filename": "PD-Weighted_Spin_Echo.mtrk",
+                            "options": {},
+                            "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                            "key": "CAMRIE/2d39bc29-3a7c-4e89-a6a9-1dc5fce0dea4/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d_PD-Weighted_Spin_Echo.mtrk"
+                        }
+                    },
+                    "geometry": {
+                        "isocenter_mm": null,
+                        "fov_mm": [128, 128],
+                        "matrix": [128, 128],
+                        "slice": {
+                            "num_slices": 5,
+                            "thickness_mm": 2,
+                            "gap_mm": 0
+                        },
+                        "affine": [
+                            [1, 0, 0, -63.5],
+                            [0, 1, 0, -63.5],
+                            [0, 0, 2, -4],
+                            [0, 0, 0, 1]
+                        ],
+                        "ui": {
+                            "orientation": "axial",
+                            "angulation_lr_deg": 0,
+                            "angulation_ap_deg": 0,
+                            "angulation_z_deg": 0,
+                            "slice_offset_mm": [0, 0, 0],
+                            "phase_encoding_direction": "left",
+                            "frequency_encoding_direction": "anterior"
+                        }
+                    }
+                },
+                {
+                    "file": {
+                        "type": "file",
+                        "id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+                        "options": {
+                            "type": "s3",
+                            "filename": "T1-Weighted_Spin_Echo.seq",
+                            "options": {},
+                            "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                            "key": "CAMRIE/2d39bc29-3a7c-4e89-a6a9-1dc5fce0dea4/b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e_T1-Weighted_Spin_Echo.seq"
+                        }
+                    },
+                    "geometry": {
+                        "isocenter_mm": null,
+                        "fov_mm": [128, 128],
+                        "matrix": [128, 128],
+                        "slice": {
+                            "num_slices": 5,
+                            "thickness_mm": 2,
+                            "gap_mm": 0
+                        },
+                        "affine": [
+                            [1, 0, 0, -63.5],
+                            [0, 1, 0, -63.5],
+                            [0, 0, 2, -4],
+                            [0, 0, 0, 1]
+                        ],
+                        "ui": {
+                            "orientation": "axial",
+                            "angulation_lr_deg": 0,
+                            "angulation_ap_deg": 0,
+                            "angulation_z_deg": 0,
+                            "slice_offset_mm": [0, 0, 0],
+                            "phase_encoding_direction": "left",
+                            "frequency_encoding_direction": "anterior"
+                        }
+                    }
+                },
+                {
+                    "file": {
+                        "type": "file",
+                        "id": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+                        "options": {
+                            "type": "s3",
+                            "filename": "T1-Weighted_Spoiled_GRE.seq",
+                            "options": {},
+                            "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                            "key": "CAMRIE/2d39bc29-3a7c-4e89-a6a9-1dc5fce0dea4/c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f_T1-Weighted_Spoiled_GRE.seq"
+                        }
+                    },
+                    "geometry": {
+                        "isocenter_mm": null,
+                        "fov_mm": [128, 128],
+                        "matrix": [128, 128],
+                        "slice": {
+                            "num_slices": 5,
+                            "thickness_mm": 2,
+                            "gap_mm": 0
+                        },
+                        "affine": [
+                            [1, 0, 0, -63.5],
+                            [0, 1, 0, -63.5],
+                            [0, 0, 2, -4],
+                            [0, 0, 0, 1]
+                        ],
+                        "ui": {
+                            "orientation": "axial",
+                            "angulation_lr_deg": 0,
+                            "angulation_ap_deg": 0,
+                            "angulation_z_deg": 0,
+                            "slice_offset_mm": [0, 0, 0],
+                            "phase_encoding_direction": "left",
+                            "frequency_encoding_direction": "anterior"
+                        }
+                    }
+                }
+            ],
+            "bodymodel": {
+                "type": "file",
+                "id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+                "options": {
+                    "type": "s3",
+                    "filename": "MARIE_1_inp_Duke_HeadOverlap.zip",
+                    "options": {},
+                    "bucket": "cloudmr-data-cloudmrhub-brain-us-east-1",
+                    "key": "CAMRIE/data/MARIE_1_inp_Duke_HeadOverlap.zip"
+                }
+            },
+            "marie_inputs": {
+                "b0": 3,
+                "nucleus": "1H",
+                "freq": 1.2773243555399999E+8,
+                "basis_vie": "PWC",
+                "basis_sie": "RWG",
+                "basis_wie": "Triangle",
+                "phantom": "Duke_2mm",
+                "Number_of_tissues": 21,
+                "resolution": [
+                    0.0020000000000000018,
+                    0.0020000000000000018,
+                    0.0020000000000000018
+                ],
+                "coil": "Head_Overlap/OverlapCoil_2_stacks.msh",
+                "wire": "",
+                "shield": "",
+                "basis_support": "",
+                "basis_file": "",
+                "Number_of_Rx_channels": 16,
+                "Number_of_Tx_channels": 0,
+                "co_simulation": "YES",
+                "EM_Simulator": "MARIE_3.0_WSVIE_version"
+            }
+        }
+    }
+}

@@ -343,7 +343,7 @@ const Home = () => {
                   dispatch,
                   uploadData,
                 )}
-                maxCount={1}
+                maxCount={100}
               ></CMRUpload>
             </div>
           </div>
