@@ -238,10 +238,10 @@ const Results = ({ visible }: { visible?: boolean }) => {
                       sx={{
                         color:
                           params.row.status !== "completed"
-                            ? "#8a6fae"
-                            : "#580f8b", // purple color
+                            ? "#7eb8d0"
+                            : "#1578A1",
                         "&:hover": {
-                          color: "#390063", // darker purple when hovering
+                          color: "#126a8f",
                         },
                       }}
                     />
