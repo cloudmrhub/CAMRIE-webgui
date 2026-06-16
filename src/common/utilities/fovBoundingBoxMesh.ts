@@ -1,4 +1,4 @@
-import { NVMesh } from "@niivue/niivue";
+﻿import { NVMesh } from "@niivue/niivue";
 
 /** Upper clamp for legacy volume-relative FOV box scale (when axial FoV is not used). */
 export const FOV_BOX_SCALE_MAX = 1.1;
@@ -21,7 +21,7 @@ export type AxialFovMm = {
 
 /**
  * Same convention as Niivue `createOnLocationChange`: slice matrix (`frac2mm`, `isSliceMM`), not `frac2mmOrtho`.
- * Returns **Niivue native world units** (often metres), not necessarily millimetres — see {@link getMmToNiivueWorldScale}.
+ * Returns **Niivue native world units** (often metres), not necessarily millimetres - see {@link getMmToNiivueWorldScale}.
  */
 function sliceMmFromFrac(nv: { frac2mm: (...args: unknown[]) => unknown }, frac: number[]): number[] {
   return nv.frac2mm([frac[0], frac[1], frac[2]], 0, true) as number[];
@@ -38,7 +38,7 @@ function getMmToNiivueWorldScale(minB: number[], maxB: number[]): number {
   return 0.001;
 }
 
-/** Inverse of {@link getMmToNiivueWorldScale} — converts Niivue world length/position to millimetres. */
+/** Inverse of {@link getMmToNiivueWorldScale} - converts Niivue world length/position to millimetres. */
 function niivueWorldToMm(v: number[], minB: number[], maxB: number[]): number[] {
   const inv = 1 / getMmToNiivueWorldScale(minB, maxB);
   return [v[0] * inv, v[1] * inv, v[2] * inv];
@@ -217,7 +217,7 @@ function clampSliceFillOpacityScale(n: number): number {
  *
  * When `activeOrientation` is provided (from `imagePrescription.orientation`),
  * the matching 2D tile defaults to {@link ACTIVE_ORIENTATION_SLICE_FILL_OPACITY}
- * instead of the normal `6` — unless the caller explicitly sets that key in
+ * instead of the normal `6` - unless the caller explicitly sets that key in
  * `partial`. The orthogonal tiles always keep their standard defaults.
  */
 function mergeSliceFillOpacityByView(
@@ -540,7 +540,7 @@ function throughPlaneAxisMm(nv: { frac2mm: (...args: unknown[]) => unknown }): n
 
 /**
  * Same quad with both triangle windings. Niivue's meshXRay pass uses back-face culling; a flat ring in the
- * slice plane can lose most faces if only one winding is emitted — looks like a single stray triangle.
+ * slice plane can lose most faces if only one winding is emitted - looks like a single stray triangle.
  */
 function appendQuadTwoSided(positions: number[], indices: number[], a: number[], b: number[], c: number[], d: number[]) {
   const base = positions.length / 3;
@@ -603,7 +603,7 @@ function slabCornersWorld(
 }
 
 /**
- * Top + bottom face outlines only (8 ribbon edges). Omits the 4 edges parallel to n̂ — those ribbons face the
+ * Top + bottom face outlines only (8 ribbon edges). Omits the 4 edges parallel to n̂ - those ribbons face the
  * sagittal/coronal planes and read as thick “planes”; in-plane edges look line-like when viewed obliquely.
  * Thickness along the stack is still visible as the gap between the two rectangles.
  */
@@ -654,7 +654,7 @@ function sliceStackScaledGeometry(
   return { N, sp2, hT };
 }
 
-/** Translucent fill of the prescribed slice volume (six faces, two-sided) — shows thickness in sagittal/coronal/3D. */
+/** Translucent fill of the prescribed slice volume (six faces, two-sided) - shows thickness in sagittal/coronal/3D. */
 function appendSlabSolidFillFaces(positions: number[], indices: number[], corners: number[][]) {
   const Q = (i: number) => corners[i];
   appendQuadTwoSided(positions, indices, Q(0), Q(1), Q(2), Q(3));
@@ -768,7 +768,7 @@ function buildAxialSliceStackWireframeBuffers(
 }
 
 /**
- * Outlined rectangle only: ring between outer FoV and an inset inner rect — no filled interior (hole in the middle).
+ * Outlined rectangle only: ring between outer FoV and an inset inner rect - no filled interior (hole in the middle).
  * FoVx = 2·h0, FoVy = 2·h1 (mm).
  */
 function buildAxialFovOutlineRectangleBuffers(
@@ -869,7 +869,7 @@ export type NiivueMeshHost = {
 const FOV_MESH_XRAY_ALPHA = 0.97;
 
 /**
- * Unlit mesh fragment (same idea as Niivue’s fiber shader): vertex RGB is drawn as-is — required for true neon yellow
+ * Unlit mesh fragment (same idea as Niivue’s fiber shader): vertex RGB is drawn as-is - required for true neon yellow
  * because built-in Phong/Matte/Toon multiply by lighting and mute #FFFF00 on MRI.
  */
 /**
@@ -889,15 +889,15 @@ void main() {
 `;
 
 /**
- * Slice-volume fill — low vertex A; final alpha is `uniform_opacity * vClr.a` where `uniform_opacity` is set per draw
+ * Slice-volume fill - low vertex A; final alpha is `uniform_opacity * vClr.a` where `uniform_opacity` is set per draw
  * pass in `NiivuePatcher` as `alpha * fillMesh.opacity` (Niivue upstream ignores `mesh.opacity` in `drawMesh3D`).
  */
 const SLICE_VOLUME_FILL_RGBA255: [number, number, number, number] = [255, 255, 0, 55];
 
-/** Default outline / stack wire — neon green (#39FF14). */
+/** Default outline / stack wire - neon green (#39FF14). */
 const FOV_OUTLINE_DEFAULT_RGBA255: [number, number, number, number] = [57, 255, 20, 255];
 
-/** Plane-center outline — neon cyan-green (#00FF78) so each slice plane is distinguishable from the slab edges. */
+/** Plane-center outline - neon cyan-green (#00FF78) so each slice plane is distinguishable from the slab edges. */
 const SLICE_PLANE_OUTLINE_RGBA255: [number, number, number, number] = [0, 255, 120, 255];
 
 /**
@@ -909,7 +909,7 @@ function boostFovRgb255(rgba: [number, number, number, number], scale: number): 
   return [c(rgba[0]), c(rgba[1]), c(rgba[2]), rgba[3]];
 }
 
-/** Prefer Matte (no specular highlight, slightly higher diffuse than Phong) — reads brighter and more uniform for UI overlays. */
+/** Prefer Matte (no specular highlight, slightly higher diffuse than Phong) - reads brighter and more uniform for UI overlays. */
 function fovMeshMatteShaderIndex(nv: NiivueMeshHost): number {
   const idx = nv.meshShaderNameToNumber?.("Matte");
   return typeof idx === "number" && idx >= 0 ? idx : 1;
@@ -1127,7 +1127,7 @@ function createAxialFovMeshList(
     }
 
     // Distinct green outline at the center plane of each slice (the actual imaging plane, not the slab edges).
-    // Use ~1.5% of the shorter FoV half-extent — close to the internal cap so the border is clearly visible.
+    // Use ~1.5% of the shorter FoV half-extent - close to the internal cap so the border is clearly visible.
     const planeBw = Math.min(h0, h1) * 0.015;
     const planeOutlineBuf = buildSlicePlanesOutlineBuffers(
       C, u0, u1, nHat, h0, h1,
@@ -1236,7 +1236,7 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
   /** Latest angulation accumulated during drag; flushed to React state only on release. */
   let pendingAngulation: [number, number] | null = null;
 
-  /** Same as Niivue `mouseClick`: CSS pixels relative to canvas, then × `uiData.dpr`. Do not extract nv methods — `this` must stay bound. */
+  /** Same as Niivue `mouseClick`: CSS pixels relative to canvas, then × `uiData.dpr`. Do not extract nv methods - `this` must stay bound. */
   const toDevicePx = (e: PointerEvent): [number, number] | null => {
     const canvasEl = nv.canvas as HTMLElement;
     const rect = canvasEl.getBoundingClientRect();
@@ -1318,7 +1318,7 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
         lastY = px[1];
         return;
       }
-      // Call on `nv` — same `this`-binding issue as Niivue mouse helpers if extracted to a bare function.
+      // Call on `nv` - same `this`-binding issue as Niivue mouse helpers if extracted to a bare function.
       const endMM = nv.screenXY2mm(px[0], px[1]) as number[];
       const startMM = nv.screenXY2mm(lastX, lastY, endMM[3]) as number[];
       if (!Number.isFinite(endMM[0]) || !Number.isFinite(startMM[0])) {
@@ -1350,7 +1350,7 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
         ...op,
         sliceOffsetWorldMm: newMm,
       };
-      // Accumulate for release flush — do NOT call onSliceOffsetMmChange here to avoid per-frame React re-renders.
+      // Accumulate for release flush - do NOT call onSliceOffsetMmChange here to avoid per-frame React re-renders.
       pendingTranslateMm = newMm;
       lastX = px[0];
       lastY = px[1];
@@ -1381,7 +1381,7 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
           angulationAPdeg: ap,
         },
       };
-      // Accumulate for release flush — do NOT call onAngulationSetDeg here to avoid per-frame React re-renders
+      // Accumulate for release flush - do NOT call onAngulationSetDeg here to avoid per-frame React re-renders
       // (each call would trigger setupFovBoxOptions recompute → handler reinstall → mode reset mid-drag).
       pendingAngulation = [lr, ap];
       rebuildFovBoundingBoxMeshFromUserTransform(nv);
@@ -1432,7 +1432,7 @@ function installFovMeshDragHandlers(nv: any, options: FovBoxOptions): void {
  *
  * - **Positions** (`isocenterMm`, `centerMm`, `userTransform.offsetMm`, `halfExtentsMm`) are converted to
  *   **physical millimetres** in the same world frame as Niivue’s `frac2mm` output (native units normalized to mm).
- * - **`axialFovMm`** is copied from the attach options — same user-entered FoV as the Setup form (not clamped).
+ * - **`axialFovMm`** is copied from the attach options - same user-entered FoV as the Setup form (not clamped).
  * - **`halfExtentsMm`** are the **rendered** half-extents (equal to `axialFovMm/2` in world scale; the overlay now
  *   matches the prescribed FoV and may extend outside the volume). For sequence JSON, use `SequenceGeometryJson.fov_mm` /
  *   `slice` from {@link buildSequenceGeometryJson} (form inputs), not these half-extents.

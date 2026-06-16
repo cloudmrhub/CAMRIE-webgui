@@ -1,4 +1,4 @@
-import { AuthenticatedHttpClient, getEndpoints } from "cloudmr-ux/core";
+﻿import { AuthenticatedHttpClient, getEndpoints } from "cloudmr-ux/core";
 
 /**
  * CAMRIE MARIE input zips are expanded on the cloud (same pattern as MROptimum Results):
@@ -94,7 +94,7 @@ export function getMarieInputsSection(info: Record<string, unknown>): Record<str
 
 function formatB0FromInputs(inputs: Record<string, unknown>): string {
   const raw = inputs.b0 ?? inputs.B0;
-  if (raw === undefined || raw === null) return "—";
+  if (raw === undefined || raw === null) return "-";
   const n = Number(raw);
   if (Number.isFinite(n)) return `${n}T`;
   const s = String(raw).trim();
@@ -103,7 +103,7 @@ function formatB0FromInputs(inputs: Record<string, unknown>): string {
 
 /** `freq` is treated as Hz when magnitude is large (e.g. 127e6); otherwise assumed already MHz. */
 function freqToMhzTwoDecimals(freq: unknown): string {
-  if (freq === undefined || freq === null) return "—";
+  if (freq === undefined || freq === null) return "-";
   const n = Number(freq);
   if (!Number.isFinite(n)) return String(freq);
   const mhz = Math.abs(n) >= 1e4 ? n / 1e6 : n;
@@ -117,10 +117,10 @@ function spacingMetersToMm(spacing: number): number {
 
 /** Scalar or `[dx,dy,dz]` in meters (MARIE) → isotropic mm label. */
 function resolutionToMmIsotropicLabel(resolution: unknown): string {
-  if (resolution === undefined || resolution === null) return "—";
+  if (resolution === undefined || resolution === null) return "-";
   if (Array.isArray(resolution)) {
     const mmVals = resolution.map((v) => spacingMetersToMm(Number(v))).filter((v) => Number.isFinite(v));
-    if (mmVals.length === 0) return "—";
+    if (mmVals.length === 0) return "-";
     const avg = mmVals.reduce((a, b) => a + b, 0) / mmVals.length;
     const spread = Math.max(...mmVals) - Math.min(...mmVals);
     const rounded =
@@ -154,7 +154,7 @@ function stringField(info: Record<string, unknown>, ...keys: string[]): string {
     if (v === undefined || v === null) continue;
     return String(v);
   }
-  return "—";
+  return "-";
 }
 
 export function marieInfoJsonToModelFields(
@@ -170,7 +170,7 @@ export function marieInfoJsonToModelFields(
       : undefined;
 
   const objectFromLegacy =
-    stringField(info, "Object_Name", "object_name", "objectName") !== "—"
+    stringField(info, "Object_Name", "object_name", "objectName") !== "-"
       ? stringField(info, "Object_Name", "object_name", "objectName")
       : undefined;
 
@@ -390,15 +390,15 @@ export async function fetchMarieZipManifest(
     ? marieInfoJsonToModelFields(info, displayFileName)
     : {
         objectName: displayFileName.replace(/\.zip$/i, ""),
-        b0: "—",
+        b0: "-",
         nucleus: MARIE_ZIP_NUCLEUS_LABEL,
-        frequency: "—",
-        resolution: "—",
-        numOfTissues: "—",
+        frequency: "-",
+        resolution: "-",
+        numOfTissues: "-",
         coil: MARIE_ZIP_COIL_LABEL,
         receiveChannels: 0,
         transmitChannels: 0,
-        emSimulator: "—",
+        emSimulator: "-",
       };
 
   return {

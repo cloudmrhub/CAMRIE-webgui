@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * Converts complex128 (double-precision complex) NIfTI files to complex64
- * (single-precision) for display in NiiVue. Writes to output path only—
+ * (single-precision) for display in NiiVue. Writes to output path only-
  * the original file is never modified.
  *
  * Usage: node scripts/convertComplex128To64.js <inputPath> <outputPath>

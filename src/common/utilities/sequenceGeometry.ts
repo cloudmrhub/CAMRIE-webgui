@@ -1,4 +1,4 @@
-import {
+﻿import {
   imageBasisFromOrientationAngulation,
   type FovImagePrescription,
   type FovPlaneOrientation,
@@ -140,7 +140,7 @@ export type SequenceGeometryJson = {
    * (matches FoV overlay center), not voxel (0,0,0).
    */
   affine: Affine4x4;
-  /** Setup UI metadata; not authoritative vs `affine` — use for UI / round-trip. */
+  /** Setup UI metadata; not authoritative vs `affine` - use for UI / round-trip. */
   ui: {
     orientation: FovPlaneOrientation;
     angulation_lr_deg: number;
@@ -163,7 +163,7 @@ export type SequenceGeometryJson = {
   };
 };
 
-/** Previous on-disk shape (localStorage) — migrated when loading. */
+/** Previous on-disk shape (localStorage) - migrated when loading. */
 export type LegacySequenceGeometryJson = {
   isocenter_mm: [number, number, number] | null;
   slice_normal: [number, number, number];

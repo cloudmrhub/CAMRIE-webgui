@@ -1,4 +1,4 @@
-import type { UploadedFile } from "cloudmr-ux/core/features/data/dataSlice";
+﻿import type { UploadedFile } from "cloudmr-ux/core/features/data/dataSlice";
 import { buildMarieInputsFromInfo, type MarieBackendInputs } from "./marieZipManifest";
 import type { SequenceGeometryJson } from "./sequenceGeometry";
 
@@ -126,15 +126,20 @@ export const PREVIEW_MARIE_INPUTS: MarieBackendInputs = {
 
 export const PREVIEW_PIPELINE_ID = "b6078683-8d7f-3b5c-aeb1-cd9698ad571d";
 
+export type S3LocationDescriptor = {
+  bucket: string;
+  key: string;
+};
+
 export type BuildCamrieBackendPayloadInput = {
   /** Top-level payload alias (e.g. protocol or job label). */
   alias: string;
-  /** `task.alias` — defaults to alias when omitted. */
+  /** `task.alias` - defaults to alias when omitted. */
   taskAlias?: string;
-  /** `task.pipeline` — pipeline UUID from CloudMR when known. */
+  /** `task.pipeline` - pipeline UUID from CloudMR when known. */
   pipelineId?: string;
   output?: Partial<CamrieOutputSettings>;
-  sequences: { id: string; fileName: string }[];
+  sequences: { id: string; fileName: string; uploadedFileId?: number }[];
   geometryBySequenceId: Record<string, SequenceGeometryJson>;
   /** When true, use hardcoded example file refs for sequences/bodymodel/marie_inputs if uploads are missing. */
   previewMode?: boolean;
@@ -150,16 +155,35 @@ const DEFAULT_OUTPUT: CamrieOutputSettings = {
   RSSreconstruction: true,
 };
 
-export function uploadedFileToBackendFileRef(file: UploadedFile): CamrieBackendFileReference {
-  let bucket = "unknown";
-  let key = "unknown";
-  const storageType = file.database ?? "s3";
+/** Parse CloudMR `UploadedFile.location` JSON into bucket + key (same shape as MROptimum `UFtoFR`). */
+export function parseUploadedFileLocation(location: string): S3LocationDescriptor | null {
   try {
-    const loc = JSON.parse(file.location) as { Bucket?: string; Key?: string };
-    if (loc.Bucket) bucket = loc.Bucket;
-    if (loc.Key) key = loc.Key;
+    const loc = JSON.parse(location) as Record<string, unknown>;
+    const bucket =
+      (typeof loc.Bucket === "string" && loc.Bucket) ||
+      (typeof loc.bucket === "string" && loc.bucket) ||
+      "";
+    const key =
+      (typeof loc.Key === "string" && loc.Key) ||
+      (typeof loc.key === "string" && loc.key) ||
+      "";
+    if (bucket && key) {
+      return { bucket, key };
+    }
   } catch {
-    /* local / legacy */
+    /* invalid JSON */
+  }
+  return null;
+}
+
+export function uploadedFileToBackendFileRef(file: UploadedFile): CamrieBackendFileReference {
+  const storageType = file.database ?? "s3";
+  const s3 = parseUploadedFileLocation(file.location);
+  if (!s3) {
+    throw new Error(
+      `Uploaded file "${file.fileName}" (id ${file.id}) has no valid S3 location. ` +
+        `Expected location JSON with Bucket and Key from the CloudMR data API.`,
+    );
   }
   return {
     type: "file",
@@ -168,10 +192,17 @@ export function uploadedFileToBackendFileRef(file: UploadedFile): CamrieBackendF
       type: storageType,
       filename: file.fileName,
       options: {},
-      bucket,
-      key,
+      bucket: s3.bucket,
+      key: s3.key,
     },
   };
+}
+
+function findUploadedFileById(
+  uploadedFileId: number,
+  dataFiles: UploadedFile[],
+): UploadedFile | undefined {
+  return dataFiles.find((f) => f.id === uploadedFileId);
 }
 
 function findUploadedFileByName(
@@ -183,12 +214,9 @@ function findUploadedFileByName(
     dataFiles.find((f) => f.fileName === fileName) ??
     dataFiles.find((f) => f.fileName.toLowerCase() === lower) ??
     dataFiles.find((f) => {
-      try {
-        const { Key } = JSON.parse(f.location) as { Key?: string };
-        return Key != null && (Key.endsWith(`/${fileName}`) || Key.endsWith(`_${fileName}`));
-      } catch {
-        return false;
-      }
+      const s3 = parseUploadedFileLocation(f.location);
+      if (!s3) return false;
+      return s3.key.endsWith(`/${fileName}`) || s3.key.endsWith(`_${fileName}`);
     })
   );
 }
@@ -210,10 +238,20 @@ function placeholderSequenceFileRef(fileName: string): CamrieBackendFileReferenc
 
 function resolveSequenceFileRef(
   fileName: string,
+  uploadedFileId: number | undefined,
   dataFiles: UploadedFile[],
   previewMode: boolean,
 ): CamrieBackendFileReference {
-  const uploaded = findUploadedFileByName(fileName, dataFiles);
+  let uploaded =
+    uploadedFileId != null ? findUploadedFileById(uploadedFileId, dataFiles) : undefined;
+
+  if (uploadedFileId != null && !uploaded && !previewMode) {
+    throw new Error(
+      `Sequence "${fileName}" references upload id ${uploadedFileId}, but that file is no longer in Data.`,
+    );
+  }
+
+  uploaded ??= findUploadedFileByName(fileName, dataFiles);
   if (uploaded) {
     return uploadedFileToBackendFileRef(uploaded);
   }
@@ -259,7 +297,7 @@ export function buildCamrieBackendPayload(
     }
     const fileName = seq.fileName ?? seq.id;
     sequenceEntries.push({
-      file: resolveSequenceFileRef(fileName, dataFiles, previewMode),
+      file: resolveSequenceFileRef(fileName, seq.uploadedFileId, dataFiles, previewMode),
       geometry,
     });
   }

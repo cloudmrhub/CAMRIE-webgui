@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { NVImage } from '@niivue/niivue';
 import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh } from '../utilities/fovBoundingBoxMesh';
@@ -949,7 +949,7 @@ export default function NiiVueport(props) {
         nvUpdateDrawingEnabled();
 
       // Snapshot zoom, gamma, opacity and colormap so onImageLoaded can restore them
-      // Read gamma and opacity from React state — they are always kept in sync with the engine
+      // Read gamma and opacity from React state - they are always kept in sync with the engine
       const vol = nv.volumes[0];
       savedViewStateRef.current = {
         pan2Dxyzmm: [...nv.scene.pan2Dxyzmm],

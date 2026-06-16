@@ -329,7 +329,9 @@ const Home = () => {
                   ".npy",
                   ".pkl",
                   ".mat",
-                  ".zip"
+                  ".zip",
+                  ".seq",
+                  ".mtrk",
                 ]}
                 color={"primary"}
                 key={uploadKey}

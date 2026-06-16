@@ -1,4 +1,4 @@
-/**
+﻿/**
  * This file patches the original NiiVue library to produce customized behaviors and effects.
  */
 import {Niivue,NVImage,NVImageFromUrlOptions} from "@niivue/niivue";
@@ -1724,7 +1724,7 @@ Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, s
 // }
 
 /**
- * Niivue `drawMesh3D` sets the fragment `opacity` uniform to the call's `alpha` only — `NVMesh.opacity` is ignored.
+ * Niivue `drawMesh3D` sets the fragment `opacity` uniform to the call's `alpha` only - `NVMesh.opacity` is ignored.
  * Multiply `mesh.opacity` into that uniform, and apply optional 2D-only slice-fill scale (see fovBoundingBoxMesh).
  * Instance `__camrieFovMeshPassIs3D` is true inside `draw3D`, false in `draw2D` before mesh draws.
  */

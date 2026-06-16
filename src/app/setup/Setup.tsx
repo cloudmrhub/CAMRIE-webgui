@@ -1,4 +1,4 @@
-import React, { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
+﻿import React, { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import "./Setup.scss";
 import { CmrCollapse, CmrPanel, CmrConfirmation, CmrCheckbox } from "cloudmr-ux";
 import NiiVue, { nv } from "../../common/components/Niivue";
@@ -82,7 +82,6 @@ import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import type { AxiosResponse } from "axios";
 import { store } from "../../features/store";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadFromText";
@@ -109,6 +108,40 @@ interface SetupModelOption {
   image: string;
   volumeMapFromZip?: Record<string, string>;
 }
+
+/** Pulse sequence row from an uploaded `.seq` file in Data storage. */
+type SetupSequence = {
+  id: string;
+  fileName: string;
+  alias: string;
+  tr: string;
+  te: string;
+  fa: number[];
+  type: "pulseq" | "mtrk";
+  uploadedFileId?: number;
+};
+
+function uploadedFileToSequence(file: UploadedFile): SetupSequence {
+  const fileName = file.fileName;
+  const stem = fileName.replace(/\.seq$/i, "");
+  return {
+    id: `seq-${file.id}`,
+    fileName,
+    alias: stem,
+    tr: "-",
+    te: "-",
+    fa: [],
+    type: "pulseq",
+    uploadedFileId: file.id,
+  };
+}
+
+/** Built-in Protocol 1 expects these `.seq` filenames in uploaded Data. */
+const PROTOCOL_1_SEQ_FILENAMES = [
+  "PD-Weighted_Spin_Echo.seq",
+  "T1-Weighted_Spin_Echo.seq",
+  "T1-Weighted_Spoiled_GRE.seq",
+];
 
 /** Pick proton density / rhoh as Niivue’s initial load when present in the zip manifest. */
 function indexOfPreferredMarieVolume(entries: [string, string][]): number {
@@ -142,7 +175,7 @@ const FOV_OFFSET_MM_MAX = 250;
 /** Fixed label column width (`sm+`) so X/Y/Z slider tracks share a common start edge. */
 const FOV_ANGLE_LABEL_COL_WIDTH_PX = { sm: 40 };
 
-/** Label column for Translation rows (matches Rotation — both now use single-letter labels). */
+/** Label column for Translation rows (matches Rotation - both now use single-letter labels). */
 const FOV_OFFSET_LABEL_COL_WIDTH_PX = { sm: 40 };
 
 /** Translation + rotation rows: shorter track so inputs stay compact in two-column layout. */
@@ -171,15 +204,15 @@ const FOV_OFFSET_LABEL_COL_STACKED_PX = { sm: 40 };
 
 /** Width for rotation (°) numeric fields. */
 const FOV_GEOMETRY_NUMERIC_INPUT_WIDTH_PX = 100;
-/** Width for translation (mm) numeric fields — slightly wider to comfortably fit negative values. */
+/** Width for translation (mm) numeric fields - slightly wider to comfortably fit negative values. */
 const FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX = 120;
 
-/** Parallel Ranges row — compact fields; thickness label is wider. */
+/** Parallel Ranges row - compact fields; thickness label is wider. */
 const FOV_PARALLEL_RANGES_FIELD_WIDTH_PX = 132;
 /** Fits full “Slice thickness (mm)” label on small inputs. */
 const FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX = 178;
 
-/** FoV (mm) = resolution (mm/pixel) × number of pixels — user may enter any two; the third is derived on blur. */
+/** FoV (mm) = resolution (mm/pixel) × number of pixels - user may enter any two; the third is derived on blur. */
 type FovTripletBlurredField = "fovMm" | "res" | "pixels";
 
 type ParsedFovTriplet = { fovMm?: number; res?: number; px?: number };
@@ -551,121 +584,43 @@ const Setup = () => {
   };
   // end
 
-  // sequence local data
-  const sequenceOptions = [
-    {
-      id: 'PD-Weighted_Spin_Echo.mtrk',
-      fileName: 'PD-Weighted_Spin_Echo.mtrk',
-      alias: 'PD-Weighted_Spin_Echo',
-      // name:
-      // alias: 'ISMRM25',
-      tr: '4000ms',
-      te: '10ms',
-      fa: [90, 180],
-      type: 'mtrk'
-    },
-    {
-      id: 'PD-Weighted_Spin_Echo.seq',
-      fileName: 'PD-Weighted_Spin_Echo.seq',
-      // name: 'PD Weighted Spin Echo [type: pulseq]',
-      alias: 'PD-Weighted_Spin_Echo',
-      tr: '4000ms',
-      te: '10ms',
-      fa: [90, 180],
-      type: 'pulseq'
-    },
-    {
-      id: 'T1-Weighted_Spin_Echo.mtrk',
-      fileName: 'T1-Weighted_Spin_Echo.mtrk',
-      // name: 'T1 Weighted Spin Echo [type: mtrk]',
-      alias: 'T1-Weighted_Spin_Echo',
-      tr: '600ms',
-      te: '10ms',
-      fa: [90, 180],
-      type: 'mtrk'
-    },
-    {
-      id: 'T1-Weighted_Spin_Echo.seq',
-      fileName: 'T1-Weighted_Spin_Echo.seq',
-      alias: 'T1-Weighted_Spin_Echo',
-      tr: '600ms',
-      te: '10ms',
-      fa: [90, 180],
-      type: 'pulseq'
-    },
-    {
-      id: 'T1-Weighted_Spoiled_GRE.mtrk',
-      fileName: 'T1-Weighted_Spoiled_GRE.mtrk',
-      alias: 'T1-Weighted_Spoiled_GRE',
-      // name:
-      tr: '40ms',
-      te: '10ms',
-      fa: [15],
-      type: 'mtrk'
-    },
-    {
-      id: 'T1-Weighted_Spoiled_GRE.seq',
-      fileName: 'T1-Weighted_Spoiled_GRE.seq',
-      alias: 'T1 Weighted Spoiled GRE',
-      // name
-      tr: '40ms',
-      te: '10ms',
-      fa: [15],
-      type: 'pulseq'
-    },
-    {
-      id: 'T2-Weighted_Spin_Echo.mtrk',
-      fileName: 'T2-Weighted_Spin_Echo.mtrk',
-      alias: 'T2 Weighted Spin Echo',
-      // name
-      tr: '4000ms',
-      te: '80ms',
-      fa: [90, 180],
-      type: 'mtrk'
-    },
-    {
-      id: 'T2-Weighted_Spin_Echo.seq',
-      fileName: 'T2-Weighted_Spin_Echo.mtrk',
-      alias: 'T2 Weighted Spin Echo',
-      // name:
-      tr: '4000ms',
-      te: '80ms',
-      fa: [90, 180],
-      type: 'pulseq'
-    },
-  ];
+  const sequenceFileSelection = useMemo(
+    () => dataFiles.filter((f) => f.fileName.toLowerCase().endsWith(".seq")),
+    [dataFiles],
+  );
 
-  // Duplicates / user-created sequences live here (NOT in sequenceOptions)
-  const [customSequences, setCustomSequences] = useState<typeof sequenceOptions>([]);
+  const storageSequences = useMemo(
+    () => sequenceFileSelection.map(uploadedFileToSequence),
+    [sequenceFileSelection],
+  );
 
-  const allSequences = [...sequenceOptions, ...customSequences];
+  const [customSequences, setCustomSequences] = useState<SetupSequence[]>([]);
+
+  const allSequences = useMemo(() => {
+    const overridden = new Map<number, SetupSequence>();
+    for (const c of customSequences) {
+      if (c.uploadedFileId != null) {
+        overridden.set(c.uploadedFileId, c);
+      }
+    }
+    const fromStorage = storageSequences.map((s) =>
+      s.uploadedFileId != null && overridden.has(s.uploadedFileId)
+        ? overridden.get(s.uploadedFileId)!
+        : s,
+    );
+    const storageIds = new Set(fromStorage.map((s) => s.id));
+    return [
+      ...fromStorage,
+      ...customSequences.filter((c) => !storageIds.has(c.id)),
+    ];
+  }, [storageSequences, customSequences]);
 
   const getSequenceById = (id: string) =>
     allSequences.find((s) => s.id === id) ?? null;
 
-  const PROTOCOL_1_SEQUENCE_IDS = [
-    "PD-Weighted_Spin_Echo.mtrk",
-    "T1-Weighted_Spin_Echo.seq",
-    "T1-Weighted_Spoiled_GRE.seq",
-  ];
+  const [selectedSequence, setSelectedSequence] = useState<SetupSequence | null>(null);
 
-  const uploadedFiles2: UploadedFile[] = sequenceOptions.map((opt, index) => ({
-    id: index + 1,          // numeric ID for SelectUpload
-    fileName: opt.alias ?? opt.fileName ?? opt.id,   // what shows in dropdown
-    link: opt.id,          // store real ID here
-    location: 'local',
-    database: 'local',
-    size: '—',
-    status: 'local',
-    createdAt: '',
-    updatedAt: '',
-  }));
-
-  const [selectedSequence, setSelectedSequence] = useState<
-    typeof sequenceOptions[number] | null
-  >(null);
-
-  // true only when user picked from the master dropdown (library)
+  // true only when user picked from the storage dropdown (not protocol list)
   const [selectedFromLibrary, setSelectedFromLibrary] = useState(false);
 
   // true when the user clicked a row from the protocol list
@@ -681,15 +636,19 @@ const Setup = () => {
       return;
     }
 
-    const match = allSequences.find((opt) => opt.id === file.link);
-    setSelectedSequence(match ?? null);
+    if (!file.fileName.toLowerCase().endsWith(".seq")) {
+      warn("Select a .seq pulse sequence file from storage.");
+      return;
+    }
 
-    // dropdown is the master library selection
+    const match =
+      allSequences.find((s) => s.uploadedFileId === file.id) ??
+      allSequences.find((s) => s.fileName === file.fileName) ??
+      uploadedFileToSequence(file);
+
+    setSelectedSequence(match);
     setSelectedFromLibrary(true);
-
     setSelectedFromProtocolList(false);
-
-    // un-highlight protocol selection when choosing from library
     setSelectedProtocolSeqId(null);
   };
 
@@ -739,104 +698,34 @@ const Setup = () => {
     setIsEditingSeq(false);
   };
 
-  const isMasterSequence = (id: string) => sequenceOptions.some((s) => s.id === id);
-
-  const makeUniqueId = (base: string) => {
-    const taken = new Set([
-      ...sequenceOptions.map((s) => s.id),
-      ...customSequences.map((s) => s.id),
-      ...protocolSequences.map((s) => s.id),
-    ]);
-
-    let id = base;
-    let i = 1;
-    while (taken.has(id)) id = `${base}${i++}`;
-    return id;
-  };
-
-
   const saveInlineEdit = () => {
     if (!selectedSequence) return;
 
-    const updated =
+    const updated: SetupSequence =
       selectedSequence.type === "mtrk"
         ? {
-          ...selectedSequence,
-          alias: editSeqDraft.alias.trim(),
-          tr: formatMs(editSeqDraft.trMs),
-          te: formatMs(editSeqDraft.teMs),
-        }
+            ...selectedSequence,
+            alias: editSeqDraft.alias.trim(),
+            tr: formatMs(editSeqDraft.trMs),
+            te: formatMs(editSeqDraft.teMs),
+          }
         : {
-          ...selectedSequence,
-          alias: editSeqDraft.alias.trim(),
-        };
+            ...selectedSequence,
+            alias: editSeqDraft.alias.trim(),
+          };
 
-    // If we're editing a master library sequence, do not modify it.
-    // Create a new custom copy only when something actually changed.
-    if (isMasterSequence(selectedSequence.id)) {
-      const aliasUnchanged = updated.alias === (selectedSequence.alias ?? "").trim();
-      const trUnchanged =
-        selectedSequence.type !== "mtrk" || updated.tr === selectedSequence.tr;
-      const teUnchanged =
-        selectedSequence.type !== "mtrk" || updated.te === selectedSequence.te;
-
-      if (aliasUnchanged && trUnchanged && teUnchanged) {
-        // No changes: just exit edit mode, do not create a copy
-        setIsEditingSeq(false);
-        return;
-      }
-
-      const newId = makeUniqueId(`${selectedSequence.id}__edited`);
-
-      const customCopy = {
-        ...updated,
-        id: newId,
-        // keep the alias as user entered, OR if you prefer, suffix it:
-        // alias: `${updated.alias}_edited`,
-      };
-
-      // store as custom, not in master list
-      setCustomSequences((prev) => [...prev, customCopy]);
-
-      // show the edited copy in the details card
-      setSelectedSequence(customCopy);
-
-      // treat it as still coming from "library flow" so user can add it
-      setSelectedFromLibrary(true);
-      setSelectedFromProtocolList(false);
-      setSelectedProtocolSeqId(null);
-
-      setIsEditingSeq(false);
-      return;
-    }
-
-    // otherwise (already custom or protocol-created), allow updating it in place:
     setSelectedSequence(updated);
 
-    // keep protocol list in sync if it contains this sequence
+    setCustomSequences((prev) => {
+      const withoutSameUpload =
+        updated.uploadedFileId != null
+          ? prev.filter((s) => s.uploadedFileId !== updated.uploadedFileId)
+          : prev.filter((s) => s.id !== updated.id);
+      return [...withoutSameUpload, updated];
+    });
+
     setProtocolSequences((prev) =>
-      prev.map((s) => {
-        if (s.id !== updated.id) return s;
-
-        if (updated.type === "mtrk") {
-          return { ...s, alias: updated.alias, tr: updated.tr, te: updated.te };
-        }
-
-        return { ...s, alias: updated.alias };
-      })
-    );
-
-    // keep customSequences in sync if it's a custom item
-    setCustomSequences((prev) =>
-      prev.map((s) => {
-        if (s.id !== updated.id) return s;
-
-        if (updated.type === "mtrk") {
-          return { ...s, alias: updated.alias, tr: updated.tr, te: updated.te };
-        }
-
-        return { ...s, alias: updated.alias };
-      })
+      prev.map((s) => (s.id === updated.id ? updated : s)),
     );
 
     setIsEditingSeq(false);
@@ -918,9 +807,9 @@ const Setup = () => {
     }
 
     if (value === "10") {
-      const loaded = PROTOCOL_1_SEQUENCE_IDS
-        .map((id) => getSequenceById(id))
-        .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
+      const loaded = PROTOCOL_1_SEQ_FILENAMES.map((fileName) =>
+        storageSequences.find((s) => s.fileName === fileName),
+      ).filter((s): s is SetupSequence => Boolean(s));
 
       setProtocolSequences(loaded);
       setGeometryBySequenceId(
@@ -941,7 +830,7 @@ const Setup = () => {
     if (saved) {
       const loaded = saved.sequenceIds
         .map((id) => getSequenceById(id))
-        .filter((s): s is typeof sequenceOptions[number] => Boolean(s));
+        .filter((s): s is SetupSequence => Boolean(s));
 
       setProtocolSequences(loaded);
 
@@ -969,17 +858,7 @@ const Setup = () => {
   };
 
   const modelZipUploadHandler = uploadHandlerFactory(uploadToken, dispatch, uploadData);
-
-  const noopUploadHandler = async (
-    file: File,
-    fileAlias: string,
-    fileDatabase: string,
-    onProgress?: (progress: number) => void,
-    onUploaded?: (res: AxiosResponse<any, any, {}>, file: File) => void,
-  ): Promise<number> => {
-    onProgress?.(100);
-    return 0;
-  };
+  const sequenceUploadHandler = uploadHandlerFactory(uploadToken, dispatch, uploadData);
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -1029,9 +908,7 @@ const Setup = () => {
   };
 
   //  Adding sequences to the protocol
-  const [protocolSequences, setProtocolSequences] = useState<
-    typeof sequenceOptions[number][]
-  >([]);
+  const [protocolSequences, setProtocolSequences] = useState<SetupSequence[]>([]);
 
   const handleAddSequence = () => {
     if (!selectedSequence) return;
@@ -1236,7 +1113,7 @@ const Setup = () => {
   // which item is "active" in the protocol list UI
   const [selectedProtocolSeqId, setSelectedProtocolSeqId] = useState<string | null>(null);
 
-  const handleSelectProtocolSequence = (seq: (typeof sequenceOptions)[number]) => {
+  const handleSelectProtocolSequence = (seq: SetupSequence) => {
     setSelectedSequence(seq);
     setSelectedProtocolSeqId(seq.id);
 
@@ -1342,10 +1219,11 @@ const Setup = () => {
       const payload = buildCamrieBackendPayload({
         alias: protocolLabel,
         taskAlias: `${slug}Test`,
-        previewMode: true,
+        previewMode: false,
         sequences: protocolSequences.map((s) => ({
           id: s.id,
           fileName: s.fileName ?? s.id,
+          uploadedFileId: s.uploadedFileId,
         })),
         geometryBySequenceId: geometryById,
         bodymodelFile: selectedModelZipFile,
@@ -1508,12 +1386,12 @@ const Setup = () => {
   );
 
   //-- handler for Duplicating Sequence in Protocol ---
-  const handleDuplicateSequenceInProtocol = (seq: (typeof sequenceOptions)[number]) => {
+  const handleDuplicateSequenceInProtocol = (seq: SetupSequence) => {
     // build ids that already exist in protocol + customs (avoid collisions)
     const takenIds = new Set([
       ...protocolSequences.map((s) => s.id),
       ...customSequences.map((s) => s.id),
-      ...sequenceOptions.map((s) => s.id),
+      ...storageSequences.map((s) => s.id),
     ]);
 
     const baseId = `${seq.id}__copy`;
@@ -1778,13 +1656,17 @@ const Setup = () => {
                     </CmrLabel>
 
                     <CMRSelectUpload
-                      fileSelection={uploadedFiles2}
+                      fileSelection={sequenceFileSelection}
                       onSelected={handleSequenceSelected}
-                      onUploaded={() => { }}
-                      chosenFile={selectedSequence?.alias}
+                      onUploaded={() => {
+                        dispatch(getUploadedData() as never);
+                      }}
+                      chosenFile={selectedSequence?.fileName}
                       maxCount={1}
-                      uploadHandler={noopUploadHandler}
+                      fileExtension={[".seq"]}
+                      uploadHandler={sequenceUploadHandler}
                       buttonText="Choose"
+                      selectStyles={selectStyles}
                     />
 
                     {/* Clear Button */}
@@ -2227,7 +2109,7 @@ const Setup = () => {
                         <Typography variant="body2" color="text.secondary">
                           Editing:{" "}
                           <strong>
-                            {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "—"}
+                            {protocolSequences.find((s) => s.id === viewerSequenceId)?.alias ?? "-"}
                           </strong>
                         </Typography>
                         <Box sx={{ marginTop: 1 }}>
@@ -2791,7 +2673,7 @@ const Setup = () => {
                                       ),
                                     }}
                                   />
-                                  {/* TEMP: rotation Lock checkboxes — restore when needed
+                                  {/* TEMP: rotation Lock checkboxes - restore when needed
                                   <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                     <CmrCheckbox
                                       id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
@@ -2916,7 +2798,7 @@ const Setup = () => {
                                   ),
                                 }}
                               />
-                              {/* TEMP: rotation Z Lock — restore when needed
+                              {/* TEMP: rotation Z Lock - restore when needed
                               <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                 <CmrCheckbox
                                   id="fov-lock-z-angulation"
@@ -3301,7 +3183,7 @@ const Setup = () => {
                                         ),
                                       }}
                                     />
-                                    {/* TEMP: rotation Lock checkboxes (stacked) — restore when needed
+                                    {/* TEMP: rotation Lock checkboxes (stacked) - restore when needed
                                     <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                       <CmrCheckbox
                                         id={isLr ? "fov-lock-lr-angulation" : "fov-lock-ap-angulation"}
@@ -3425,7 +3307,7 @@ const Setup = () => {
                                     ),
                                   }}
                                 />
-                                {/* TEMP: rotation Z Lock (stacked) — restore when needed
+                                {/* TEMP: rotation Z Lock (stacked) - restore when needed
                                 <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
                                   <CmrCheckbox
                                     id="fov-lock-z-angulation"
