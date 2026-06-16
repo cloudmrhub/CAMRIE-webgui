@@ -911,26 +911,25 @@ const Setup = () => {
   const [protocolSequences, setProtocolSequences] = useState<SetupSequence[]>([]);
 
   const handleAddSequence = () => {
-    if (!selectedSequence) return;
+    if (!selectedSequence || isEditingSeq) return;
+    if (protocolSequences.some((s) => s.id === selectedSequence.id)) return;
 
-    if (isEditingSeq) return;
+    const seq = selectedSequence;
 
-    setProtocolSequences((prev) => {
-      const alreadyAdded = prev.some((s) => s.id === selectedSequence.id);
-      if (alreadyAdded) return prev;
-      return [...prev, selectedSequence];
-    });
+    setProtocolSequences((prev) => [...prev, seq]);
 
     setGeometryBySequenceId((prev) => ({
       ...prev,
-      [selectedSequence.id]: prev[selectedSequence.id] ?? { ...defaultGeometryFromVolume },
+      [seq.id]: prev[seq.id] ?? { ...defaultGeometryFromVolume },
     }));
 
     // default to unchecked (false)
     setProtocolChecked((prev) => ({
       ...prev,
-      [selectedSequence.id]: prev[selectedSequence.id] ?? false,
+      [seq.id]: prev[seq.id] ?? false,
     }));
+
+    handleSelectProtocolSequence(seq);
   };
 
 
