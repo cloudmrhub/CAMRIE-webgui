@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import "./App.scss";
 import "bootstrap";
 import MainRouter from "./MainRouter";
@@ -87,7 +88,14 @@ function CAMRIE(props: any) {
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <ThemeProvider theme={theme}>
-          <div className="cmr-root">
+          <div
+            className="cmr-root"
+            style={
+              {
+                ["--cmr-app-primary"]: theme.palette.primary.main,
+              } as CSSProperties
+            }
+          >
             <MainRouter {...props} />
           </div>
         </ThemeProvider>

@@ -250,7 +250,6 @@ const Home = () => {
             dataSource={[...files]
               .filter((file) => {
                 const name = file.fileName.toLowerCase();
-                return !name.endsWith(".doc") && !name.endsWith(".nii");
               })
               .reverse()}
             rowSelectionModel={selectedData}
