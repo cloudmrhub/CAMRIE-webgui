@@ -14,11 +14,23 @@ export default defineConfig({
       { find: 'react-dom', replacement: path.resolve(__dirname, 'node_modules/react-dom') },
       { find: '@emotion/react', replacement: path.resolve(__dirname, 'node_modules/@emotion/react') },
       { find: '@emotion/styled', replacement: path.resolve(__dirname, 'node_modules/@emotion/styled') },
+      {
+        find: 'cloudmr-ux/results',
+        replacement: path.resolve(__dirname, 'node_modules/cloudmr-ux/dist/core/app/results'),
+      },
     ],
     dedupe: ['react', 'react-dom', '@emotion/react', '@emotion/styled'],
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@emotion/react', '@emotion/styled'],
+    include: [
+      'react',
+      'react-dom',
+      '@emotion/react',
+      '@emotion/styled',
+      'prop-types',
+      '@mui/material',
+      '@mui/system',
+    ],
   },
   css: {
     preprocessorOptions: {

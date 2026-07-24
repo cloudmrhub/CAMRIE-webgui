@@ -1,0 +1,42 @@
+diff --git a/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/TKDualRange.js b/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/TKDualRange.js
+index 5da152a..df7c73a 100644
+--- a/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/TKDualRange.js
++++ b/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/TKDualRange.js
+@@ -64,14 +64,19 @@ export default function TKDualRange(_a) {
+     var tHigh = transform(valueHigh);
+     var span = Math.max(1e-12, tMax - tMin);
+     var pct = function (t) { return ((t - tMin) / span) * 100; };
+-    var s = step !== null && step !== void 0 ? step : Math.max(span * 0.001, Number.EPSILON);
++    var useAnyStep = step == null || !Number.isFinite(step) || step <= 0 || step >= span;
++    var s = useAnyStep ? "any" : (step !== null && step !== void 0 ? step : Math.max(span * 0.001, Number.EPSILON));
++    var snapEnd = function (t, end) {
++        var eps = Math.max(span * 1e-9, Number.EPSILON * 8);
++        return Math.abs(t - end) <= eps ? end : t;
++    };
+     // Whether either value is currently outside the domain (from manual text input).
+     var isOutOfBounds = valueLow < minDomain || valueLow > maxDomain ||
+         valueHigh < minDomain || valueHigh > maxDomain;
+     // Clamped render-space values used only for the fill bar and slider thumbs,
+     // so they don't go offscreen when the real value is outside the domain.
+-    var tLowDisplay = clamp(tLow, tMin, tMax);
+-    var tHighDisplay = clamp(tHigh, tMin, tMax);
++    var tLowDisplay = snapEnd(clamp(tLow, tMin, tMax), tMin);
++    var tHighDisplay = snapEnd(clamp(tHigh, tMin, tMax), tMax);
+     // Keep ends from crossing; clamp in REAL space against the other end.
+     var handleLowRender = function (nextRender) {
+         var nextReal = clamp(inverse(nextRender), minDomain, valueHigh);
+diff --git a/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/tk-dual-range.css b/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/tk-dual-range.css
+index 935d3cf..80ef4de 100644
+--- a/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/tk-dual-range.css
++++ b/node_modules/cloudmr-ux/dist/CmrComponents/tk-dualrange/tk-dual-range.css
+@@ -41,6 +41,10 @@
+   width: 100%;
+   height: 28px;
+   display: block;
++  --tkdr-thumb-half: 7px;
++  padding-left: var(--tkdr-thumb-half);
++  padding-right: var(--tkdr-thumb-half);
++  box-sizing: border-box;
+ }
+ 
+ .tkdr__range {
