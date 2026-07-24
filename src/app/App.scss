@@ -1,8 +1,8 @@
 $theme-colors: (
-        "info": #1578A1
+        "info": #580F8B /* Change to your preferred color */
 );
 
-$primary: #1578A1;
+$primary: #580F8B;
 
 @import "bootstrap/scss/bootstrap";
 
@@ -18,20 +18,6 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: "Inter", "Roboto", "Helvetica", "Arial", sans-serif;
-}
-
-:root {
-  --cmr-app-primary: #1578A1;
-}
-
-/* cloudmr-ux may bundle its own MUI — force CAMRIE blue on viewer toggles */
-.cmr-root .MuiSwitch-thumb {
-  background-color: #1578A1 !important;
-}
-
-.cmr-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
-  background-color: #1578A1 !important;
-  opacity: 1 !important;
 }
 
 .form-control {
@@ -62,6 +48,18 @@ html, body {
 }
 .page-root {
   background-color: #f8fafc;
+}
+
+/* Force CAMRIE blue on all MUI Switch active states (checked only — inactive remains default white/grey) */
+.MuiSwitch-switchBase.Mui-checked {
+  color: #1578A1 !important;
+}
+.MuiSwitch-switchBase.Mui-checked:hover {
+  background-color: rgba(21, 120, 161, 0.08) !important;
+}
+.MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: rgba(21, 120, 161, 0.5) !important;
+  opacity: 1 !important;
 }
 
 p {

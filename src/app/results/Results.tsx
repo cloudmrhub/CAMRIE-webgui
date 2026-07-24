@@ -1,18 +1,12 @@
 import React, { Fragment, useEffect, useState } from "react";
-import "cloudmr-ux/results/Results.scss";
+import "./Results.scss";
 import {
   CmrTable,
   CmrCollapse,
   CmrPanel,
   CloudMrNiivueViewer as NiiVue,
   nv,
-  CmrCheckbox,
-  CMRUpload,
-  CmrEditConfirmation,
-  CmrConfirmation,
 } from "cloudmr-ux";
-import { Logs } from "cloudmr-ux/results/Logs";
-import { processJobZip } from "cloudmr-ux/results/PreprocessJob";
 import { useAppDispatch, useAppSelector } from "../../features/hooks";
 import { useStore } from "react-redux";
 import type { RootState } from "../../features/store";
@@ -20,10 +14,7 @@ import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { Job } from "cloudmr-ux/core/features/jobs/jobsSlice";
-import {
-  deleteUpstreamJob,
-  getUpstreamJobs,
-} from "cloudmr-ux/core/features/jobs/jobActionCreation";
+import { getUpstreamJobs } from "cloudmr-ux/core/features/jobs/jobActionCreation";
 import {
   uploadData,
   getUploadedData,
@@ -32,7 +23,7 @@ import {
   getPipelineROI,
   loadResult,
 } from "cloudmr-ux/core/features/rois/resultActionCreation";
-import { resultSlice } from "cloudmr-ux/core/features/rois/resultSlice";
+import { resultActions } from "../../features/rois/resultSlice";
 import {
   Alert,
   Button,
@@ -40,15 +31,23 @@ import {
   Slide,
   Snackbar,
 } from "@mui/material";
+import { CmrCheckbox } from "cloudmr-ux";
 import { Row } from "antd";
 import Box from "@mui/material/Box";
+import { Logs } from "./Logs";
+import { CMRUpload } from "cloudmr-ux";
+import { AxiosRequestConfig } from "axios";
+import { processJobZip } from "./PreprocessJob";
+import { deleteUpstreamJob } from "cloudmr-ux/core/features/jobs/jobActionCreation";
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
+import { CmrEditConfirmation } from "cloudmr-ux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
 
+import { CmrConfirmation } from "cloudmr-ux";
+
 import { CLOUDMR_SERVER } from "../../env";
 
-const resultActions = resultSlice.actions;
 const ROI_DELETE = `${CLOUDMR_SERVER}/roi/delete`;
 
 export interface NiiFile {
@@ -194,7 +193,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
     dispatch(getUpstreamJobs());
 
     let interval = setInterval(() => {
-      if (visible && autoRefresh && openPanel.includes(0)) {
+      if (visible && autoRefresh && openPanel.indexOf(0) >= 0) {
         //@ts-ignore
         dispatch(getUpstreamJobs());
       }
@@ -463,6 +462,13 @@ const Results = ({ visible }: { visible?: boolean }) => {
       },
     },
   ];
+  const UploadHeaders: AxiosRequestConfig = {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "X-Api-Key": queueToken,
+    },
+  };
 
   const [uploaderKey, setUploaderKey] = useState(0);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
@@ -506,7 +512,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
         expandIconPosition="right"
         activeKey={openPanel}
         onChange={(key: any) => {
-          if (!openPanel.includes(0) && [key].flat().includes(0)) {
+          if (openPanel.indexOf(0) < 0 && key.indexOf(0) >= 0) {
             dispatch(getUpstreamJobs());
           }
           dispatch(resultActions.setOpenPanel(key));
@@ -529,7 +535,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
               preprocess={async (file) => {
                 try {
                   let alias = await getAlias(file.name);
-                  return processJobZip(file, alias);
+                  return processJobZip(file, alias, accessToken);
                 } catch {
                   return 400;
                 }

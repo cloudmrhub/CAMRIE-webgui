@@ -71,22 +71,6 @@ const theme = createTheme({
         },
       },
     },
-    MuiSwitch: {
-      styleOverrides: {
-        thumb: {
-          backgroundColor: "#1578A1",
-        },
-        switchBase: {
-          "&.Mui-checked": {
-            color: "#1578A1",
-            "& + .MuiSwitch-track": {
-              backgroundColor: "#1578A1",
-              opacity: 1,
-            },
-          },
-        },
-      },
-    },
   },
   breakpoints: {
     values: {

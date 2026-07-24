@@ -41,10 +41,6 @@
   width: 100%;
   height: 28px;
   display: block;
-  --tkdr-thumb-half: 7px;
-  padding-left: var(--tkdr-thumb-half);
-  padding-right: var(--tkdr-thumb-half);
-  box-sizing: border-box;
 }
 
 .tkdr__range {

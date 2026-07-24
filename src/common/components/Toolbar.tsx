@@ -68,6 +68,13 @@ interface ToolbarProps {
   setSaving: (saving: boolean) => void;
 }
 
+const switchSx = {
+  "& .MuiSwitch-switchBase.Mui-checked": { color: "#1578A1" },
+  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+    backgroundColor: "#1578A1",
+  },
+};
+
 export default function Toolbar(props: ToolbarProps) {
   const { saving, setSaving } = props;
   let dispatch = useAppDispatch();
@@ -307,7 +314,7 @@ export default function Toolbar(props: ToolbarProps) {
                 defaultChecked={false}
                 checked={!props.radiological}
                 onChange={props.toggleRadiological}
-                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                sx={switchSx}
               />
             </Box>
             <Box
@@ -328,7 +335,7 @@ export default function Toolbar(props: ToolbarProps) {
                 defaultChecked={false}
                 checked={props.showCrosshair}
                 onChange={props.toggleShowCrosshair}
-                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                sx={switchSx}
               />
             </Box>
 
@@ -363,7 +370,7 @@ export default function Toolbar(props: ToolbarProps) {
               <Switch
                 checked={props.showColorBar}
                 onChange={props.toggleColorBar}
-                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                sx={switchSx}
               />
             </Box>
 
@@ -385,7 +392,7 @@ export default function Toolbar(props: ToolbarProps) {
                 defaultChecked={false}
                 checked={props.labelsVisible}
                 onChange={props.toggleLabelsVisible}
-                sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                sx={switchSx}
               />
             </Box>
 
@@ -409,7 +416,7 @@ export default function Toolbar(props: ToolbarProps) {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     props.onShowFovSlicesChange?.(e.target.checked)
                   }
-                  sx={{ "& .MuiSwitch-thumb": { backgroundColor: "#1578A1" } }}
+                  sx={switchSx}
                 />
               </Box>
             ) : null}

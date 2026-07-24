@@ -27,19 +27,6 @@ type Props = {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-/** Snap near domain ends so float noise / fixed step do not leave the thumb short of max. */
-const snapRenderToEnd = (t: number, end: number, span: number) => {
-  const eps = Math.max(span * 1e-9, Number.EPSILON * 8);
-  return Math.abs(t - end) <= eps ? end : t;
-};
-
-/** Map value → fill/thumb % inset for native range thumb radius. */
-const THUMB_INSET_PX = 7;
-const pctInset = (t: number, tMin: number, tMax: number, span: number) => {
-  const raw = span > 0 ? (t - tMin) / span : 0;
-  return raw * 100;
-};
-
 export default function TKDualRange({
   name = "Values",
   minDomain,
@@ -69,10 +56,10 @@ export default function TKDualRange({
   const discreteStep = useAnyStep ? null : step;
   const tLo = Math.min(tLowRaw, tHighRaw);
   const tHi = Math.max(tLowRaw, tHighRaw);
-  const tLow = snapRenderToEnd(clamp(tLo, tMin, tMax), tMin, span);
-  const tHigh = snapRenderToEnd(clamp(tHi, tMin, tMax), tMax, span);
+  const tLow = clamp(tLo, tMin, tMax);
+  const tHigh = clamp(tHi, tMin, tMax);
 
-  const pct = (t: number) => pctInset(t, tMin, tMax, span);
+  const pct = (t: number) => ((t - tMin) / span) * 100;
 
   // Keep ends from crossing; clamp in REAL space against the other end
   const handleLowRender = (nextRender: number) => {
@@ -159,13 +146,7 @@ export default function TKDualRange({
       </div>
 
       {/* Track with two native range inputs stacked */}
-      <div
-        className="tkdr__track"
-        style={{
-          ["--tkdr-accent" as any]: accentColor,
-          ["--tkdr-thumb-half" as any]: `${THUMB_INSET_PX}px`,
-        }}
-      >
+      <div className="tkdr__track" style={{ ["--tkdr-accent" as any]: accentColor }}>
         <div
           className="tkdr__range-fill"
           style={{
