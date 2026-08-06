@@ -331,6 +331,8 @@ const Setup = () => {
   const [selectedModelZipFile, setSelectedModelZipFile] = useState<UploadedFile | null>(null);
   const [selectedMarieInfo, setSelectedMarieInfo] = useState<Record<string, unknown> | null>(null);
   const [marieZipLoading, setMarieZipLoading] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queueSuccessOpen, setQueueSuccessOpen] = useState(false);
 
   const availableVolumes = useMemo(
     (): Record<string, string> => selectedModel?.volumeMapFromZip ?? {},
@@ -1247,6 +1249,70 @@ const Setup = () => {
     dataFiles,
   ]);
 
+  const handleQueueClick = useCallback(async () => {
+    setQueueLoading(true);
+    try {
+      const geometryById = Object.fromEntries(
+        protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
+      );
+      const protocolLabel =
+        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "test";
+      const slug = protocolLabel.replace(/\s+/g, "") || "camrieJob";
+      const payload = buildCamrieBackendPayload({
+        alias: protocolLabel,
+        taskAlias: `${slug}Test`,
+        previewMode: false,
+        sequences: protocolSequences.map((s) => ({
+          id: s.id,
+          fileName: s.fileName ?? s.id,
+          alias: s.alias,
+          uploadedFileId: s.uploadedFileId,
+        })),
+        geometryBySequenceId: geometryById,
+        bodymodelFile: selectedModelZipFile,
+        marieInfo: selectedMarieInfo,
+        dataFiles,
+      });
+      const job = {
+        id: Date.now(),
+        alias: protocolLabel,
+        status: "pending",
+        pipeline_id: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: "",
+        setup: payload,
+        files: [],
+      };
+      await (dispatch(submitJobs({ jobQueue: [job] }) as any) as Promise<any>).then(
+        (action: any) => {
+          if (action?.error || submitJobs.rejected.match(action)) {
+            const msg =
+              (action.payload as any)?.error ??
+              action?.error?.message ??
+              "Failed to queue job.";
+            throw new Error(msg);
+          }
+        },
+      );
+      setQueueSuccessOpen(true);
+      setTimeout(() => dispatch(jobActions.resetSubmissionState()), 1000);
+    } catch (err: any) {
+      setWarning(err?.message ?? "Failed to queue job.");
+      setWarningOpen(true);
+    } finally {
+      setQueueLoading(false);
+    }
+  }, [
+    protocolSequences,
+    captureSequenceGeometryForId,
+    protocol,
+    protocolOptions,
+    selectedModelZipFile,
+    selectedMarieInfo,
+    dataFiles,
+    dispatch,
+  ]);
+
   const patchActiveSequenceGeometry = useCallback(
     (patch: Partial<SequenceGeometryFormState>) => {
       const id = selectedProtocolSeqId;
@@ -1476,6 +1542,21 @@ const Setup = () => {
           sx={{ width: "100%" }}
         >
           Protocol changes saved.
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        TransitionComponent={(props: any) => <Slide {...props} direction="right" />}
+        open={queueSuccessOpen}
+        autoHideDuration={4000}
+        onClose={() => setQueueSuccessOpen(false)}
+      >
+        <Alert
+          onClose={() => setQueueSuccessOpen(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Job queued successfully.
         </Alert>
       </Snackbar>
       <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
@@ -2042,11 +2123,11 @@ const Setup = () => {
 
                           <CmrButton
                             variant="contained"
-                            onClick={() => { }}
+                            onClick={handleQueueClick}
                             sx={{ flex: 1, width: "100%", }}
-                            disabled={protocolSequences.length === 0}
+                            disabled={protocolSequences.length === 0 || queueLoading}
                           >
-                            Queue
+                            {queueLoading ? "Queuing…" : "Queue"}
                           </CmrButton>
                         </Box>
                         <CmrButton
