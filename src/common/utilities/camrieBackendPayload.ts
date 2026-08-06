@@ -29,6 +29,7 @@ export type CamrieBackendFileReference = {
 };
 
 export type CamrieBackendSequenceEntry = {
+  alias: string;
   file: CamrieBackendFileReference;
   geometry: SequenceGeometryJson;
 };
@@ -139,7 +140,7 @@ export type BuildCamrieBackendPayloadInput = {
   /** `task.pipeline` - pipeline UUID from CloudMR when known. */
   pipelineId?: string;
   output?: Partial<CamrieOutputSettings>;
-  sequences: { id: string; fileName: string; uploadedFileId?: number }[];
+  sequences: { id: string; fileName: string; alias?: string; uploadedFileId?: number }[];
   geometryBySequenceId: Record<string, SequenceGeometryJson>;
   /** When true, use hardcoded example file refs for sequences/bodymodel/marie_inputs if uploads are missing. */
   previewMode?: boolean;
@@ -296,7 +297,9 @@ export function buildCamrieBackendPayload(
       );
     }
     const fileName = seq.fileName ?? seq.id;
+    const alias = seq.alias?.trim() || fileName.replace(/\.[^.]+$/, "").replace(/_/g, " ");
     sequenceEntries.push({
+      alias,
       file: resolveSequenceFileRef(fileName, seq.uploadedFileId, dataFiles, previewMode),
       geometry,
     });

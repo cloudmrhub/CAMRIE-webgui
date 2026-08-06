@@ -1222,6 +1222,7 @@ const Setup = () => {
         sequences: protocolSequences.map((s) => ({
           id: s.id,
           fileName: s.fileName ?? s.id,
+          alias: s.alias,
           uploadedFileId: s.uploadedFileId,
         })),
         geometryBySequenceId: geometryById,
