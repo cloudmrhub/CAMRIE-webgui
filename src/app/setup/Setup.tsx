@@ -15,6 +15,7 @@ import {
   buildSequenceGeometryJson,
   areEncodingDirectionsOnSameAnatomicalAxis,
   clampEncodingDirectionToOrientation,
+  clampSpinFactor,
   DEFAULT_SEQUENCE_GEOMETRY_FORM,
   ENCODING_DIRECTION_OPTIONS,
   formStateToCaptureInput,
@@ -158,7 +159,7 @@ function indexOfPreferredMarieVolume(entries: [string, string][]): number {
 }
 
 /** Space between Field of View geometry sections via `margin-top` (intro sits flush above Orientation). */
-const FOV_GEOMETRY_SECTION_MARGIN_TOP = "2rem";
+const FOV_GEOMETRY_SECTION_MARGIN_TOP = "1rem";
 
 /** Matches `fovBoundingBoxMesh` rotation clamps (interactive drag + backend). */
 const FOV_ANGULATION_DEG_MIN = -89.5;
@@ -375,6 +376,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [fovAngulationLRdraft, setFovAngulationLRdraft] = useState<string | null>(null);
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
   const [fovAngulationZDraft, setFovAngulationZDraft] = useState<string | null>(null);
+  const [spinFactorDraft, setSpinFactorDraft] = useState<string | null>(null);
 
   const commitFovResMm = (raw: string, fallback: number) => {
     const t = raw.trim();
@@ -1174,6 +1176,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     setFovAngulationLRdraft(null);
     setFovAngulationAPdraft(null);
     setFovAngulationZDraft(null);
+    setSpinFactorDraft(null);
   }, [viewerSequenceId]);
 
   useEffect(() => {
@@ -2202,7 +2205,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                        Slice Orientation 
                       </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-end" }}>
                         <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
                           <InputLabel id="fov-orientation-label">Slice Orientation</InputLabel>
                           <MuiSelect
@@ -2227,6 +2230,50 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             <MenuItem value="coronal">Coronal</MenuItem>
                           </MuiSelect>
                         </FormControl>
+                      </Box>
+                    </Box>
+                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Spin Factor
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <TextField
+                          label="Spin Factor"
+                          type="text"
+                          size="small"
+                          disabled={protocolSequences.length === 0}
+                          value={spinFactorDraft !== null ? spinFactorDraft : String(activeForm.spinFactor)}
+                          onFocus={() => setSpinFactorDraft(String(activeForm.spinFactor))}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "");
+                            if (digits === "") {
+                              setSpinFactorDraft("");
+                              return;
+                            }
+                            const n = parseInt(digits, 10);
+                            if (!Number.isFinite(n)) return;
+                            // Allow typing toward a valid 1–10 value (e.g. clear then "10").
+                            if (n > 10) {
+                              setSpinFactorDraft("10");
+                              return;
+                            }
+                            setSpinFactorDraft(String(n));
+                          }}
+                          onBlur={() => {
+                            const raw = spinFactorDraft ?? String(activeForm.spinFactor);
+                            const n = parseInt(raw, 10);
+                            patchActiveSequenceGeometry({
+                              spinFactor: clampSpinFactor(Number.isFinite(n) ? n : activeForm.spinFactor),
+                            });
+                            setSpinFactorDraft(null);
+                          }}
+                          inputProps={{
+                            inputMode: "numeric",
+                            pattern: "[0-9]*",
+                            maxLength: 2,
+                          }}
+                          sx={{ minWidth: 220 }}
+                        />
                       </Box>
                     </Box>
                     <Box

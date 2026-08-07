@@ -1,4 +1,4 @@
-﻿import {
+import {
   imageBasisFromOrientationAngulation,
   type FovImagePrescription,
   type FovPlaneOrientation,
@@ -160,6 +160,8 @@ export type SequenceGeometryJson = {
     phase_encoding_direction?: EncodingDirectionId;
     /** In-plane anatomical direction for frequency-encoded axis (readout). */
     frequency_encoding_direction?: EncodingDirectionId;
+    /** Spin factor for simulation (integer 1–10; optional for older saves). */
+    spin_factor?: number;
   };
 };
 
@@ -203,6 +205,7 @@ export type SetupGeometryCaptureInput = {
   isocenterMm: [number, number, number] | null;
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
+  spinFactor: number;
 };
 
 function affine4ScaledFromBasis(
@@ -237,6 +240,8 @@ function vec3Scale(v: number[], s: number): [number, number, number] {
 /** Editable FoV / slice fields stored per protocol sequence id (Setup UI state). */
 export type SequenceGeometryFormState = {
   orientation: FovPlaneOrientation;
+  /** Spin factor for simulation (integer 1–10). */
+  spinFactor: number;
   angulationLRdeg: number;
   angulationAPdeg: number;
   /** Z rotation about slice normal after LR/AP world tilts (deg). */
@@ -263,6 +268,7 @@ export type SequenceGeometryFormState = {
 
 export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   orientation: "axial",
+  spinFactor: 1,
   angulationLRdeg: 0,
   angulationAPdeg: 0,
   angulationZDeg: 0,
@@ -279,6 +285,12 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   phaseEncodingDirection: null,
   frequencyEncodingDirection: null,
 };
+
+/** Clamp spin factor to integer range [1, 10]. */
+export function clampSpinFactor(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(10, Math.round(value)));
+}
 
 export function formStateToCaptureInput(
   form: SequenceGeometryFormState,
@@ -306,6 +318,7 @@ export function formStateToCaptureInput(
     isocenterMm,
     phaseEncodingDirection: form.phaseEncodingDirection ?? "left",
     frequencyEncodingDirection: form.frequencyEncodingDirection ?? "anterior",
+    spinFactor: clampSpinFactor(form.spinFactor),
   };
 }
 
@@ -326,6 +339,7 @@ export function sequenceGeometryJsonToFormState(
   if (isLegacySequenceGeometry(g)) {
     return {
       orientation: g.orientation,
+      spinFactor: 1,
       angulationLRdeg: g.angulation_lr_deg,
       angulationAPdeg: g.angulation_ap_deg,
       angulationZDeg: 0,
@@ -355,6 +369,7 @@ export function sequenceGeometryJsonToFormState(
     ([0, 0, 0] as [number, number, number]);
   return {
     orientation: o,
+    spinFactor: clampSpinFactor(g.ui.spin_factor ?? 1),
     angulationLRdeg: g.ui.angulation_lr_deg,
     angulationAPdeg: g.ui.angulation_ap_deg,
     angulationZDeg: g.ui.angulation_z_deg ?? g.ui.angulation_slice_deg ?? 0,
@@ -427,6 +442,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       slice_offset_mm: [input.sliceOffsetXMM, input.sliceOffsetYMM, input.sliceOffsetZMM],
       phase_encoding_direction: input.phaseEncodingDirection,
       frequency_encoding_direction: input.frequencyEncodingDirection,
+      spin_factor: clampSpinFactor(input.spinFactor),
     },
   };
 }
