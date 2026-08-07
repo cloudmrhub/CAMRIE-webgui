@@ -27,6 +27,7 @@ import JSZip from "jszip";
 import { getMax, getMin } from "cloudmr-ux/core/common/utilities";
 import { AuthenticatedHttpClient, getPipelineROI, getEndpoints } from "cloudmr-ux/core";
 import { useAppDispatch, useAppSelector } from "../../features/hooks";
+/** Setup-tab Niivue singleton — keep separate from cloudmr-ux Results `nv` / `window.nv`. */
 export const nv = new Niivue({
   loadingText: '',
   isColorbar: true,
@@ -43,8 +44,6 @@ export const nv = new Niivue({
   drawPen: 1,
   isOrientCube: true,
 });
-
-window.nv = nv;
 
 
 // The NiiVue component wraps all other components in the UI. 
@@ -1591,6 +1590,7 @@ export default function NiiVueport(props) {
 
       {props.niis[selectedVolume] != undefined && <NiivuePanel
         nv={nv}
+        canvasId="niiCanvasSetup"
         key={`${selectedVolume}`}
         volumes={layers}
         colorBarEnabled={colorBar}

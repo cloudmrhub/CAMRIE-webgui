@@ -10,6 +10,7 @@ import TKDualRange from "./tk-dualrange/TKDualRange";
 import { CmrLabel, CmrCheckbox } from "cloudmr-ux";
 interface NiivuePanelProps {
   nv: any;
+  canvasId?: string;
   // displayVertical:boolean;
   pipelineID: string;
   locationTableVisible: boolean;
@@ -51,6 +52,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
   const sliceControl = React.useRef(null);
   const canvas = React.useRef(null)
   const histogram = React.useRef<HTMLElement>(null);
+  const canvasId = props.canvasId ?? 'niiCanvas';
   const { mins, maxs, mms } = props;
   // const {gui} = createGUI(props.nv);
 
@@ -58,7 +60,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
 
   // This hook is for initialization, called only once
   React.useEffect(() => {
-    props.nv.attachTo('niiCanvas');
+    props.nv.attachTo(canvasId);
     props.nv.opts.dragMode = props.nv.dragModes.pan;
   }, [canvas]);
   // This hook is called when show distribution state changed
@@ -229,7 +231,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
             },
           }}
         >
-          <canvas id={'niiCanvas'} ref={canvas}
+          <canvas id={canvasId} ref={canvas}
             style={{
               position: "absolute",
               top: 0,

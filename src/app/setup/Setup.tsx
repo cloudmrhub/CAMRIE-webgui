@@ -309,7 +309,7 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
   }
 }
 
-const Setup = () => {
+const Setup = ({ visible = true }: { visible?: boolean }) => {
   const dispatch = useAppDispatch();
   const { accessToken, uploadToken } = useAppSelector((state) => state.authenticate);
   const dataFiles = useAppSelector((state) => state.data.files);
@@ -498,8 +498,14 @@ const Setup = () => {
     }, 5000);
   };
 
-  // Load volume into NiiVue when availableVolumes changes
+  // Load volume into Setup's NiiVue only while this tab is visible.
+  // CmrTabs keeps inactive tabs mounted (display:none); loading while hidden can
+  // fight the Results viewer for WebGL / window.nv / shared DOM ids.
   useEffect(() => {
+    if (!visible) {
+      removeFovBoundingBoxMesh(nv as any);
+      return;
+    }
     if (Object.keys(availableVolumes).length > 0) {
       const entries = Object.entries(availableVolumes);
       const initialIndex = indexOfPreferredMarieVolume(entries);
@@ -519,9 +525,8 @@ const Setup = () => {
     }
     return () => {
       removeFovBoundingBoxMesh(nv as any);
-      nv.loadVolumes([]);
     };
-  }, [availableVolumes]);
+  }, [availableVolumes, visible]);
 
   const handleModelSelected = (file?: UploadedFile) => {
     void (async () => {
@@ -3584,6 +3589,7 @@ const Setup = () => {
                   ) : null}
                 </Box>
 
+                {visible ? (
                 <NiiVue
                   niis={setupNiis}
                   warn={warn}
@@ -3608,6 +3614,7 @@ const Setup = () => {
                   }}
                 // initialSliceType="sagittal"
                 />
+                ) : null}
               </CmrPanel>
             </CmrCollapse>
           ) : (

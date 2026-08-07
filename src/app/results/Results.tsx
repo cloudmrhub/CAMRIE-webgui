@@ -604,7 +604,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
           }
           key={"1"}
         >
-          {activeJob !== undefined && (
+          {visible !== false && activeJob !== undefined && (
             <NiiVue
               niis={niis || []}
               accentColor="#1578A1"
