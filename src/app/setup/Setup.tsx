@@ -63,18 +63,18 @@ import {
   Slide,
   Slider,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import { CmrButton } from "cloudmr-ux";
 import { UploadedFile } from "cloudmr-ux/core/features/data/dataSlice";
 import { formatBytes } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import { jobActions } from "cloudmr-ux/core/features/jobs/jobsSlice";
-import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -91,6 +91,7 @@ import Select from "react-select";
 import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
 import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
 import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
+import { SetupPreview } from "./SetupPreviewer";
 
 /** MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
 interface SetupModelOption {
@@ -312,7 +313,11 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
 
 const Setup = ({ visible = true }: { visible?: boolean }) => {
   const dispatch = useAppDispatch();
-  const { accessToken, uploadToken } = useAppSelector((state) => state.authenticate);
+  const { accessToken, uploadToken, level, isAdmin } = useAppSelector(
+    (state) => state.authenticate,
+  );
+  // Show JSON preview for developers and admins (same rule as MROptimum).
+  const developer = Boolean(isAdmin) || level === "developer";
   const dataFiles = useAppSelector((state) => state.data.files);
 
   const [openModelPanel, setOpenModelPanel] = useState<Array<string | number>>([0]); // open by default
@@ -334,6 +339,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [marieZipLoading, setMarieZipLoading] = useState(false);
   const [queueLoading, setQueueLoading] = useState(false);
   const [queueSuccessOpen, setQueueSuccessOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | undefined>(undefined);
+  const [jobAlias, setJobAlias] = useState("");
 
   const availableVolumes = useMemo(
     (): Record<string, string> => selectedModel?.volumeMapFromZip ?? {},
@@ -503,29 +510,61 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   // Load volume into Setup's NiiVue only while this tab is visible.
   // CmrTabs keeps inactive tabs mounted (display:none); loading while hidden can
   // fight the Results viewer for WebGL / window.nv / shared DOM ids.
+  // NiiVue is remounted when visible becomes true, so wait for the Setup canvas
+  // (and GL context) before loadVolumes — otherwise the first load is a no-op.
   useEffect(() => {
     if (!visible) {
       removeFovBoundingBoxMesh(nv as any);
       return;
     }
-    if (Object.keys(availableVolumes).length > 0) {
-      const entries = Object.entries(availableVolumes);
-      const initialIndex = indexOfPreferredMarieVolume(entries);
-      const [name, url] = entries[initialIndex];
-      const vol = {
-        url,
-        name: niivueSafeVolumeName(url, `${name}.nii.gz`),
-        alias: name,
-      };
-      nv.loadVolumes([vol]);
-      nv.closeDrawing();
-      setSelectedVolume(initialIndex);
-      setTimeout(() => nv.resizeListener(), 700);
-    } else {
+    if (Object.keys(availableVolumes).length === 0) {
       removeFovBoundingBoxMesh(nv as any);
       nv.loadVolumes([]);
+      return;
     }
+
+    let cancelled = false;
+    const entries = Object.entries(availableVolumes);
+    const initialIndex = indexOfPreferredMarieVolume(entries);
+    const [name, url] = entries[initialIndex];
+    const vol = {
+      url,
+      name: niivueSafeVolumeName(url, `${name}.nii.gz`),
+      alias: name,
+    };
+
+    const loadWhenReady = async () => {
+      for (let i = 0; i < 40 && !cancelled; i++) {
+        const canvas = document.getElementById("niiCanvasSetup");
+        if (canvas) {
+          if (!nv.gl) {
+            try {
+              nv.attachTo("niiCanvasSetup");
+            } catch {
+              /* attach may race with NiivuePanel */
+            }
+          }
+          if (nv.gl) break;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      if (cancelled) return;
+      try {
+        await nv.loadVolumes([vol]);
+        if (cancelled) return;
+        nv.closeDrawing();
+        setSelectedVolume(initialIndex);
+        setTimeout(() => {
+          if (!cancelled) nv.resizeListener();
+        }, 700);
+      } catch (err) {
+        console.error("Setup NiiVue loadVolumes failed:", err);
+      }
+    };
+
+    void loadWhenReady();
     return () => {
+      cancelled = true;
       removeFovBoundingBoxMesh(nv as any);
     };
   }, [availableVolumes, visible]);
@@ -1257,18 +1296,14 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     dataFiles,
   ]);
 
-  const handleQueueClick = useCallback(async () => {
-    setQueueLoading(true);
-    try {
+  const buildQueuePayload = useCallback(
+    (jobName: string) => {
       const geometryById = Object.fromEntries(
         protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
       );
-      const protocolLabel =
-        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "test";
-      const slug = protocolLabel.replace(/\s+/g, "") || "camrieJob";
-      const payload = buildCamrieBackendPayload({
-        alias: protocolLabel,
-        taskAlias: `${slug}Test`,
+      return buildCamrieBackendPayload({
+        alias: jobName,
+        taskAlias: jobName,
         previewMode: false,
         sequences: protocolSequences.map((s) => ({
           id: s.id,
@@ -1281,45 +1316,70 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         marieInfo: selectedMarieInfo,
         dataFiles,
       });
-      const job = {
-        id: Date.now(),
-        alias: protocolLabel,
-        status: "pending",
-        pipeline_id: "",
-        createdAt: new Date().toISOString(),
-        updatedAt: "",
-        setup: payload,
-        files: [],
-      };
-      await (dispatch(submitJobs({ jobQueue: [job] }) as any) as Promise<any>).then(
-        (action: any) => {
-          if (action?.error || submitJobs.rejected.match(action)) {
-            const msg =
-              (action.payload as any)?.error ??
-              action?.error?.message ??
-              "Failed to queue job.";
-            throw new Error(msg);
-          }
-        },
-      );
-      setQueueSuccessOpen(true);
-      setTimeout(() => dispatch(jobActions.resetSubmissionState()), 1000);
+    },
+    [
+      protocolSequences,
+      captureSequenceGeometryForId,
+      selectedModelZipFile,
+      selectedMarieInfo,
+      dataFiles,
+    ],
+  );
+
+  /** Open Setup Preview; actual submit happens from the dialog confirm. */
+  const handleQueueClick = useCallback(() => {
+    if (protocolSequences.length === 0) return;
+    try {
+      const protocolLabel =
+        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "camrieJob";
+      const suggestedAlias = protocolLabel.replace(/\s+/g, "") || "camrieJob";
+      const payload = buildQueuePayload(suggestedAlias);
+      setJobAlias(suggestedAlias);
+      setPreviewContent(JSON.stringify(payload, null, "\t"));
     } catch (err: any) {
-      setWarning(err?.message ?? "Failed to queue job.");
+      setWarning(err?.message ?? "Failed to build job payload.");
       setWarningOpen(true);
-    } finally {
-      setQueueLoading(false);
     }
-  }, [
-    protocolSequences,
-    captureSequenceGeometryForId,
-    protocol,
-    protocolOptions,
-    selectedModelZipFile,
-    selectedMarieInfo,
-    dataFiles,
-    dispatch,
-  ]);
+  }, [protocolSequences.length, protocolOptions, protocol, buildQueuePayload]);
+
+  const handleConfirmQueueJob = useCallback(
+    async (alias: string) => {
+      setQueueLoading(true);
+      try {
+        const payload = buildQueuePayload(alias);
+        const job = {
+          id: Date.now(),
+          alias,
+          status: "pending",
+          pipeline_id: "",
+          createdAt: new Date().toISOString(),
+          updatedAt: "",
+          setup: payload,
+          files: [],
+        };
+        await (dispatch(submitJobs({ jobQueue: [job] }) as any) as Promise<any>).then(
+          (action: any) => {
+            if (action?.error || submitJobs.rejected.match(action)) {
+              const msg =
+                (action.payload as any)?.error ??
+                action?.error?.message ??
+                "Failed to queue job.";
+              throw new Error(msg);
+            }
+          },
+        );
+        setQueueSuccessOpen(true);
+        setTimeout(() => dispatch(jobActions.resetSubmissionState()), 1000);
+      } catch (err: any) {
+        setWarning(err?.message ?? "Failed to queue job.");
+        setWarningOpen(true);
+        throw err;
+      } finally {
+        setQueueLoading(false);
+      }
+    },
+    [buildQueuePayload, dispatch],
+  );
 
   const patchActiveSequenceGeometry = useCallback(
     (patch: Partial<SequenceGeometryFormState>) => {
@@ -2135,9 +2195,22 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             sx={{ flex: 1, width: "100%", }}
                             disabled={protocolSequences.length === 0 || queueLoading}
                           >
-                            {queueLoading ? "Queuing…" : "Queue"}
+                            {queueLoading ? "Queuing…" : "Queue Job"}
                           </CmrButton>
                         </Box>
+                        {previewContent && (
+                          <SetupPreview
+                            previewContent={previewContent}
+                            alias={jobAlias}
+                            developer={developer}
+                            setAlias={(event) => {
+                              setJobAlias((event.target as HTMLInputElement).value);
+                            }}
+                            edit={() => {}}
+                            handleClose={() => setPreviewContent(undefined)}
+                            queue={handleConfirmQueueJob}
+                          />
+                        )}
                         <CmrButton
                           variant="outlined"
                           onClick={handleOpenBackendPayloadPreview}
