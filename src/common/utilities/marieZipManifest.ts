@@ -45,7 +45,6 @@ export type MarieSetupModelFields = {
   emSimulator: string;
 };
 
-const MARIE_ZIP_COIL_LABEL = "16-Ch 3T head Surface Coil";
 const MARIE_ZIP_NUCLEUS_LABEL = "1H";
 
 function unwrapAxiosResponseBodyError(e: unknown): Error {
@@ -157,6 +156,70 @@ function stringField(info: Record<string, unknown>, ...keys: string[]): string {
   return "-";
 }
 
+function optionalStringField(info: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = info[k];
+    if (v === undefined || v === null) continue;
+    const s = String(v).trim();
+    if (s !== "") return s;
+  }
+  return "";
+}
+
+/**
+ * Fixed Model Details coil labels for the three built-in head EM zips (legacy `CAMRIE_PRESET_MODELS`).
+ * All other models use the `coil` / `Coil` value from `info.json` (or "-" when absent).
+ */
+const MARIE_HEAD_SURFACE_COIL_LABEL = "16-Ch 3T Head Surface Coil";
+const MARIE_HEAD_BIRDCAGE_COIL_LABEL = "3T Head Birdcage Coil";
+const MARIE_HEAD_TRIANGULAR_COIL_LABEL = "8-Ch 7T Head Triangular Coil";
+
+function resolveMarieKnownHeadEmCoilLabel(
+  displayFileName: string,
+  rawCoil: string,
+): string | undefined {
+  const haystack = `${displayFileName} ${rawCoil}`.toLowerCase();
+
+  if (
+    /head.?triangular|7t-head-triangular|7t_head_triangular|8-ch.*7t.*head.*triangular/.test(
+      haystack,
+    )
+  ) {
+    return MARIE_HEAD_TRIANGULAR_COIL_LABEL;
+  }
+
+  // Patient/anatomy zips (e.g. Duke Brain Birdcage) are not the 3T head EM birdcage model.
+  if (/brain.*birdcage|duke_brain|ixi.*patient/.test(haystack)) {
+    return undefined;
+  }
+
+  if (/head.?birdcage|3t-head-birdcage|3t_head_birdcage|3t head birdcage/.test(haystack)) {
+    return MARIE_HEAD_BIRDCAGE_COIL_LABEL;
+  }
+
+  if (
+    /headoverlap|head_overlap|3t-head-surface|3t_head_surface|overlapcoil|16-ch.*3t.*head.*surface/.test(
+      haystack,
+    )
+  ) {
+    return MARIE_HEAD_SURFACE_COIL_LABEL;
+  }
+
+  return undefined;
+}
+
+function resolveMarieCoilDisplayLabel(
+  inputs: Record<string, unknown>,
+  displayFileName: string,
+): string {
+  const rawCoil = optionalStringField(inputs, "coil", "Coil");
+  const knownLabel = resolveMarieKnownHeadEmCoilLabel(displayFileName, rawCoil);
+  if (knownLabel) {
+    return knownLabel;
+  }
+  return stringField(inputs, "coil", "Coil");
+}
+
 export function marieInfoJsonToModelFields(
   info: Record<string, unknown>,
   displayFileName: string,
@@ -192,7 +255,7 @@ export function marieInfoJsonToModelFields(
       "number_of_tissues",
       "Number_of_Tissues",
     ),
-    coil: MARIE_ZIP_COIL_LABEL,
+    coil: resolveMarieCoilDisplayLabel(inputs, displayFileName),
     receiveChannels: intField(inputs, "Number_of_Rx_channels", "number_of_rx_channels"),
     transmitChannels: intField(
       inputs,
@@ -395,7 +458,7 @@ export async function fetchMarieZipManifest(
         frequency: "-",
         resolution: "-",
         numOfTissues: "-",
-        coil: MARIE_ZIP_COIL_LABEL,
+        coil: "-",
         receiveChannels: 0,
         transmitChannels: 0,
         emSimulator: "-",
