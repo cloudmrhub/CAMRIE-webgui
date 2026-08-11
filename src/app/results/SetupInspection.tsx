@@ -21,6 +21,7 @@ type CamrieOptionsBlob = {
   sequences?: Array<{
     alias?: string;
     spin_factor?: number;
+    slice_padding?: number;
     file?: { options?: { filename?: string } };
     geometry?: SequenceGeometryJson;
   }>;
@@ -192,6 +193,7 @@ export const SetupInspection = () => {
           const fovMm = geometry?.fov_mm;
           const slice = geometry?.slice;
           const spinFactor = seq.spin_factor ?? ui?.spin_factor;
+          const slicePadding = seq.slice_padding ?? ui?.slice_padding;
           const offset = ui?.slice_offset_mm ?? ui?.prescription_offset_mm;
           const zRot = ui?.angulation_z_deg ?? ui?.angulation_slice_deg;
           const resX =
@@ -216,6 +218,9 @@ export const SetupInspection = () => {
               </Item>
               <Item>
                 {label("Spin Factor:")} {formatValue(spinFactor)}
+              </Item>
+              <Item>
+                {label("Slice Padding:")} {formatValue(slicePadding)}
               </Item>
               <Item>
                 {label("Slice Orientation:")}{" "}

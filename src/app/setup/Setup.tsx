@@ -384,6 +384,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
   const [fovAngulationZDraft, setFovAngulationZDraft] = useState<string | null>(null);
   const [spinFactorDraft, setSpinFactorDraft] = useState<string | null>(null);
+  const [slicePaddingDraft, setSlicePaddingDraft] = useState<string | null>(null);
 
   const commitFovResMm = (raw: string, fallback: number) => {
     const t = raw.trim();
@@ -2345,6 +2346,37 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             pattern: "[0-9]*",
                             maxLength: 2,
                           }}
+                          sx={{ minWidth: 220 }}
+                        />
+                      </Box>
+                    </Box>
+                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
+                        Slice Padding
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <TextField
+                          label="Slice Padding"
+                          type="number"
+                          size="small"
+                          disabled={protocolSequences.length === 0}
+                          value={
+                            slicePaddingDraft !== null
+                              ? slicePaddingDraft
+                              : String(activeForm.slicePadding)
+                          }
+                          onFocus={() => setSlicePaddingDraft(String(activeForm.slicePadding))}
+                          onChange={(e) => setSlicePaddingDraft(e.target.value)}
+                          onBlur={() => {
+                            patchActiveSequenceGeometry({
+                              slicePadding: commitNonNegMm(
+                                slicePaddingDraft ?? String(activeForm.slicePadding),
+                                activeForm.slicePadding,
+                              ),
+                            });
+                            setSlicePaddingDraft(null);
+                          }}
+                          inputProps={{ step: "any", min: 0 }}
                           sx={{ minWidth: 220 }}
                         />
                       </Box>

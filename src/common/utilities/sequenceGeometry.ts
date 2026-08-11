@@ -162,6 +162,8 @@ export type SequenceGeometryJson = {
     frequency_encoding_direction?: EncodingDirectionId;
     /** Spin factor for simulation (integer 1–10; optional for older saves). */
     spin_factor?: number;
+    /** Extra padding around the slice stack for simulation (optional for older saves). */
+    slice_padding?: number;
   };
 };
 
@@ -206,6 +208,7 @@ export type SetupGeometryCaptureInput = {
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
   spinFactor: number;
+  slicePadding: number;
 };
 
 function affine4ScaledFromBasis(
@@ -242,6 +245,8 @@ export type SequenceGeometryFormState = {
   orientation: FovPlaneOrientation;
   /** Spin factor for simulation (integer 1–10). */
   spinFactor: number;
+  /** Extra padding around the slice stack for simulation. */
+  slicePadding: number;
   angulationLRdeg: number;
   angulationAPdeg: number;
   /** Z rotation about slice normal after LR/AP world tilts (deg). */
@@ -269,6 +274,7 @@ export type SequenceGeometryFormState = {
 export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
   orientation: "axial",
   spinFactor: 1,
+  slicePadding: 0.5,
   angulationLRdeg: 0,
   angulationAPdeg: 0,
   angulationZDeg: 0,
@@ -290,6 +296,14 @@ export const DEFAULT_SEQUENCE_GEOMETRY_FORM: SequenceGeometryFormState = {
 export function clampSpinFactor(value: number): number {
   if (!Number.isFinite(value)) return 1;
   return Math.max(1, Math.min(10, Math.round(value)));
+}
+
+export const DEFAULT_SLICE_PADDING = 0.5;
+
+/** Clamp slice padding to a non-negative finite value. */
+export function clampSlicePadding(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_SLICE_PADDING;
+  return Math.max(0, value);
 }
 
 export function formStateToCaptureInput(
@@ -319,6 +333,7 @@ export function formStateToCaptureInput(
     phaseEncodingDirection: form.phaseEncodingDirection ?? "left",
     frequencyEncodingDirection: form.frequencyEncodingDirection ?? "anterior",
     spinFactor: clampSpinFactor(form.spinFactor),
+    slicePadding: clampSlicePadding(form.slicePadding),
   };
 }
 
@@ -340,6 +355,7 @@ export function sequenceGeometryJsonToFormState(
     return {
       orientation: g.orientation,
       spinFactor: 1,
+      slicePadding: DEFAULT_SLICE_PADDING,
       angulationLRdeg: g.angulation_lr_deg,
       angulationAPdeg: g.angulation_ap_deg,
       angulationZDeg: 0,
@@ -370,6 +386,7 @@ export function sequenceGeometryJsonToFormState(
   return {
     orientation: o,
     spinFactor: clampSpinFactor(g.ui.spin_factor ?? 1),
+    slicePadding: clampSlicePadding(g.ui.slice_padding ?? DEFAULT_SLICE_PADDING),
     angulationLRdeg: g.ui.angulation_lr_deg,
     angulationAPdeg: g.ui.angulation_ap_deg,
     angulationZDeg: g.ui.angulation_z_deg ?? g.ui.angulation_slice_deg ?? 0,
@@ -443,6 +460,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       phase_encoding_direction: input.phaseEncodingDirection,
       frequency_encoding_direction: input.frequencyEncodingDirection,
       spin_factor: clampSpinFactor(input.spinFactor),
+      slice_padding: clampSlicePadding(input.slicePadding),
     },
   };
 }
