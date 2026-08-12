@@ -47,7 +47,7 @@ const Header = ({
     <nav
       className="navbar navbar-expand-md navbar-dark bg-dark shadow-sm"
       style={{
-        background: "#1578A1",
+        background: "var(--cmr-app-primary, #1578A1)",
         paddingTop: "10px",
         paddingBottom: "10px",
       }}

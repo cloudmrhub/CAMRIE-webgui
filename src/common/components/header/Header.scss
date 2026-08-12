@@ -30,3 +30,26 @@
 .navbar-brand {
   font-family: 'Inter', sans-serif;
 }
+
+/* Account dropdown: app primary for hover/active (not Bootstrap purple) */
+.navbar .dropdown-menu .dropdown-item {
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  text-align: left;
+  background-color: transparent;
+  color: inherit;
+}
+
+.navbar .dropdown-menu .dropdown-item:hover,
+.navbar .dropdown-menu .dropdown-item:focus {
+  background-color: color-mix(in srgb, var(--cmr-app-primary, #1578A1) 14%, white);
+  color: inherit;
+}
+
+.navbar .dropdown-menu .dropdown-item:active,
+.navbar .dropdown-menu .dropdown-item.active {
+  background-color: var(--cmr-app-primary, #1578A1);
+  color: #fff;
+}

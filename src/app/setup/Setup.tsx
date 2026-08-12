@@ -7,10 +7,16 @@ import {
   volumeWorldAabbMm,
   volumePhysicalExtentMm,
   getSliceCenterMmForGeometryExport,
+  getVolumeIsocenterMmForExport,
+  getVolumeOriginMmForExport,
   resetFovSliceTranslation,
   type FovPlaneOrientation,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import { buildCamrieBackendPayload } from "../../common/utilities/camrieBackendPayload";
+import {
+  resolveBackendWorldFrame,
+  sliceCenterNiivueMmToLpsMm,
+} from "../../common/utilities/bodyModelIsocenter";
 import {
   buildSequenceGeometryJson,
   areEncodingDirectionsOnSameAnatomicalAxis,
@@ -23,7 +29,6 @@ import {
   sequenceGeometryJsonToFormState,
   type EncodingDirectionId,
   type SequenceGeometryFormState,
-  type LegacySequenceGeometryJson,
   type SequenceGeometryJson,
 } from "../../common/utilities/sequenceGeometry";
 import {
@@ -91,6 +96,12 @@ import Select from "react-select";
 import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
 import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
 import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
+import {
+  loadSavedProtocolsForUser,
+  normalizeSavedProtocolUserKey,
+  persistSavedProtocolsForUser,
+  type SavedProtocol,
+} from "../../common/utilities/savedProtocolsStorage";
 import { SetupPreview } from "./SetupPreviewer";
 
 /** MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
@@ -137,13 +148,6 @@ function uploadedFileToSequence(file: UploadedFile): SetupSequence {
     uploadedFileId: file.id,
   };
 }
-
-/** Built-in Protocol 1 expects these `.seq` filenames in uploaded Data. */
-const PROTOCOL_1_SEQ_FILENAMES = [
-  "PD-Weighted_Spin_Echo.seq",
-  "T1-Weighted_Spin_Echo.seq",
-  "T1-Weighted_Spoiled_GRE.seq",
-];
 
 /** Pick proton density / rhoh as Niivue’s initial load when present in the zip manifest. */
 function indexOfPreferredMarieVolume(entries: [string, string][]): number {
@@ -313,7 +317,7 @@ function fovAngleRowsForOrientation(orientation: FovPlaneOrientation): [FovAngle
 
 const Setup = ({ visible = true }: { visible?: boolean }) => {
   const dispatch = useAppDispatch();
-  const { accessToken, uploadToken, level, isAdmin } = useAppSelector(
+  const { accessToken, uploadToken, level, isAdmin, email } = useAppSelector(
     (state) => state.authenticate,
   );
   // Show JSON preview for developers and admins (same rule as MROptimum).
@@ -785,58 +789,37 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   // --- Protocol Dropdown ---
   const [protocol, setProtocol] = useState<string>("");
 
-  // Saved protocols (user-created). Persisted to localStorage.
-  type SavedProtocol = {
-    id: string;
-    label: string;
-    sequenceIds: string[];
-    /** Per-sequence geometry snapshots at last save (one entry per protocol sequence id). */
-    sequenceGeometry?: Record<string, SequenceGeometryJson | LegacySequenceGeometryJson>;
-  };
-  const SAVED_PROTOCOLS_KEY = "camrie-saved-protocols";
+  // Saved protocols (user-created). Persisted per signed-in user in localStorage.
+  const savedProtocolUserKey = normalizeSavedProtocolUserKey(email);
+  const skipNextPersistRef = useRef(false);
 
-  const loadSavedProtocols = (): SavedProtocol[] => {
-    try {
-      const raw = localStorage.getItem(SAVED_PROTOCOLS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter(
-        (p: unknown): p is SavedProtocol =>
-          p != null &&
-          typeof p === "object" &&
-          typeof (p as SavedProtocol).id === "string" &&
-          typeof (p as SavedProtocol).label === "string" &&
-          Array.isArray((p as SavedProtocol).sequenceIds) &&
-          ((p as SavedProtocol).sequenceGeometry === undefined ||
-            (typeof (p as SavedProtocol).sequenceGeometry === "object" &&
-              (p as SavedProtocol).sequenceGeometry !== null))
-      );
-    } catch {
-      return [];
-    }
-  };
-
-  const [savedProtocols, setSavedProtocols] = useState<SavedProtocol[]>(loadSavedProtocols);
+  const [savedProtocols, setSavedProtocols] = useState<SavedProtocol[]>(() =>
+    loadSavedProtocolsForUser(savedProtocolUserKey),
+  );
 
   useEffect(() => {
-    if (savedProtocols.length > 0) {
-      localStorage.setItem(SAVED_PROTOCOLS_KEY, JSON.stringify(savedProtocols));
-    } else {
-      localStorage.removeItem(SAVED_PROTOCOLS_KEY);
+    skipNextPersistRef.current = true;
+    setSavedProtocols(loadSavedProtocolsForUser(savedProtocolUserKey));
+    setProtocol("");
+    setProtocolSequences([]);
+    setGeometryBySequenceId({});
+    setSelectedSequence(null);
+    setSelectedProtocolSeqId(null);
+    setProtocolChecked({});
+  }, [savedProtocolUserKey]);
+
+  useEffect(() => {
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
     }
-  }, [savedProtocols]);
+    persistSavedProtocolsForUser(savedProtocolUserKey, savedProtocols);
+  }, [savedProtocols, savedProtocolUserKey]);
 
   type ProtocolOption = { value: string; label: string };
 
-  const baseProtocolOptions: ProtocolOption[] = [
-    { value: "", label: "New Protocol" },
-    { value: "10", label: "Protocol 1" },
-    { value: "20", label: "Protocol 2" },
-    { value: "30", label: "Protocol 3" },
-  ];
   const protocolOptions: ProtocolOption[] = [
-    ...baseProtocolOptions,
+    { value: "", label: "New Protocol" },
     ...savedProtocols.map((p) => ({ value: p.id, label: p.label })),
   ];
 
@@ -855,26 +838,6 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       return;
     }
 
-    if (value === "10") {
-      const loaded = PROTOCOL_1_SEQ_FILENAMES.map((fileName) =>
-        storageSequences.find((s) => s.fileName === fileName),
-      ).filter((s): s is SetupSequence => Boolean(s));
-
-      setProtocolSequences(loaded);
-      setGeometryBySequenceId(
-        Object.fromEntries(loaded.map((s) => [s.id, { ...defaultGeometryFromVolume }])),
-      );
-
-      if (loaded.length > 0) {
-        handleSelectProtocolSequence(loaded[0]);
-      } else {
-        setSelectedSequence(null);
-        setSelectedProtocolSeqId(null);
-      }
-      return;
-    }
-
-    // Saved (user-created) protocol
     const saved = savedProtocols.find((p) => p.id === value);
     if (saved) {
       const loaded = saved.sequenceIds
@@ -896,14 +859,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         setSelectedSequence(null);
         setSelectedProtocolSeqId(null);
       }
-      return;
     }
-
-    // Protocol 2/3 placeholder
-    setProtocolSequences([]);
-    setGeometryBySequenceId({});
-    setSelectedSequence(null);
-    setSelectedProtocolSeqId(null);
   };
 
   const modelZipUploadHandler = uploadHandlerFactory(uploadToken, dispatch, uploadData);
@@ -1042,10 +998,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [saveProtocolOpen, setSaveProtocolOpen] = useState(false);
   const [saveProtocolNameDraft, setSaveProtocolNameDraft] = useState("");
   const [saveProtocolError, setSaveProtocolError] = useState("");
-
-  const [backendPayloadDialogOpen, setBackendPayloadDialogOpen] = useState(false);
-  const [backendPayloadText, setBackendPayloadText] = useState("");
-  const [backendPayloadError, setBackendPayloadError] = useState<string | null>(null);
+  const [saveProtocolResumeQueue, setSaveProtocolResumeQueue] = useState(false);
+  const [queueSaveProtocolPromptOpen, setQueueSaveProtocolPromptOpen] = useState(false);
 
   const handleSaveProtocolClick = () => {
     // Saved protocol: update in place, no dialog
@@ -1062,47 +1016,11 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       setSuccessToastOpen(true);
       return;
     }
-    // New Protocol or built-in: open dialog to create new protocol
+    // New Protocol: open dialog to create a saved protocol
     setSaveProtocolError("");
     const currentLabel = protocolOptions.find((o) => o.value === protocol)?.label ?? "";
     setSaveProtocolNameDraft(protocol ? `Copy of ${currentLabel}` : "");
     setSaveProtocolOpen(true);
-  };
-
-  const confirmSaveProtocol = () => {
-    const name = saveProtocolNameDraft.trim();
-    if (!name) {
-      setSaveProtocolError("Please enter a protocol name.");
-      return;
-    }
-    if (savedProtocols.some((p) => p.label.toLowerCase() === name.toLowerCase())) {
-      setSaveProtocolError("A protocol with this name already exists.");
-      return;
-    }
-
-    const ids = protocolSequences.map((s) => s.id);
-    const sequenceGeometry = Object.fromEntries(
-      ids.map((id) => [id, captureSequenceGeometryForId(id)]),
-    );
-
-    const newProtocol: SavedProtocol = {
-      id: `saved-${Date.now()}`,
-      label: name,
-      sequenceIds: ids,
-      sequenceGeometry,
-    };
-
-    setSavedProtocols((prev) => [...prev, newProtocol]);
-    setProtocol(newProtocol.id);
-    setSaveProtocolOpen(false);
-    setSaveProtocolNameDraft("");
-    setSaveProtocolError("");
-  };
-
-  const cancelSaveProtocol = () => {
-    setSaveProtocolOpen(false);
-    setSaveProtocolNameDraft("");
-    setSaveProtocolError("");
   };
 
   // --- Edit Protocol Name (saved protocols only) ---
@@ -1111,8 +1029,6 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [editProtocolNameError, setEditProtocolNameError] = useState("");
 
   const isSavedProtocol = protocol.startsWith("saved-");
-  const isBuiltInProtocol123 =
-    protocol === "10" || protocol === "20" || protocol === "30";
 
   const startEditProtocolName = () => {
     if (!isSavedProtocol) return;
@@ -1245,57 +1161,35 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const captureSequenceGeometryForId = useCallback(
     (sequenceId: string): SequenceGeometryJson => {
       let isocenter: [number, number, number] | null = null;
+      let backendWorld: ReturnType<typeof resolveBackendWorldFrame> | undefined;
       try {
         const p = getSliceCenterMmForGeometryExport(nv);
         if (p) isocenter = [p[0], p[1], p[2]];
+        const volIso = getVolumeIsocenterMmForExport(nv);
+        const volOrigin = getVolumeOriginMmForExport(nv);
+        const vol = nv?.volumes?.[0];
+        const hdr = vol?.hdr;
+        backendWorld = resolveBackendWorldFrame(hdr, volIso, volOrigin, vol);
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.debug("[CAMRIE] backend world frame", {
+            match: backendWorld.match,
+            axisSigns: backendWorld.axisSigns,
+            autoIsocenterLpsMm: backendWorld.autoIsocenterLpsMm,
+            niivueIsocenterMm: backendWorld.niivueIsocenterMm,
+            niivueOriginMm: backendWorld.niivueOriginMm,
+            sliceCenterNiivueMm: isocenter,
+            exportedIsocenterLpsMm: sliceCenterNiivueMmToLpsMm(isocenter, backendWorld),
+          });
+        }
       } catch {
         /* volume not ready */
       }
       const form = geometryBySequenceId[sequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
-      return buildSequenceGeometryJson(formStateToCaptureInput(form, isocenter));
+      return buildSequenceGeometryJson(formStateToCaptureInput(form, isocenter, backendWorld));
     },
     [geometryBySequenceId],
   );
-
-  const handleOpenBackendPayloadPreview = useCallback(() => {
-    try {
-      const geometryById = Object.fromEntries(
-        protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
-      );
-      const protocolLabel =
-        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "test";
-      const slug = protocolLabel.replace(/\s+/g, "") || "camrieJob";
-      const payload = buildCamrieBackendPayload({
-        alias: protocolLabel,
-        taskAlias: `${slug}Test`,
-        previewMode: false,
-        sequences: protocolSequences.map((s) => ({
-          id: s.id,
-          fileName: s.fileName ?? s.id,
-          alias: s.alias,
-          uploadedFileId: s.uploadedFileId,
-        })),
-        geometryBySequenceId: geometryById,
-        bodymodelFile: selectedModelZipFile,
-        marieInfo: selectedMarieInfo,
-        dataFiles,
-      });
-      setBackendPayloadText(JSON.stringify(payload, null, 2));
-      setBackendPayloadError(null);
-    } catch (err) {
-      setBackendPayloadText("");
-      setBackendPayloadError(err instanceof Error ? err.message : String(err));
-    }
-    setBackendPayloadDialogOpen(true);
-  }, [
-    protocolSequences,
-    captureSequenceGeometryForId,
-    protocol,
-    protocolOptions,
-    selectedModelZipFile,
-    selectedMarieInfo,
-    dataFiles,
-  ]);
 
   const buildQueuePayload = useCallback(
     (jobName: string) => {
@@ -1328,20 +1222,93 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   );
 
   /** Open Setup Preview; actual submit happens from the dialog confirm. */
+  const openQueuePreview = useCallback(
+    (aliasOverride?: string) => {
+      if (protocolSequences.length === 0) return;
+      try {
+        const protocolLabel =
+          aliasOverride ??
+          protocolOptions.find((o) => o.value === protocol)?.label?.trim() ??
+          "camrieJob";
+        const suggestedAlias = protocolLabel.replace(/\s+/g, "") || "camrieJob";
+        const payload = buildQueuePayload(suggestedAlias);
+        setJobAlias(suggestedAlias);
+        setPreviewContent(JSON.stringify(payload, null, "\t"));
+      } catch (err: unknown) {
+        setWarning(err instanceof Error ? err.message : "Failed to build job payload.");
+        setWarningOpen(true);
+      }
+    },
+    [protocolSequences.length, protocolOptions, protocol, buildQueuePayload],
+  );
+
+  const confirmSaveProtocol = () => {
+    const name = saveProtocolNameDraft.trim();
+    if (!name) {
+      setSaveProtocolError("Please enter a protocol name.");
+      return;
+    }
+    if (savedProtocols.some((p) => p.label.toLowerCase() === name.toLowerCase())) {
+      setSaveProtocolError("A protocol with this name already exists.");
+      return;
+    }
+
+    const ids = protocolSequences.map((s) => s.id);
+    const sequenceGeometry = Object.fromEntries(
+      ids.map((id) => [id, captureSequenceGeometryForId(id)]),
+    );
+
+    const newProtocol: SavedProtocol = {
+      id: `saved-${Date.now()}`,
+      label: name,
+      sequenceIds: ids,
+      sequenceGeometry,
+    };
+
+    setSavedProtocols((prev) => [...prev, newProtocol]);
+    setProtocol(newProtocol.id);
+    setSaveProtocolOpen(false);
+    setSaveProtocolNameDraft("");
+    setSaveProtocolError("");
+
+    if (saveProtocolResumeQueue) {
+      setSaveProtocolResumeQueue(false);
+      openQueuePreview(name);
+    }
+  };
+
+  const cancelSaveProtocol = () => {
+    const resumeQueue = saveProtocolResumeQueue;
+    setSaveProtocolOpen(false);
+    setSaveProtocolNameDraft("");
+    setSaveProtocolError("");
+    setSaveProtocolResumeQueue(false);
+    if (resumeQueue) {
+      openQueuePreview();
+    }
+  };
+
   const handleQueueClick = useCallback(() => {
     if (protocolSequences.length === 0) return;
-    try {
-      const protocolLabel =
-        protocolOptions.find((o) => o.value === protocol)?.label?.trim() || "camrieJob";
-      const suggestedAlias = protocolLabel.replace(/\s+/g, "") || "camrieJob";
-      const payload = buildQueuePayload(suggestedAlias);
-      setJobAlias(suggestedAlias);
-      setPreviewContent(JSON.stringify(payload, null, "\t"));
-    } catch (err: any) {
-      setWarning(err?.message ?? "Failed to build job payload.");
-      setWarningOpen(true);
+    if (protocol.startsWith("saved-")) {
+      openQueuePreview();
+      return;
     }
-  }, [protocolSequences.length, protocolOptions, protocol, buildQueuePayload]);
+    setQueueSaveProtocolPromptOpen(true);
+  }, [protocolSequences.length, protocol, openQueuePreview]);
+
+  const handleQueueSaveProtocolPromptConfirm = () => {
+    setQueueSaveProtocolPromptOpen(false);
+    setSaveProtocolError("");
+    setSaveProtocolNameDraft("");
+    setSaveProtocolResumeQueue(true);
+    setSaveProtocolOpen(true);
+  };
+
+  const handleQueueSaveProtocolPromptCancel = () => {
+    setQueueSaveProtocolPromptOpen(false);
+    openQueuePreview();
+  };
 
   const handleConfirmQueueJob = useCallback(
     async (alias: string) => {
@@ -2183,11 +2150,9 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onClick={handleSaveProtocolClick}
                             sx={{ flex: 1, width: "100%" }}
                             disabled={protocolSequences.length === 0}
-                            aria-label={
-                              isBuiltInProtocol123 ? "Save protocol as" : "Save protocol"
-                            }
+                            aria-label="Save protocol"
                           >
-                            {isBuiltInProtocol123 ? "Save As" : "Save"}
+                            Save Protocol
                           </CmrButton>
 
                           <CmrButton
@@ -2212,14 +2177,6 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             queue={handleConfirmQueueJob}
                           />
                         )}
-                        <CmrButton
-                          variant="outlined"
-                          onClick={handleOpenBackendPayloadPreview}
-                          disabled={protocolSequences.length === 0}
-                          sx={{ width: "100%" }}
-                        >
-                          View backend JSON
-                        </CmrButton>
                       </Box>
                     </CardActions>
                   </Card>
@@ -3787,7 +3744,12 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       </Grid>
 
       {/* Save Protocol Dialog */}
-      <Dialog open={saveProtocolOpen} onClose={cancelSaveProtocol} maxWidth="xs" fullWidth>
+      <Dialog
+        open={saveProtocolOpen}
+        onClose={cancelSaveProtocol}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Save Protocol</DialogTitle>
         <DialogContent>
           <TextField
@@ -3810,56 +3772,22 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
             Cancel
           </CmrButton>
           <CmrButton variant="contained" onClick={confirmSaveProtocol}>
-            Save
+            Save Protocol
           </CmrButton>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={backendPayloadDialogOpen}
-        onClose={() => setBackendPayloadDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Backend payload</DialogTitle>
-        <DialogContent dividers>
-          {backendPayloadError ? (
-            <Alert severity="error">{backendPayloadError}</Alert>
-          ) : (
-            <Box
-              component="pre"
-              sx={{
-                m: 0,
-                p: 1,
-                maxHeight: "65vh",
-                overflow: "auto",
-                fontFamily: "ui-monospace, Consolas, monospace",
-                fontSize: 12,
-                lineHeight: 1.45,
-                bgcolor: "rgba(0,0,0,0.04)",
-                borderRadius: 1,
-              }}
-            >
-              {backendPayloadText}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: "wrap" }}>
-          {!backendPayloadError && backendPayloadText ? (
-            <CmrButton
-              variant="outlined"
-              onClick={() => {
-                void navigator.clipboard.writeText(backendPayloadText);
-              }}
-            >
-              Copy JSON
-            </CmrButton>
-          ) : null}
-          <CmrButton variant="contained" onClick={() => setBackendPayloadDialogOpen(false)}>
-            Close
-          </CmrButton>
-        </DialogActions>
-      </Dialog>
+      <CmrConfirmation
+        name="Save Protocol Before Queuing?"
+        message="Would you like to save this protocol before queuing the job?"
+        color="primary"
+        open={queueSaveProtocolPromptOpen}
+        setOpen={setQueueSaveProtocolPromptOpen}
+        confirmCallback={handleQueueSaveProtocolPromptConfirm}
+        cancelCallback={handleQueueSaveProtocolPromptCancel}
+        cancellable={true}
+        width={450}
+      />
     </Fragment>
   );
 };

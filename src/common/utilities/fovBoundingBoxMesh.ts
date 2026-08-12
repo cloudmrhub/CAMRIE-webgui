@@ -262,8 +262,25 @@ export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown
   };
 }
 
+/**
+ * Volume center in Niivue world units (`frac2mm([0.5,0.5,0.5])`).
+ * If that lands on the NIfTI corner (Duke origin-trap), use the world AABB midpoint instead.
+ */
 export function volumeIsocenterMm(nv: { frac2mm: (...args: unknown[]) => unknown }): number[] {
-  return sliceMmFromFrac(nv, [0.5, 0.5, 0.5]);
+  const center = sliceMmFromFrac(nv, [0.5, 0.5, 0.5]);
+  const origin = sliceMmFromFrac(nv, [0, 0, 0]);
+  const { min, max } = volumeWorldAabbMm(nv);
+  const extent = Math.max(
+    Math.abs(max[0] - min[0]),
+    Math.abs(max[1] - min[1]),
+    Math.abs(max[2] - min[2]),
+  );
+  const separation = Math.hypot(center[0] - origin[0], center[1] - origin[1], center[2] - origin[2]);
+  // Large volume but parametric center≈corner ⇒ do not use voxel [0,0,0] as isocenter.
+  if (extent > 0.05 && separation < Math.max(1e-6, 0.02 * extent)) {
+    return [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+  }
+  return center;
 }
 
 /**
@@ -1475,27 +1492,95 @@ export function getFovMeshAffineSnapshot(nv: any): {
 }
 
 /**
- * Slice group center in **physical millimetres** for {@link buildSequenceGeometryJson} (`isocenter_mm` and affine `t`).
- * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (matches clamped overlay);
- * otherwise volume isocenter plus drag offset (same native→mm normalization).
+ * Volume isocenter in **physical millimetres** (volume **center**, not NIfTI origin).
+ * See {@link volumeIsocenterMm} for the origin-trap fallback.
+ */
+export function getVolumeIsocenterMmForExport(nv: any): [number, number, number] | null {
+  try {
+    if (!nv?.volumes?.[0]?.frac2mm) return null;
+    const { min, max } = volumeWorldAabbMm(nv);
+    const p = niivueWorldToMm(volumeIsocenterMm(nv), min, max);
+    return [p[0], p[1], p[2]];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * NIfTI corner in **physical millimetres** from Niivue `frac2mm([0,0,0])`.
+ * Used only to reject origin-trap isocenters (Duke feedback); never export this as `isocenter_mm`.
+ */
+export function getVolumeOriginMmForExport(nv: any): [number, number, number] | null {
+  try {
+    if (!nv?.volumes?.[0]?.frac2mm) return null;
+    const { min, max } = volumeWorldAabbMm(nv);
+    const p = niivueWorldToMm(sliceMmFromFrac(nv, [0, 0, 0]), min, max);
+    return [p[0], p[1], p[2]];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Slice group center in **physical millimetres** (Niivue world) for geometry capture.
+ * Converted to backend **LPS** in {@link buildSequenceGeometryJson} via per-volume frame detection.
+ * Prefers the live mesh center when {@link getFovMeshAffineSnapshot} has geometry (matches clamped overlay),
+ * unless that center sits on the NIfTI origin while the volume center does not (Duke origin-trap).
+ * Otherwise volume isocenter plus drag offset (same native→mm normalization).
  */
 export function getSliceCenterMmForGeometryExport(nv: any): [number, number, number] | null {
   try {
     if (!nv?.volumes?.[0]?.frac2mm) return null;
-    const snap = getFovMeshAffineSnapshot(nv);
-    if (snap) {
-      return [snap.centerMm[0], snap.centerMm[1], snap.centerMm[2]];
-    }
     const host = nv as NiivueMeshHost;
     const { min, max } = volumeWorldAabbMm(nv);
-    const volIso = volumeIsocenterMm(nv);
+    const volIsoNative = volumeIsocenterMm(nv);
+    const volIsoMm = niivueWorldToMm(volIsoNative, min, max) as [number, number, number];
+    const originMm = niivueWorldToMm(sliceMmFromFrac(nv, [0, 0, 0]), min, max) as [
+      number,
+      number,
+      number,
+    ];
+    const extentMm = Math.max(
+      Math.abs(max[0] - min[0]),
+      Math.abs(max[1] - min[1]),
+      Math.abs(max[2] - min[2]),
+    ) / getMmToNiivueWorldScale(min, max);
+    const originSeparation = Math.hypot(
+      volIsoMm[0] - originMm[0],
+      volIsoMm[1] - originMm[1],
+      volIsoMm[2] - originMm[2],
+    );
+
+    const snap = getFovMeshAffineSnapshot(nv);
+    if (snap) {
+      const snapCenter: [number, number, number] = [
+        snap.centerMm[0],
+        snap.centerMm[1],
+        snap.centerMm[2],
+      ];
+      const snapNearOrigin =
+        Math.hypot(
+          snapCenter[0] - originMm[0],
+          snapCenter[1] - originMm[1],
+          snapCenter[2] - originMm[2],
+        ) <= Math.max(2, 0.02 * extentMm);
+      // Stale / origin-trapped mesh: do not export voxel [0,0,0] as the slice center.
+      if (!(snapNearOrigin && originSeparation > 50)) {
+        return snapCenter;
+      }
+    }
+
     const opts = host.__camrieFovLastOptions;
     const ut = host.__camrieFovUserTransform ?? DEFAULT_FOV_USER_TRANSFORM;
     const offsetNative =
       opts?.sliceOffsetWorldMm !== undefined
         ? mmVecToNiivueNative([...opts.sliceOffsetWorldMm], min, max)
         : [ut.offsetMm[0], ut.offsetMm[1], ut.offsetMm[2]];
-    const C = [volIso[0] + offsetNative[0], volIso[1] + offsetNative[1], volIso[2] + offsetNative[2]];
+    const C = [
+      volIsoNative[0] + offsetNative[0],
+      volIsoNative[1] + offsetNative[1],
+      volIsoNative[2] + offsetNative[2],
+    ];
     return niivueWorldToMm(C, min, max) as [number, number, number];
   } catch {
     return null;

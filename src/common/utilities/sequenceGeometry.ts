@@ -1,4 +1,9 @@
 import {
+  sliceCenterNiivueMmToLpsMm,
+  type BackendWorldFrame,
+  type Vec3,
+} from "./bodyModelIsocenter";
+import {
   imageBasisFromOrientationAngulation,
   type FovImagePrescription,
   type FovPlaneOrientation,
@@ -115,9 +120,10 @@ export function resolveOrthogonalEncodingDirections(
  *
  * - **`fov_mm`**, **`matrix`**, **`slice`**: copied from Setup form state (user-facing millimetres and counts).
  *   They are **not** taken from Niivue mesh half-extents (the on-screen box may be clamped to the volume).
- * - **`isocenter_mm`** and **`affine`**: built in **physical millimetres** in the same world frame as Niivue’s
- *   `frac2mm` output after normalizing native units; `isocenter_mm` is the live slice group center when the
- *   viewer is available (see `getSliceCenterMmForGeometryExport`).
+ * - **`isocenter_mm`** and **`affine`**: physical millimetres in **LPS** (SimpleITK / CAMRIE-app
+ *   `compute_auto_isocenter`). Viewer positions from Niivue are mapped per-volume via
+ *   {@link BackendWorldFrame.axisSigns} (identity when Niivue already matches SITK; `[-1,-1,1]` when
+ *   Niivue is RAS relative to LPS). See `bodyModelIsocenter.ts`.
  * - **`affine`** maps integer voxel indices to world position in mm; backends should treat it as authoritative
  *   for orientation and spacing; **`ui`** is round-trip metadata for the Setup screen.
  */
@@ -133,7 +139,7 @@ export type SequenceGeometryJson = {
     gap_mm: number;
   };
   /**
-   * Image index → **world position in millimetres** (patient-fixed frame as Niivue `frac2mm` after mm normalization: +x left, +y posterior, +z superior, head-first).
+   * Image index → **world position in millimetres** (LPS, same frame as `isocenter_mm`).
    * **world** = **affine** × [i, j, k, 1]ᵀ with integer indices i∈[0,Nx−1], j∈[0,Ny−1], k∈[0,Nz−1].
    * Column 0 = readout × (fov_x/Nx), column 1 = phase × (fov_y/Ny), column 2 = slice normal × dz
    * (dz = thickness_mm + gap_mm). Column 3 is chosen so the **center** of the grid maps to `isocenter_mm`
@@ -205,6 +211,11 @@ export type SetupGeometryCaptureInput = {
   sliceOffsetYMM: number;
   sliceOffsetZMM: number;
   isocenterMm: [number, number, number] | null;
+  /**
+   * Per-volume Niivue→LPS mapping from {@link resolveBackendWorldFrame}. When set, `isocenter_mm` /
+   * `affine` are converted to LPS for the worker (anchored to SITK-style volume center when available).
+   */
+  backendWorld?: Pick<BackendWorldFrame, "axisSigns" | "autoIsocenterLpsMm" | "niivueIsocenterMm">;
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
   spinFactor: number;
@@ -309,6 +320,7 @@ export function clampSlicePadding(value: number): number {
 export function formStateToCaptureInput(
   form: SequenceGeometryFormState,
   isocenterMm: [number, number, number] | null,
+  backendWorld?: SetupGeometryCaptureInput["backendWorld"],
 ): SetupGeometryCaptureInput {
   return {
     prescription: {
@@ -330,6 +342,7 @@ export function formStateToCaptureInput(
     sliceOffsetYMM: form.sliceOffsetYMM,
     sliceOffsetZMM: form.sliceOffsetZMM,
     isocenterMm,
+    backendWorld,
     phaseEncodingDirection: form.phaseEncodingDirection ?? "left",
     frequencyEncodingDirection: form.frequencyEncodingDirection ?? "anterior",
     spinFactor: clampSpinFactor(form.spinFactor),
@@ -405,6 +418,9 @@ export function sequenceGeometryJsonToFormState(
   };
 }
 
+/** @deprecated Use {@link sliceCenterNiivueMmToLpsMm} from `bodyModelIsocenter`. */
+export const niivueSliceCenterToLpsMm = sliceCenterNiivueMmToLpsMm;
+
 export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): SequenceGeometryJson {
   const { prescription } = input;
   const basis = imageBasisFromOrientationAngulation(
@@ -413,11 +429,12 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
     prescription.angulationAPdeg ?? 0,
     prescription.angulationZDeg ?? 0,
   );
-  const iso: [number, number, number] | null = input.isocenterMm
+  const isoNv: Vec3 | null = input.isocenterMm
     ? [input.isocenterMm[0], input.isocenterMm[1], input.isocenterMm[2]]
     : null;
-  /** Slice group center in world mm; if no volume, origin-centered grid in world mm. */
-  const centerMm: [number, number, number] = input.isocenterMm ?? [0, 0, 0];
+  const iso = sliceCenterNiivueMmToLpsMm(isoNv, input.backendWorld);
+  /** Slice group center in LPS mm for the affine; if no volume, origin-centered grid. */
+  const centerMm: Vec3 = iso ?? [0, 0, 0];
 
   const nx = Math.max(1, Math.round(input.fovPixelsX));
   const ny = Math.max(1, Math.round(input.fovPixelsY));
@@ -430,16 +447,24 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
   const dz =
     Math.max(0.01, input.sagittalSliceThicknessMm) + Math.max(0, input.sagittalSliceGapMm);
 
+  // Setup basis is already LPS anatomical (+x left, +y posterior, +z superior).
+  // Only isocenter is mapped from Niivue → LPS via backendWorld.
+  const row = basis.row;
+  const col = basis.col;
+  const slice = basis.slice;
+
   // world(i,j,k) = i*dx*row + j*dy*col + k*dz*slice + t. FoV UI centers the stack at centerMm, so
   // centerMm = ((nx-1)/2)*dx*row + ((ny-1)/2)*dy*col + ((nz-1)/2)*dz*slice + t.
   const offsetToGridCenter = vec3Add(
     vec3Add(
-      vec3Scale(basis.row, ((nx - 1) / 2) * dx),
-      vec3Scale(basis.col, ((ny - 1) / 2) * dy),
+      vec3Scale(row, ((nx - 1) / 2) * dx),
+      vec3Scale(col, ((ny - 1) / 2) * dy),
     ),
-    vec3Scale(basis.slice, ((nz - 1) / 2) * dz),
+    vec3Scale(slice, ((nz - 1) / 2) * dz),
   );
   const t = vec3Sub(centerMm, offsetToGridCenter);
+
+  const affine = affine4ScaledFromBasis(row, col, slice, dx, dy, dz, t);
 
   return {
     isocenter_mm: iso,
@@ -450,7 +475,7 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
       thickness_mm: input.sagittalSliceThicknessMm,
       gap_mm: input.sagittalSliceGapMm,
     },
-    affine: affine4ScaledFromBasis(basis.row, basis.col, basis.slice, dx, dy, dz, t),
+    affine,
     ui: {
       orientation: prescription.orientation,
       angulation_lr_deg: prescription.angulationLRdeg ?? 0,
