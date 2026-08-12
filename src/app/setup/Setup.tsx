@@ -1158,6 +1158,15 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     [activeForm.fovPixelsY, activeForm.fovResYMM],
   );
 
+  /**
+   * How Setup computes / exports `geometry.isocenter_mm` (frontend only; backend untouched):
+   * 1. `getSliceCenterMmForGeometryExport` — FoV slice-group center in Niivue mm
+   * 2. `getVolumeIsocenterMmForExport` / `getVolumeOriginMmForExport` — volume center & NIfTI corner
+   * 3. `resolveBackendWorldFrame` — SITK-style LPS auto center + Niivue→LPS axis signs
+   * 4. `buildSequenceGeometryJson` → `sliceCenterNiivueMmToLpsMm` —
+   *    `isocenter_mm = auto_lps + signs * (slice_nv - volume_center_nv)`
+   * See `bodyModelIsocenter.ts`.
+   */
   const captureSequenceGeometryForId = useCallback(
     (sequenceId: string): SequenceGeometryJson => {
       let isocenter: [number, number, number] | null = null;
