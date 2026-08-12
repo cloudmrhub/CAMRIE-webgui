@@ -1,4 +1,5 @@
 import {
+  applyAxisSignsToMm,
   sliceCenterNiivueMmToLpsMm,
   type BackendWorldFrame,
   type Vec3,
@@ -7,6 +8,7 @@ import {
   imageBasisFromOrientationAngulation,
   type FovImagePrescription,
   type FovPlaneOrientation,
+  type VolumeImageBasisMm,
 } from "./fovBoundingBoxMesh";
 
 /** 4×4 row-major homogeneous transform. */
@@ -216,6 +218,12 @@ export type SetupGeometryCaptureInput = {
    * `affine` are converted to LPS for the worker (anchored to SITK-style volume center when available).
    */
   backendWorld?: Pick<BackendWorldFrame, "axisSigns" | "autoIsocenterLpsMm" | "niivueIsocenterMm">;
+  /**
+   * Loaded volume voxel triad in **Niivue** world units (î/ĵ/k̂ from `frac2mm`).
+   * When set, axial/sagittal/coronal follow this frame (same as FoV overlay); directions are mapped to LPS
+   * via {@link BackendWorldFrame.axisSigns} when building `affine`.
+   */
+  volumeFrame?: VolumeImageBasisMm | null;
   phaseEncodingDirection: EncodingDirectionId;
   frequencyEncodingDirection: EncodingDirectionId;
   spinFactor: number;
@@ -321,6 +329,7 @@ export function formStateToCaptureInput(
   form: SequenceGeometryFormState,
   isocenterMm: [number, number, number] | null,
   backendWorld?: SetupGeometryCaptureInput["backendWorld"],
+  volumeFrame?: VolumeImageBasisMm | null,
 ): SetupGeometryCaptureInput {
   return {
     prescription: {
@@ -343,6 +352,7 @@ export function formStateToCaptureInput(
     sliceOffsetZMM: form.sliceOffsetZMM,
     isocenterMm,
     backendWorld,
+    volumeFrame: volumeFrame ?? null,
     phaseEncodingDirection: form.phaseEncodingDirection ?? "left",
     frequencyEncodingDirection: form.frequencyEncodingDirection ?? "anterior",
     spinFactor: clampSpinFactor(form.spinFactor),
@@ -423,12 +433,24 @@ export const niivueSliceCenterToLpsMm = sliceCenterNiivueMmToLpsMm;
 
 export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): SequenceGeometryJson {
   const { prescription } = input;
-  const basis = imageBasisFromOrientationAngulation(
+  const basisNv = imageBasisFromOrientationAngulation(
     prescription.orientation,
     prescription.angulationLRdeg ?? 0,
     prescription.angulationAPdeg ?? 0,
     prescription.angulationZDeg ?? 0,
+    input.volumeFrame,
   );
+  // Volume-frame bases are Niivue-world; map direction cosines to LPS when exporting.
+  // World-cardinal fallback (no volumeFrame) is already in CAMRIE LPS anatomical axes.
+  const signs = input.backendWorld?.axisSigns;
+  const basis =
+    input.volumeFrame && signs
+      ? {
+          row: applyAxisSignsToMm([basisNv.row[0], basisNv.row[1], basisNv.row[2]], signs),
+          col: applyAxisSignsToMm([basisNv.col[0], basisNv.col[1], basisNv.col[2]], signs),
+          slice: applyAxisSignsToMm([basisNv.slice[0], basisNv.slice[1], basisNv.slice[2]], signs),
+        }
+      : basisNv;
   const isoNv: Vec3 | null = input.isocenterMm
     ? [input.isocenterMm[0], input.isocenterMm[1], input.isocenterMm[2]]
     : null;
@@ -447,8 +469,6 @@ export function buildSequenceGeometryJson(input: SetupGeometryCaptureInput): Seq
   const dz =
     Math.max(0.01, input.sagittalSliceThicknessMm) + Math.max(0, input.sagittalSliceGapMm);
 
-  // Setup basis is already LPS anatomical (+x left, +y posterior, +z superior).
-  // Only isocenter is mapped from Niivue → LPS via backendWorld.
   const row = basis.row;
   const col = basis.col;
   const slice = basis.slice;

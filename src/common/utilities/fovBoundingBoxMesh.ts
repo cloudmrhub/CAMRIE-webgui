@@ -22,9 +22,17 @@ export type AxialFovMm = {
 /**
  * Same convention as Niivue `createOnLocationChange`: slice matrix (`frac2mm`, `isSliceMM`), not `frac2mmOrtho`.
  * Returns **Niivue native world units** (often metres), not necessarily millimetres - see {@link getMmToNiivueWorldScale}.
+ *
+ * `any` in the `frac2mm` params is intentional: under `strictFunctionTypes`, Niivue’s `(frac: vec3) => vec4`
+ * is not assignable to `(...args: unknown[]) => …` or a strict `number[]` param (gl-matrix `vec3` ≠ `number[]`).
  */
-function sliceMmFromFrac(nv: { frac2mm: (...args: unknown[]) => unknown }, frac: number[]): number[] {
-  return nv.frac2mm([frac[0], frac[1], frac[2]], 0, true) as number[];
+export type NiivueFrac2mmHost = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  frac2mm(...args: any[]): ArrayLike<number>;
+};
+
+function sliceMmFromFrac(nv: NiivueFrac2mmHost, frac: number[]): number[] {
+  return Array.from(nv.frac2mm([frac[0], frac[1], frac[2]], 0, true)) as number[];
 }
 
 /**
@@ -63,6 +71,8 @@ export type FovPlaneOrientation = "axial" | "sagittal" | "coronal";
 /**
  * User-facing slice geometry (orientation + rotation). Internally we derive unit slice normal **N**, orthonormal
  * row/column (FoVx/FoVy), and the 3×3 image-to-world rotation [row | col | slice] for mesh / affine use.
+ * Cardinal axial/sagittal/coronal are taken from the **loaded volume voxel frame** (î/ĵ/k̂) when available so
+ * oblique NIfTIs do not require preprocess reorientation.
  */
 export type FovImagePrescription = {
   orientation: FovPlaneOrientation;
@@ -242,7 +252,7 @@ function mergeSliceFillOpacityByView(
  * Axis-aligned bounds of the volume in **Niivue world coordinates** (same units as `frac2mm`, often metres).
  * Name suffix "Mm" is historical; use {@link getMmToNiivueWorldScale} when mixing with UI mm.
  */
-export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown }): { min: number[]; max: number[] } {
+export function volumeWorldAabbMm(nv: NiivueFrac2mmHost): { min: number[]; max: number[] } {
   const xs: number[] = [];
   const ys: number[] = [];
   const zs: number[] = [];
@@ -266,7 +276,7 @@ export function volumeWorldAabbMm(nv: { frac2mm: (...args: unknown[]) => unknown
  * Volume center in Niivue world units (`frac2mm([0.5,0.5,0.5])`).
  * If that lands on the NIfTI corner (Duke origin-trap), use the world AABB midpoint instead.
  */
-export function volumeIsocenterMm(nv: { frac2mm: (...args: unknown[]) => unknown }): number[] {
+export function volumeIsocenterMm(nv: NiivueFrac2mmHost): number[] {
   const center = sliceMmFromFrac(nv, [0.5, 0.5, 0.5]);
   const origin = sliceMmFromFrac(nv, [0, 0, 0]);
   const { min, max } = volumeWorldAabbMm(nv);
@@ -289,7 +299,7 @@ export function volumeIsocenterMm(nv: { frac2mm: (...args: unknown[]) => unknown
  * Unlike {@link volumeWorldAabbMm} these are always in mm regardless of whether
  * Niivue stores coordinates in metres or millimetres internally.
  */
-export function volumePhysicalExtentMm(nv: { frac2mm: (...args: unknown[]) => unknown }): {
+export function volumePhysicalExtentMm(nv: NiivueFrac2mmHost): {
   lrMm: number;
   apMm: number;
   siMm: number;
@@ -399,7 +409,7 @@ export function isValidAxialSliceStack(st: AxialSliceStackMm | undefined): st is
 // }
 
 /** In-plane axes from voxel i/j steps in slice mm (Gram–Schmidt so u1 ⊥ u0). */
-function volumeInPlaneAxesMm(nv: { frac2mm: (...args: unknown[]) => unknown }): { u0: number[]; u1: number[] } {
+function volumeInPlaneAxesMm(nv: NiivueFrac2mmHost): { u0: number[]; u1: number[] } {
   const o = sliceMmFromFrac(nv, [0, 0, 0]);
   const dx = vsub(sliceMmFromFrac(nv, [1, 0, 0]), o);
   const dy = vsub(sliceMmFromFrac(nv, [0, 1, 0]), o);
@@ -413,7 +423,7 @@ function volumeInPlaneAxesMm(nv: { frac2mm: (...args: unknown[]) => unknown }): 
 /** Right-handed image basis: row (X), column (Y), slice (Z), with slice = row × column. */
 export type VolumeImageBasisMm = { row: number[]; col: number[]; slice: number[] };
 
-export function volumeImageBasisMm(nv: { frac2mm: (...args: unknown[]) => unknown }): VolumeImageBasisMm {
+export function volumeImageBasisMm(nv: NiivueFrac2mmHost): VolumeImageBasisMm {
   const { u0, u1 } = volumeInPlaneAxesMm(nv);
   const row = vnorm(u0);
   const slice = vnorm(cross(u0, u1));
@@ -434,7 +444,7 @@ const WORLD_LR = [1, 0, 0];
 const WORLD_AP = [0, 1, 0];
 
 /**
- * Cardinal image basis before rotation: row × col = slice (RAS-style world slice-mm).
+ * Cardinal image basis before rotation in **fixed world** axes (fallback when no volume frame).
  * Columns of the 3×3 image→world rotation are [row, col, slice].
  */
 function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasisMm {
@@ -448,6 +458,55 @@ function baseImageBasisWorld(orientation: FovPlaneOrientation): VolumeImageBasis
     default:
       return { row: [1, 0, 0], col: [0, 1, 0], slice: [0, 0, 1] };
   }
+}
+
+/**
+ * Voxel triad of the loaded volume in Niivue world units (`frac2mm`): row≈î, col≈ĵ, slice≈k̂.
+ * Use as the patient/acquisition frame so axial/sagittal/coronal follow an oblique affine.
+ */
+export function volumeVoxelFrameMm(nv: NiivueFrac2mmHost): VolumeImageBasisMm {
+  return volumeImageBasisMm(nv);
+}
+
+/**
+ * Map UI axial/sagittal/coronal onto a volume voxel frame (î, ĵ, k̂) instead of world XYZ.
+ * Axial = î–ĵ (normal k̂), sagittal = ĵ–k̂ (normal î), coronal = k̂–î (normal ĵ).
+ */
+function baseImageBasisFromVolumeFrame(
+  orientation: FovPlaneOrientation,
+  frame: VolumeImageBasisMm,
+): VolumeImageBasisMm {
+  const i = frame.row;
+  const j = frame.col;
+  const k = frame.slice;
+  switch (orientation) {
+    case "axial":
+      return { row: [...i], col: [...j], slice: [...k] };
+    case "sagittal":
+      return { row: [...j], col: [...k], slice: [...i] };
+    case "coronal":
+      return { row: [...k], col: [...i], slice: [...j] };
+    default:
+      return { row: [...i], col: [...j], slice: [...k] };
+  }
+}
+
+/** Ensure row × col = slice and unit length (preserves slice direction when possible). */
+function orthonormalizeImageBasis(basis: VolumeImageBasisMm): VolumeImageBasisMm {
+  let row = vnorm(basis.row);
+  let col = vsub(basis.col, vscale(row, vdot(row, basis.col)));
+  if (vlen(col) < 1e-12) {
+    col = vnorm(basis.col);
+    if (vlen(col) < 1e-12) return basis;
+  } else {
+    col = vnorm(col);
+  }
+  let slice = vnorm(cross(row, col));
+  if (vlen(basis.slice) > 1e-12 && vdot(slice, basis.slice) < 0) {
+    col = vscale(col, -1);
+    slice = vnorm(cross(row, col));
+  }
+  return { row, col, slice };
 }
 
 /** Apply LR (+x) then AP (+y) world rotation to the full row/col/slice triad. */
@@ -513,18 +572,22 @@ function applyInPlaneAngulation(basis: VolumeImageBasisMm, angulationZDeg: numbe
  * Full orthonormal basis from UI slice orientation. Slice normal **N** = `basis.slice` (unit); use for stack direction.
  * Image→world linear map (columns): **R** = [row | col | slice] (direction cosines in mm).
  * Order: cardinal orientation → LR (+x) → AP (+y) → Z (about slice normal).
+ *
+ * When {@link volumeFrame} is provided (î/ĵ/k̂ from the loaded NIfTI affine via {@link volumeVoxelFrameMm}),
+ * axial/sagittal/coronal are defined in that volume frame so FoV planes match oblique body models.
+ * When omitted, falls back to fixed world XYZ cardininals ({@link baseImageBasisWorld}).
  */
 export function imageBasisFromOrientationAngulation(
   orientation: FovPlaneOrientation,
   angulationLRdeg: number,
   angulationAPdeg: number,
   angulationZDeg?: number,
+  volumeFrame?: VolumeImageBasisMm | null,
 ): VolumeImageBasisMm {
-  const tilted = applyWorldAxisAngulation(
-    baseImageBasisWorld(orientation),
-    angulationLRdeg,
-    angulationAPdeg,
-  );
+  const base = volumeFrame
+    ? orthonormalizeImageBasis(baseImageBasisFromVolumeFrame(orientation, volumeFrame))
+    : baseImageBasisWorld(orientation);
+  const tilted = applyWorldAxisAngulation(base, angulationLRdeg, angulationAPdeg);
   return applyInPlaneAngulation(tilted, angulationZDeg ?? 0);
 }
 
@@ -548,7 +611,7 @@ export function imageBasisFromSliceNormal(nx: number, ny: number, nz: number): V
 }
 
 /** Axial slice normal (through-plane / k̂) in mm, orthogonal to î and ĵ. */
-function throughPlaneAxisMm(nv: { frac2mm: (...args: unknown[]) => unknown }): number[] | null {
+function throughPlaneAxisMm(nv: NiivueFrac2mmHost): number[] | null {
   const { u0, u1 } = volumeInPlaneAxesMm(nv);
   const n = cross(u0, u1);
   if (vlen(n) < 1e-12) return null;
@@ -858,7 +921,8 @@ export function createFovAxisAlignedBoxMesh(
 export type NiivueMeshHost = {
   volumes: unknown[];
   gl: WebGL2RenderingContext | null;
-  frac2mm: (...args: unknown[]) => unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  frac2mm(...args: any[]): ArrayLike<number>;
   addMesh: (m: NVMesh) => void;
   removeMesh: (m: NVMesh) => void;
   drawScene: () => void;
@@ -1194,14 +1258,18 @@ function computeAxialFovPlacement(
       ? mmVecToNiivueNative([...options.sliceOffsetWorldMm], min, max)
       : [...ut.offsetMm];
   const C = vadd(Ciso, offsetNative);
+  // Always prefer the loaded volume’s voxel triad so axial/sagittal/coronal follow the NIfTI affine
+  // (oblique models keep FoV coplanar with acquisition; no preprocess reorientation required).
+  const volumeFrame = volumeVoxelFrameMm(nv);
   const prescribed = options.imagePrescription
     ? imageBasisFromOrientationAngulation(
         options.imagePrescription.orientation,
         options.imagePrescription.angulationLRdeg ?? 0,
         options.imagePrescription.angulationAPdeg ?? 0,
         options.imagePrescription.angulationZDeg ?? 0,
+        volumeFrame,
       )
-    : volumeImageBasisMm(nv);
+    : volumeFrame;
   let u0 = [...prescribed.row];
   let u1 = [...prescribed.col];
   const nCross = cross(u0, u1);

@@ -7,6 +7,9 @@
 
 # testing
 /coverage
+/scripts/debug-failed-tasks.json
+/scripts/debug-query-pipelines.py
+/scripts/list-pending-pipelines.py
 
 # production
 /build

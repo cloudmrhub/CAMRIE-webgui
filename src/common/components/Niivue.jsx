@@ -127,11 +127,14 @@ export default function NiiVueport(props) {
   React.useEffect(() => {
     if (!nv.gl || !nv.volumes[0]) return;
     if (props.showFovBoundingBox) {
-      nv.setSliceMM(true);
-      setWorldSpace(true);
+      // Match FOV mesh: slice along NIfTI î/ĵ/k̂ (volume frame), not world XYZ.
+      nv.setSliceMM(false);
+      setWorldSpace(false);
       attachFovBoundingBoxMesh(nv, mergedFovOpts);
     } else {
       removeFovBoundingBoxMesh(nv);
+      nv.setSliceMM(true);
+      setWorldSpace(true);
     }
   }, [props.showFovBoundingBox, props.selectedVolume, mergedFovOpts]);
 
@@ -262,8 +265,8 @@ export default function NiiVueport(props) {
 
     if (props.showFovBoundingBox) {
       try {
-        nv.setSliceMM(true);
-        setWorldSpace(true);
+        nv.setSliceMM(false);
+        setWorldSpace(false);
         attachFovBoundingBoxMesh(nv, mergedFovOpts);
       } catch (e) {
         console.warn('FOV bounding box:', e);

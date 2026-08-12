@@ -6,11 +6,13 @@ import {
   removeFovBoundingBoxMesh,
   volumeWorldAabbMm,
   volumePhysicalExtentMm,
+  volumeVoxelFrameMm,
   getSliceCenterMmForGeometryExport,
   getVolumeIsocenterMmForExport,
   getVolumeOriginMmForExport,
   resetFovSliceTranslation,
   type FovPlaneOrientation,
+  type NiivueFrac2mmHost,
 } from "../../common/utilities/fovBoundingBoxMesh";
 import { buildCamrieBackendPayload } from "../../common/utilities/camrieBackendPayload";
 import {
@@ -1171,6 +1173,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     (sequenceId: string): SequenceGeometryJson => {
       let isocenter: [number, number, number] | null = null;
       let backendWorld: ReturnType<typeof resolveBackendWorldFrame> | undefined;
+      let volumeFrame: ReturnType<typeof volumeVoxelFrameMm> | null = null;
       try {
         const p = getSliceCenterMmForGeometryExport(nv);
         if (p) isocenter = [p[0], p[1], p[2]];
@@ -1179,6 +1182,10 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         const vol = nv?.volumes?.[0];
         const hdr = vol?.hdr;
         backendWorld = resolveBackendWorldFrame(hdr, volIso, volOrigin, vol);
+        if (nv?.volumes?.[0]) {
+          // Niivue.frac2mm uses gl-matrix vec3; cast via host type (see NiivueFrac2mmHost).
+          volumeFrame = volumeVoxelFrameMm(nv as NiivueFrac2mmHost);
+        }
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.debug("[CAMRIE] backend world frame", {
@@ -1189,13 +1196,16 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
             niivueOriginMm: backendWorld.niivueOriginMm,
             sliceCenterNiivueMm: isocenter,
             exportedIsocenterLpsMm: sliceCenterNiivueMmToLpsMm(isocenter, backendWorld),
+            volumeFrame,
           });
         }
       } catch {
         /* volume not ready */
       }
       const form = geometryBySequenceId[sequenceId] ?? DEFAULT_SEQUENCE_GEOMETRY_FORM;
-      return buildSequenceGeometryJson(formStateToCaptureInput(form, isocenter, backendWorld));
+      return buildSequenceGeometryJson(
+        formStateToCaptureInput(form, isocenter, backendWorld, volumeFrame),
+      );
     },
     [geometryBySequenceId],
   );
