@@ -50,3 +50,5 @@ amplifytools.xcconfig
 #amplify-do-not-edit-end
 samconfig.toml
 .aws-sam/build.toml
+
+.cursor/

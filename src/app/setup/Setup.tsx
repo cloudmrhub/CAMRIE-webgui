@@ -105,6 +105,37 @@ import {
   type SavedProtocol,
 } from "../../common/utilities/savedProtocolsStorage";
 import { SetupPreview } from "./SetupPreviewer";
+import { CLOUDMR_SERVER } from "../../env";
+
+const APP_NAME = "CAMRIE";
+
+function normalizeUnitsPayload(payload: any, mode?: string): any[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.computingUnits)) return payload.computingUnits;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (mode && Array.isArray(payload[mode])) return payload[mode];
+  if (Array.isArray(payload.mode_1) || Array.isArray(payload.mode_2)) {
+    return Array.isArray(payload[mode ?? "mode_1"]) ? payload[mode ?? "mode_1"] : [];
+  }
+  return [];
+}
+
+async function fetchComputingUnitsForSetup(appName: string, mode: string, token: string, apiServer = CLOUDMR_SERVER) {
+  if (!token) throw new Error("Authentication token not found. Please login.");
+  const params = new URLSearchParams({ app_name: appName, mode });
+  const base = apiServer.replace(/\/$/, "");
+  const url = `${base}/computing-unit/list?${params.toString()}`;
+  const resp = await fetch(url, {
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`API error: ${resp.status} - ${text}`);
+  }
+  return resp.json();
+}
 
 /** MARIE `.zip` loaded via `/unzip` (volumes keyed by manifest `name`). */
 interface SetupModelOption {
@@ -322,6 +353,15 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const { accessToken, uploadToken, level, isAdmin, email } = useAppSelector(
     (state) => state.authenticate,
   );
+  // Computing unit / counts state (for Setup UI)
+  const [cuUnits, setCuUnits] = useState([] as any[]);
+  const [cuSelected, setCuSelected] = useState("");
+  const [cuLoading, setCuLoading] = useState(true);
+  const [cuError, setCuError] = useState<string | null>(null);
+  const [hasMode2ComputingUnits, setHasMode2ComputingUnits] = useState<boolean>(false);
+  const selectedComputingUnitId = useAppSelector(
+    (state) => state.setup.selectedComputingUnitId,
+  );
   // Show JSON preview for developers and admins (same rule as MROptimum).
   const developer = Boolean(isAdmin) || level === "developer";
   const dataFiles = useAppSelector((state) => state.data.files);
@@ -338,6 +378,66 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   useEffect(() => {
     dispatch(getUploadedData() as never);
   }, [dispatch]);
+
+  // Load computing units for Setup (mode_1 and mode_2)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCUs() {
+      setCuLoading(true);
+      setCuError(null);
+      try {
+        if (!accessToken) {
+          setCuError("No authentication token found. Please login.");
+          setHasMode2ComputingUnits(false);
+          setCuLoading(false);
+          return;
+        }
+        const [r1, r2] = await Promise.all([
+          fetchComputingUnitsForSetup(APP_NAME, "mode_1", accessToken),
+          fetchComputingUnitsForSetup(APP_NAME, "mode_2", accessToken),
+        ]);
+        if (cancelled) return;
+        const n1 = normalizeUnitsPayload(r1, "mode_1");
+        const n2 = normalizeUnitsPayload(r2, "mode_2");
+        setHasMode2ComputingUnits(n2.length > 0);
+        // annotate with mode and combine into single list
+        const annotated1 = n1.map((x: any) => ({ ...(x || {}), mode: "mode_1" }));
+        const annotated2 = n2.map((x: any) => ({ ...(x || {}), mode: "mode_2" }));
+        const combined = [...annotated1, ...annotated2];
+        setCuUnits(combined);
+
+        const pickValue = (u: any, idx: number) =>
+          String(
+            u.computingUnitId ?? u.computing_unit_id ?? u.id ?? u.appId ?? u.name ?? idx,
+          );
+
+        const first = combined[0];
+        const initialId = first ? pickValue(first, 0) : "";
+        const initialMode = first?.mode ?? "mode_1";
+
+        // Keep Redux + UI selection in sync so queued jobs always use the right computing unit
+        // even if we hide the panel when mode_2 units are unavailable.
+        setCuSelected(initialId);
+        dispatch(
+          // @ts-ignore
+          setupSetters.setSelectedComputingUnit({ id: initialId, mode: initialMode }),
+        );
+      } catch (err: any) {
+        if (!cancelled) setCuError(err?.message || String(err));
+      } finally {
+        if (!cancelled) setCuLoading(false);
+      }
+    }
+    loadCUs();
+    return () => { cancelled = true; };
+  }, [accessToken, dispatch]);
+
+  // Keep the computing-unit dropdown in sync when a retry restores a previous selection.
+  useEffect(() => {
+    if (selectedComputingUnitId && selectedComputingUnitId !== cuSelected) {
+      setCuSelected(selectedComputingUnitId);
+    }
+  }, [selectedComputingUnitId]);
 
   const [selectedModel, setSelectedModel] = useState<SetupModelOption | null>(null);
   const [selectedModelZipFile, setSelectedModelZipFile] = useState<UploadedFile | null>(null);
@@ -1215,7 +1315,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       const geometryById = Object.fromEntries(
         protocolSequences.map((s) => [s.id, captureSequenceGeometryForId(s.id)]),
       );
-      return buildCamrieBackendPayload({
+      const payload = buildCamrieBackendPayload({
         alias: jobName,
         taskAlias: jobName,
         previewMode: false,
@@ -1229,7 +1329,22 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         bodymodelFile: selectedModelZipFile,
         marieInfo: selectedMarieInfo,
         dataFiles,
+      }) as any;
+      const findCU = cuUnits.find((u: any) => {
+        const key = String(u.computingUnitId ?? u.computing_unit_id ?? u.id ?? u.appId ?? u.name ?? "");
+        return key === cuSelected;
       });
+      const selectedMode = findCU?.mode ?? "";
+      const computing_unit_id = (findCU?.computingUnitId ?? findCU?.computing_unit_id ?? findCU?.id ?? cuSelected) || "";
+      if (computing_unit_id) {
+        payload.mode = selectedMode;
+        payload.computing_unit_id = String(computing_unit_id);
+        if (payload.task) {
+          payload.task.mode = selectedMode;
+          payload.task.computing_unit_id = String(computing_unit_id);
+        }
+      }
+      return payload;
     },
     [
       protocolSequences,
@@ -1237,6 +1352,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       selectedModelZipFile,
       selectedMarieInfo,
       dataFiles,
+      cuUnits,
+      cuSelected,
     ],
   );
 
@@ -1343,7 +1460,23 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
           updatedAt: "",
           setup: payload,
           files: [],
-        };
+        } as any;
+        const findCU = cuUnits.find((u: any) => {
+          const key = String(u.computingUnitId ?? u.computing_unit_id ?? u.id ?? u.appId ?? u.name ?? "");
+          return key === cuSelected;
+        });
+        const selectedMode = findCU?.mode ?? "";
+        const computing_unit_id = (findCU?.computingUnitId ?? findCU?.computing_unit_id ?? findCU?.id ?? cuSelected) || "";
+        if (computing_unit_id) {
+          job.mode = selectedMode;
+          job.computing_unit_id = String(computing_unit_id);
+          job.setup.mode = selectedMode;
+          job.setup.computing_unit_id = String(computing_unit_id);
+          if (job.setup.task) {
+            job.setup.task.mode = selectedMode;
+            job.setup.task.computing_unit_id = String(computing_unit_id);
+          }
+        }
         await (dispatch(submitJobs({ jobQueue: [job] }) as any) as Promise<any>).then(
           (action: any) => {
             if (action?.error || submitJobs.rejected.match(action)) {
@@ -1365,7 +1498,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         setQueueLoading(false);
       }
     },
-    [buildQueuePayload, dispatch],
+    [buildQueuePayload, dispatch, cuUnits, cuSelected],
   );
 
   const patchActiveSequenceGeometry = useCallback(
@@ -1615,6 +1748,132 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         </Alert>
       </Snackbar>
       <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+        {(cuLoading || hasMode2ComputingUnits) && (
+          <Grid item xs={12}>
+            <CmrCollapse
+              accordion={false}
+              defaultActiveKey={[0]}
+              expandIconPosition="right"
+            >
+              <CmrPanel key="0" header="Computing Units" className="mb-2">
+                {cuLoading ? (
+                  <div>Loading computing units...</div>
+                ) : cuError ? (
+                  <div style={{ color: 'red' }}>Error: {cuError}</div>
+                ) : (
+                  <Box
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    <CmrLabel style={{ minWidth: 220 }}>
+                      Select Computing Unit:
+                    </CmrLabel>
+
+                    <FormControl fullWidth size="small">
+                      <MuiSelect
+                        value={cuSelected || ""}
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <span style={{ color: "#999" }}>No computing units</span>;
+                          }
+
+                          const found = cuUnits.find((u: any) => {
+                            const key = String(
+                              u.computingUnitId ??
+                              u.computing_unit_id ??
+                              u.id ??
+                              u.appId ??
+                              u.name ??
+                              ""
+                            );
+                            return key === selected;
+                          });
+
+                          if (!found) return selected;
+
+                          const modeLabel = found.mode ?? found.mode_1 ?? found.mode_2 ?? "";
+                          if (modeLabel === "mode_1") {
+                            return "[mode_1] Cloud MR AWS";
+                          }
+
+                          return (
+                            (modeLabel ? `[${modeLabel}] ` : "") +
+                            (found.alias ??
+                              found.name ??
+                              found.label ??
+                              found.computingUnitId ??
+                              found.id ??
+                              "Unknown")
+                          );
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value as string;
+                          setCuSelected(val);
+
+                          try {
+                            const found = cuUnits.find((u: any) => {
+                              const key = String(
+                                u.computingUnitId ??
+                                u.computing_unit_id ??
+                                u.id ??
+                                u.appId ??
+                                u.name ??
+                                ""
+                              );
+                              return key === val;
+                            });
+
+                            const mode = found?.mode ?? "";
+
+                            dispatch(
+                              // @ts-ignore
+                              setupSetters.setSelectedComputingUnit({ id: val, mode })
+                            );
+                          } catch (err) { }
+                        }}
+                      >
+                        {cuUnits.map((u: any, i: number) => {
+                          const val = String(
+                            u.computingUnitId ??
+                            u.computing_unit_id ??
+                            u.id ??
+                            u.appId ??
+                            u.name ??
+                            i
+                          );
+
+                          const modeLabel = u.mode ?? u.mode_1 ?? u.mode_2 ?? "";
+
+                          let label =
+                            modeLabel === "mode_1"
+                              ? "[mode_1] Cloud MR AWS"
+                              : (modeLabel ? `[${modeLabel}] ` : "") +
+                                (u.alias ??
+                                  u.name ??
+                                  u.label ??
+                                  u.computingUnitId ??
+                                  u.id ??
+                                  "Unknown");
+
+                          return (
+                            <MenuItem key={`s-all-${i}`} value={val}>
+                              {label}
+                            </MenuItem>
+                          );
+                        })}
+                      </MuiSelect>
+                    </FormControl>
+                  </Box>
+                )}
+              </CmrPanel>
+            </CmrCollapse>
+          </Grid>
+        )}
         <Grid item xs={12} md={5} >
           {/* Model */}
           <CmrCollapse

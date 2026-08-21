@@ -43,7 +43,9 @@ import { deleteUpstreamJob } from "cloudmr-ux/core/features/jobs/jobActionCreati
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import { CmrEditConfirmation } from "cloudmr-ux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import Tooltip from "@mui/material/Tooltip";
+import { fetchJobLogSources } from "./fetchJobLogs";
 
 import { CmrConfirmation } from "cloudmr-ux";
 
@@ -121,6 +123,18 @@ async function waitForNiiVueCanvasReady(maxMs = 10000): Promise<void> {
   );
 }
 
+const LOGS_PANEL_ID = "view-logs-and-errors";
+
+function scrollToLogsPanel() {
+  const el =
+    document.querySelector<HTMLElement>(".view-logs-and-errors") ??
+    document.getElementById(LOGS_PANEL_ID);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const top = el.getBoundingClientRect().top + window.scrollY - 80;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
 function viewerOpenErrorMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (WEBGL_UNREADY.test(msg)) {
@@ -164,7 +178,12 @@ const Results = ({ visible }: { visible?: boolean }) => {
   const [warning, setWarning] = useState("");
   const [warningOpen, setWarningOpen] = useState(false);
 
-  const [showingLogs, setShowingLogs] = useState(false);
+  const [logJobAlias, setLogJobAlias] = useState<string | undefined>(undefined);
+  const [errorTxt, setErrorTxt] = useState<string | undefined>(undefined);
+  const [errorTxtMissing, setErrorTxtMissing] = useState(false);
+  const [infoLogText, setInfoLogText] = useState<string | undefined>(undefined);
+  const [infoLogMissing, setInfoLogMissing] = useState(false);
+  const [logsLoadingJobId, setLogsLoadingJobId] = useState<number | undefined>(undefined);
 
   const [name, setName] = useState<string | undefined>(undefined);
   const [message, setMessage] = useState<string | undefined>(undefined);
@@ -260,7 +279,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
       field: "action",
       headerName: "Actions",
       sortable: false,
-      width: 256,
+      width: 320,
       disableClickEventBubbling: true,
       renderCell: (params: { row: Job }) => {
         return (
@@ -329,6 +348,61 @@ const Results = ({ visible }: { visible?: boolean }) => {
                     />
                   )}
                 </IconButton>
+              </Tooltip>
+            )}
+            {params.row.status === "failed" && (
+              <Tooltip title={`View logs for job ${params.row.alias}`}>
+                <span>
+                  <IconButton
+                    aria-label={`View logs for job ${params.row.alias}`}
+                    disabled={logsLoadingJobId === params.row.id}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      nvClearAllVolumes();
+                      // Failed-job logs are a new viewing session: drop the
+                      // previously loaded completed job from viewer/settings.
+                      dispatch(
+                        resultActions.setPipelineID(
+                          undefined as unknown as Job,
+                        ),
+                      );
+                      setLogsLoadingJobId(params.row.id);
+                      setLogJobAlias(params.row.alias);
+                      setErrorTxt(undefined);
+                      setErrorTxtMissing(false);
+                      setInfoLogText(undefined);
+                      setInfoLogMissing(false);
+                      dispatch(resultActions.setOpenPanel([0, 3]));
+                      window.setTimeout(scrollToLogsPanel, 50);
+                      window.setTimeout(scrollToLogsPanel, 400);
+                      try {
+                        const sources = await fetchJobLogSources(params.row);
+                        setErrorTxt(sources.errorTxt);
+                        setErrorTxtMissing(sources.errorTxt == null);
+                        setInfoLogText(sources.infoLogText);
+                        setInfoLogMissing(sources.infoLogText == null);
+                        window.setTimeout(scrollToLogsPanel, 50);
+                      } catch (err) {
+                        console.error(err);
+                        setErrorTxtMissing(true);
+                        setInfoLogMissing(true);
+                        warn("Could not load logs for this job.");
+                      } finally {
+                        setLogsLoadingJobId(undefined);
+                      }
+                    }}
+                  >
+                    {logsLoadingJobId === params.row.id ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        style={{ aspectRatio: "1 / 1" }}
+                        role="status"
+                      />
+                    ) : (
+                      <VisibilityIcon />
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
             )}
             {(params.row.status === "completed" ||
@@ -594,7 +668,6 @@ const Results = ({ visible }: { visible?: boolean }) => {
               />
             )}
           </Button>
-          {showingLogs && <Logs />}
         </CmrPanel>
         <CmrPanel
           className={"mb-2"}
@@ -657,7 +730,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
             </Box>
           )}
         </CmrPanel>
-        <CmrPanel header={"Current Job Settings"} key={"2"}>
+        <CmrPanel className={"mb-2"} header={"Current Job Settings"} key={"2"}>
           {activeJob?.status === "completed" ? (
             <SetupInspection />
           ) : (
@@ -671,6 +744,43 @@ const Results = ({ visible }: { visible?: boolean }) => {
               {!activeJob
                 ? "Please Select a Job Result"
                 : "Job is not completed"}
+            </Box>
+          )}
+        </CmrPanel>
+        <CmrPanel
+          className={"mb-2 view-logs-and-errors"}
+          header={
+            logJobAlias
+              ? `Viewing Logs and Errors for ${logJobAlias}`
+              : "View Logs and Errors"
+          }
+          key={"3"}
+        >
+          <div
+            id={LOGS_PANEL_ID}
+            style={{ height: 0, scrollMarginTop: 80 }}
+          />
+          {logsLoadingJobId != null ||
+          errorTxt != null ||
+          errorTxtMissing ||
+          infoLogText != null ||
+          infoLogMissing ? (
+            <Logs
+              loading={logsLoadingJobId != null}
+              errorText={errorTxt}
+              errorMissing={errorTxtMissing}
+              infoLogText={infoLogText}
+              infoMissing={infoLogMissing}
+            />
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                color: "rgba(0,0,0,0.4)",
+              }}
+            >
+              Click the eye icon on a failed job to view its logs
             </Box>
           )}
         </CmrPanel>
