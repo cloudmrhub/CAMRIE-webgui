@@ -4047,10 +4047,10 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <CmrButton variant="outlined" onClick={cancelSaveProtocol}>
-            Cancel
+            Do Not Save
           </CmrButton>
           <CmrButton variant="contained" onClick={confirmSaveProtocol}>
-            Save Protocol
+            Save
           </CmrButton>
         </DialogActions>
       </Dialog>
