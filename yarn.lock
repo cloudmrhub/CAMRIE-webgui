@@ -4090,10 +4090,10 @@ cliui@^7.0.2:
     strip-ansi "^6.0.0"
     wrap-ansi "^7.0.0"
 
-cloudmr-ux@6.0.3:
-  version "6.0.3"
-  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-6.0.3.tgz"
-  integrity sha512-G2ndOSRspNiLYsvj+9Q24kvft8JidbJSZF9/HxlvVOkPcQeVvucQ3eSNoNqqZpPxp85eoY2oyYYqHy+xqe4bfw==
+cloudmr-ux@6.2.3:
+  version "6.2.3"
+  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-6.2.3.tgz"
+  integrity sha512-4jXCMgn2ZqEwYakPJQixV3K4DPcdcjW5erH89CzxJEdKxV1cl0y2v3wkPNr9xHVCiVQNLcJ7t18i4bSzK2zKbA==
   dependencies:
     "@fortawesome/fontawesome-svg-core" "^6.7.2"
     "@fortawesome/free-solid-svg-icons" "^6.7.2"
@@ -5724,9 +5724,9 @@ fflate@^0.8.0:
   integrity sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==
 
 fflate@^0.8.2:
-  version "0.8.2"
-  resolved "https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz"
-  integrity sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==
+  version "0.8.3"
+  resolved "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz"
+  integrity sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==
 
 file-entry-cache@^6.0.1:
   version "6.0.1"

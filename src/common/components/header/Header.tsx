@@ -8,6 +8,8 @@ interface MenuItem {
   title: string;
 }
 
+const isExternalPath = (path: string) => /^https?:\/\//.test(path);
+
 const Header = ({
   siteTitle,
   email,
@@ -33,7 +35,7 @@ const Header = ({
   }, [currPath, menuList]);
 
   const handleMenuChange = (info: MenuItem, navigate: any) => {
-    if (currPath === info.path) return;
+    if (isExternalPath(info.path) || currPath === info.path) return;
     navigate(info.path);
     for (let item of menuList) {
       if (item.path === info.path) {
@@ -102,6 +104,7 @@ const Header = ({
             {/* Left Side Of Navbar */}
             <ul className="navbar-nav">
               {(menuList || []).map((menuItem) => {
+                const isExternal = isExternalPath(menuItem.path);
                 return (
                   <li
                     className={`nav-item${menuItem.title === menuSelect ? " active" : ""}`}
@@ -109,6 +112,9 @@ const Header = ({
                   >
                     <a
                       className="nav-link"
+                      href={isExternal ? menuItem.path : undefined}
+                      target={isExternal ? "_blank" : undefined}
+                      rel={isExternal ? "noopener noreferrer" : undefined}
                       style={{ cursor: "pointer" }}
                       onClick={(event) => {
                         switch (menuItem.title) {
@@ -117,6 +123,9 @@ const Header = ({
                               "https://github.com/cloudmrhub-com/mroptimum/issues",
                             );
                             return;
+                        }
+                        if (isExternal) {
+                          return;
                         }
                         event.preventDefault();
                         handleMenuChange(menuItem, navigate);

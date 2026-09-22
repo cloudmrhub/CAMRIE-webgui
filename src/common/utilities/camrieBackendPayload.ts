@@ -1,6 +1,6 @@
 ﻿import type { UploadedFile } from "cloudmr-ux/core/features/data/dataSlice";
 import { buildMarieInputsFromInfo, type MarieBackendInputs } from "./marieZipManifest";
-import { clampSlicePadding, clampSpinFactor, DEFAULT_SLICE_PADDING, type SequenceGeometryJson } from "./sequenceGeometry";
+import { clampSpinFactor, DEFAULT_SLICE_PADDING, type SequenceGeometryJson } from "./sequenceGeometry";
 
 /** Top-level job payload shape (see `public/examplePayload.json`). */
 export type CamrieBackendPayload = {
@@ -305,7 +305,7 @@ export function buildCamrieBackendPayload(
     sequenceEntries.push({
       alias,
       spin_factor: clampSpinFactor(geometry.ui.spin_factor ?? 1),
-      slice_padding: clampSlicePadding(geometry.ui.slice_padding ?? DEFAULT_SLICE_PADDING),
+      slice_padding: DEFAULT_SLICE_PADDING,
       file: resolveSequenceFileRef(fileName, seq.uploadedFileId, dataFiles, previewMode),
       geometry,
     });
