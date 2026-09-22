@@ -96,6 +96,7 @@ import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadF
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import Select from "react-select";
 import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
+// [mesh] import { convertGmshEntries } from "../../common/utilities/gmshToVtk";
 import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
 import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
 import {
@@ -153,6 +154,7 @@ interface SetupModelOption {
   emSimulator: string;
   image: string;
   volumeMapFromZip?: Record<string, string>;
+  // [mesh] meshMapFromZip?: Record<string, string>;
 }
 
 /** Pulse sequence row from an uploaded `.seq` file in Data storage. */
@@ -452,6 +454,10 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     (): Record<string, string> => selectedModel?.volumeMapFromZip ?? {},
     [selectedModel?.volumeMapFromZip],
   );
+  // [mesh] const availableMeshes = useMemo(
+  // [mesh]   (): Record<string, string> => selectedModel?.meshMapFromZip ?? {},
+  // [mesh]   [selectedModel?.meshMapFromZip],
+  // [mesh] );
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
@@ -490,7 +496,6 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   const [fovAngulationAPdraft, setFovAngulationAPdraft] = useState<string | null>(null);
   const [fovAngulationZDraft, setFovAngulationZDraft] = useState<string | null>(null);
   const [spinFactorDraft, setSpinFactorDraft] = useState<string | null>(null);
-  const [slicePaddingDraft, setSlicePaddingDraft] = useState<string | null>(null);
 
   const commitFovResMm = (raw: string, fallback: number) => {
     const t = raw.trim();
@@ -693,10 +698,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       setMarieZipLoading(true);
       try {
         const locationPayload = JSON.parse(file.location) as unknown;
-        const { volumes, card, previewImageLink, info } = await fetchMarieZipManifest(
-          locationPayload,
-          file.fileName,
-        );
+        const { volumes, /* [mesh] meshes, gmshEntries, */ card, previewImageLink, info } =
+          await fetchMarieZipManifest(locationPayload, file.fileName);
         setSelectedModelZipFile(file);
         setSelectedMarieInfo(info ?? null);
         setSelectedModel({
@@ -714,7 +717,19 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
           emSimulator: card.emSimulator,
           image: previewImageLink ?? "",
           volumeMapFromZip: volumes,
+          // [mesh] meshMapFromZip: meshes,
         });
+
+        // [mesh] Asynchronously convert any Gmsh meshes to VTK so Niivue can load them.
+        // [mesh] if (Object.keys(gmshEntries).length > 0) {
+        // [mesh]   void convertGmshEntries(gmshEntries).then((vtkMeshes) => {
+        // [mesh]     if (Object.keys(vtkMeshes).length > 0) {
+        // [mesh]       setSelectedModel((prev) =>
+        // [mesh]         prev ? { ...prev, meshMapFromZip: { ...prev.meshMapFromZip, ...vtkMeshes } } : prev,
+        // [mesh]       );
+        // [mesh]     }
+        // [mesh]   });
+        // [mesh] }
       } catch (e) {
         console.error(e);
         const detail = e instanceof Error ? e.message : String(e);
@@ -1748,132 +1763,134 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         </Alert>
       </Snackbar>
       <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
-        {(cuLoading || hasMode2ComputingUnits) && (
-          <Grid item xs={12}>
-            <CmrCollapse
-              accordion={false}
-              defaultActiveKey={[0]}
-              expandIconPosition="right"
-            >
-              <CmrPanel key="0" header="Computing Units" className="mb-2">
-                {cuLoading ? (
-                  <div>Loading computing units...</div>
-                ) : cuError ? (
-                  <div style={{ color: 'red' }}>Error: {cuError}</div>
-                ) : (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
+      {/* Computing units selectors (Setup) */}
+        <Grid item xs={12}>
+          <CmrCollapse
+            accordion={false}
+            defaultActiveKey={[0]}
+            expandIconPosition="right"
+          >
+            <CmrPanel key="0" header="Computing Units" className="mb-2">
+            {cuLoading ? (
+              <div>Loading computing units...</div>
+            ) : cuError ? (
+              <div style={{ color: 'red' }}>Error: {cuError}</div>
+            ) : (
+              <Box
+                sx={{
+                  maxWidth: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <CmrLabel style={{ minWidth: 220 }}>
+                Select Computing Unit:
+                </CmrLabel>
+
+                <FormControl fullWidth size="small">
+                  <MuiSelect
+                    value={cuSelected || ""}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected) {
+                        return <span style={{ color: "#999" }}>No computing units</span>;
+                      }
+
+                      const found = cuUnits.find((u: any) => {
+                        const key = String(
+                          u.computingUnitId ??
+                          u.computing_unit_id ??
+                          u.id ??
+                          u.appId ??
+                          u.name ??
+                          ""
+                        );
+                        return key === selected;
+                      });
+
+                      if (!found) return selected;
+
+                      const modeLabel = found.mode ?? found.mode_1 ?? found.mode_2 ?? "";
+                      if (modeLabel === "mode_1") {
+                        return "[mode_1] Cloud MR AWS";
+                      }
+
+                      return (
+                        (modeLabel ? `[${modeLabel}] ` : "") +
+                        (found.alias ??
+                          found.name ??
+                          found.label ??
+                          found.computingUnitId ??
+                          found.id ??
+                          "Unknown")
+                      );
                     }}
-                  >
-                    <CmrLabel style={{ minWidth: 220 }}>
-                      Select Computing Unit:
-                    </CmrLabel>
+                    onChange={(e) => {
+                      const val = e.target.value as string;
+                      setCuSelected(val);
 
-                    <FormControl fullWidth size="small">
-                      <MuiSelect
-                        value={cuSelected || ""}
-                        displayEmpty
-                        renderValue={(selected) => {
-                          if (!selected) {
-                            return <span style={{ color: "#999" }}>No computing units</span>;
-                          }
-
-                          const found = cuUnits.find((u: any) => {
-                            const key = String(
-                              u.computingUnitId ??
-                              u.computing_unit_id ??
-                              u.id ??
-                              u.appId ??
-                              u.name ??
-                              ""
-                            );
-                            return key === selected;
-                          });
-
-                          if (!found) return selected;
-
-                          const modeLabel = found.mode ?? found.mode_1 ?? found.mode_2 ?? "";
-                          if (modeLabel === "mode_1") {
-                            return "[mode_1] Cloud MR AWS";
-                          }
-
-                          return (
-                            (modeLabel ? `[${modeLabel}] ` : "") +
-                            (found.alias ??
-                              found.name ??
-                              found.label ??
-                              found.computingUnitId ??
-                              found.id ??
-                              "Unknown")
-                          );
-                        }}
-                        onChange={(e) => {
-                          const val = e.target.value as string;
-                          setCuSelected(val);
-
-                          try {
-                            const found = cuUnits.find((u: any) => {
-                              const key = String(
-                                u.computingUnitId ??
-                                u.computing_unit_id ??
-                                u.id ??
-                                u.appId ??
-                                u.name ??
-                                ""
-                              );
-                              return key === val;
-                            });
-
-                            const mode = found?.mode ?? "";
-
-                            dispatch(
-                              // @ts-ignore
-                              setupSetters.setSelectedComputingUnit({ id: val, mode })
-                            );
-                          } catch (err) { }
-                        }}
-                      >
-                        {cuUnits.map((u: any, i: number) => {
-                          const val = String(
+                      try {
+                        const found = cuUnits.find((u: any) => {
+                          const key = String(
                             u.computingUnitId ??
                             u.computing_unit_id ??
                             u.id ??
                             u.appId ??
                             u.name ??
-                            i
+                            ""
                           );
+                          return key === val;
+                        });
 
-                          const modeLabel = u.mode ?? u.mode_1 ?? u.mode_2 ?? "";
+                        const mode = found?.mode ?? "";
 
-                          let label =
-                            modeLabel === "mode_1"
-                              ? "[mode_1] Cloud MR AWS"
-                              : (modeLabel ? `[${modeLabel}] ` : "") +
-                                (u.alias ??
-                                  u.name ??
-                                  u.label ??
-                                  u.computingUnitId ??
-                                  u.id ??
-                                  "Unknown");
+                        dispatch(
+                          // @ts-ignore
+                          setupSetters.setSelectedComputingUnit({ id: val, mode })
+                        );
+                      } catch (err) { }
+                    }}
+                  >
+                    {cuUnits.map((u: any, i: number) => {
+                      const val = String(
+                        u.computingUnitId ??
+                        u.computing_unit_id ??
+                        u.id ??
+                        u.appId ??
+                        u.name ??
+                        i
+                      );
 
-                          return (
-                            <MenuItem key={`s-all-${i}`} value={val}>
-                              {label}
-                            </MenuItem>
-                          );
-                        })}
-                      </MuiSelect>
-                    </FormControl>
-                  </Box>
-                )}
-              </CmrPanel>
-            </CmrCollapse>
-          </Grid>
-        )}
+                      const modeLabel = u.mode ?? u.mode_1 ?? u.mode_2 ?? "";
+
+                      let label =
+                        modeLabel === "mode_1"
+                          ? "[mode_1] Cloud MR AWS"
+                          : (modeLabel ? `[${modeLabel}] ` : "") +
+                            (u.alias ??
+                              u.name ??
+                              u.label ??
+                              u.computingUnitId ??
+                              u.id ??
+                              "Unknown");
+
+                      return (
+                        <MenuItem key={`s-all-${i}`} value={val}>
+                          {label}
+                        </MenuItem>
+                      );
+                    })}
+                  </MuiSelect>
+                </FormControl>
+
+              </Box>
+
+            )}
+            </CmrPanel>
+
+          </CmrCollapse>
+        </Grid>
         <Grid item xs={12} md={5} >
           {/* Model */}
           <CmrCollapse
@@ -2581,37 +2598,6 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             pattern: "[0-9]*",
                             maxLength: 2,
                           }}
-                          sx={{ minWidth: 220 }}
-                        />
-                      </Box>
-                    </Box>
-                    <Box sx={{ marginTop: FOV_GEOMETRY_SECTION_MARGIN_TOP }}>
-                      <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
-                        Slice Padding
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
-                        <TextField
-                          label="Slice Padding"
-                          type="number"
-                          size="small"
-                          disabled={protocolSequences.length === 0}
-                          value={
-                            slicePaddingDraft !== null
-                              ? slicePaddingDraft
-                              : String(activeForm.slicePadding)
-                          }
-                          onFocus={() => setSlicePaddingDraft(String(activeForm.slicePadding))}
-                          onChange={(e) => setSlicePaddingDraft(e.target.value)}
-                          onBlur={() => {
-                            patchActiveSequenceGeometry({
-                              slicePadding: commitNonNegMm(
-                                slicePaddingDraft ?? String(activeForm.slicePadding),
-                                activeForm.slicePadding,
-                              ),
-                            });
-                            setSlicePaddingDraft(null);
-                          }}
-                          inputProps={{ step: "any", min: 0 }}
                           sx={{ minWidth: 220 }}
                         />
                       </Box>
@@ -3979,6 +3965,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                 {visible ? (
                 <NiiVue
                   niis={setupNiis}
+                  // [mesh] availableMeshes={availableMeshes}
                   warn={warn}
                   setWarning={setWarning}
                   setWarningOpen={setWarningOpen}
