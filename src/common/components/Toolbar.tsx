@@ -59,6 +59,12 @@ interface ToolbarProps {
   labelsVisible: boolean;
   toggleLabelsVisible: () => void;
 
+  availableMeshes?: Record<string, string>;
+  meshUrl?: string;
+  setMeshUrl?: (url: string) => void;
+  meshColor?: string;
+  setMeshColor?: (color: string) => void;
+
   /** Setup page: FoV slice overlay visibility (same as former “Show Slices” checkbox). */
   showFovSlicesToggle?: boolean;
   showFovSlices?: boolean;
@@ -162,6 +168,60 @@ export default function Toolbar(props: ToolbarProps) {
                 <MenuItem value={"3d"}>3D</MenuItem>
               </Select>
             </FormControl>
+
+            {props.availableMeshes && Object.keys(props.availableMeshes).length > 0 && (
+              <>
+                <FormControl
+                  size="small"
+                  sx={{
+                    m: 2,
+                    minWidth: 120,
+                  }}
+                >
+                  <InputLabel id="mesh-select-label">Mesh</InputLabel>
+                  <Select
+                    labelId="mesh-select-label"
+                    id="mesh-select"
+                    value={props.meshUrl ? props.meshUrl : "__none__"}
+                    label="Mesh"
+                    onChange={(e) => {
+                      const v = String(e.target.value);
+                      props.setMeshUrl?.(v === "__none__" ? "" : v);
+                    }}
+                  >
+                    <MenuItem value="__none__">None</MenuItem>
+                    {Object.entries(props.availableMeshes).map(([name, url]) => (
+                      <MenuItem key={url} value={url}>
+                        {name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl
+                  size="small"
+                  sx={{
+                    m: 2,
+                    minWidth: 120,
+                  }}
+                >
+                  <InputLabel id="mesh-color-label">Mesh Color</InputLabel>
+                  <Select
+                    labelId="mesh-color-label"
+                    id="mesh-color"
+                    value={props.meshColor ?? "Green"}
+                    label="Mesh Color"
+                    disabled={!props.meshUrl}
+                    onChange={(e) => props.setMeshColor?.(String(e.target.value))}
+                  >
+                    <MenuItem value="Green">Green</MenuItem>
+                    <MenuItem value="Yellow">Yellow</MenuItem>
+                    <MenuItem value="Gray">Gray</MenuItem>
+                    <MenuItem value="Red">Red</MenuItem>
+                    <MenuItem value="Cyan">Cyan</MenuItem>
+                  </Select>
+                </FormControl>
+              </>
+            )}
 
             <FormControl
               size="small"

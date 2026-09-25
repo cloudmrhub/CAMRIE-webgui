@@ -1,8 +1,9 @@
 ﻿import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { NVImage } from '@niivue/niivue';
-import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh } from '../utilities/fovBoundingBoxMesh';
+import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh, volumeWorldAabbMm } from '../utilities/fovBoundingBoxMesh';
 import { niivueSafeVolumeName } from '../utilities/niivueVolumeUrl';
+import { preferredMarieMeshUrl } from '../utilities/marieZipManifest';
 import { SettingsPanel } from './SettingsPanel.jsx';
 import { NumberPicker } from './NumberPicker.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -44,6 +45,97 @@ export const nv = new Niivue({
   drawPen: 1,
   isOrientCube: true,
 });
+
+const EMPTY_MESHES = {};
+const MESH_COLORS = {
+  Green: [0, 1, 0, 1],
+  Yellow: [1, 1, 0, 1],
+  Gray: [1, 1, 1, 1],
+  Red: [1, 0, 0, 1],
+  Cyan: [0, 1, 1, 1],
+};
+
+function meshRgba255(colorName) {
+  const rgba = MESH_COLORS[colorName] || MESH_COLORS.Green;
+  return [
+    Math.round(rgba[0] * 255),
+    Math.round(rgba[1] * 255),
+    Math.round(rgba[2] * 255),
+    Math.round(rgba[3] * 255),
+  ];
+}
+
+function meshPtsArray(mesh) {
+  return mesh?.pts || mesh?.vertices || null;
+}
+
+function meshWorldExtent(pts) {
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i + 2 < pts.length; i += 3) {
+    const x = pts[i], y = pts[i + 1], z = pts[i + 2];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+  return {
+    min: [minX, minY, minZ],
+    max: [maxX, maxY, maxZ],
+    span: Math.max(maxX - minX, maxY - minY, maxZ - minZ),
+    center: [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2],
+  };
+}
+
+/** MARIE coils are meters at isocenter; NIfTI world is often mm and origin-shifted. Match volume units and place on the head. */
+function fitCoilMeshToVolumeWorld(mesh, nv) {
+  const pts = meshPtsArray(mesh);
+  if (!pts || pts.length < 6 || !nv?.volumes?.[0]) return;
+  let vol;
+  try {
+    vol = volumeWorldAabbMm(nv);
+  } catch {
+    return;
+  }
+  const volSpan = Math.max(
+    Math.abs(vol.max[0] - vol.min[0]),
+    Math.abs(vol.max[1] - vol.min[1]),
+    Math.abs(vol.max[2] - vol.min[2]),
+  );
+  const meshBox = meshWorldExtent(pts);
+  if (!(volSpan > 0) || !(meshBox.span > 0)) return;
+
+  let scale = 1;
+  if (meshBox.span < 2 && volSpan > 20) scale = 1000;
+  else if (meshBox.span > 20 && volSpan < 2) scale = 0.001;
+
+  // Units already match: keep authoring pose (isocenter). Only move when we had to convert m↔mm.
+  if (scale === 1) return;
+
+  const volCenter = [
+    (vol.min[0] + vol.max[0]) / 2,
+    (vol.min[1] + vol.max[1]) / 2,
+    (vol.min[2] + vol.max[2]) / 2,
+  ];
+  for (let i = 0; i + 2 < pts.length; i += 3) {
+    pts[i] = (pts[i] - meshBox.center[0]) * scale + volCenter[0];
+    pts[i + 1] = (pts[i + 1] - meshBox.center[1]) * scale + volCenter[1];
+    pts[i + 2] = (pts[i + 2] - meshBox.center[2]) * scale + volCenter[2];
+  }
+  const fitted = meshWorldExtent(pts);
+  mesh.extentsMin = fitted.min;
+  mesh.extentsMax = fitted.max;
+  if ('furthestVertexFromOrigin' in mesh) {
+    let maxR = 0;
+    for (let i = 0; i + 2 < pts.length; i += 3) {
+      const r = Math.hypot(pts[i], pts[i + 1], pts[i + 2]);
+      if (r > maxR) maxR = r;
+    }
+    mesh.furthestVertexFromOrigin = maxR;
+  }
+  if (typeof mesh.updateMesh === 'function' && nv.gl) {
+    mesh.updateMesh(nv.gl);
+  }
+}
 
 
 // The NiiVue component wraps all other components in the UI. 
@@ -95,6 +187,91 @@ export default function NiiVueport(props) {
 
   const histoRef = React.useRef(null);
   const [rois, setROIs] = React.useState([]);
+
+  const availableMeshes = props.availableMeshes && typeof props.availableMeshes === 'object'
+    ? props.availableMeshes
+    : EMPTY_MESHES;
+  const [meshUrl, setMeshUrl] = useState('');
+  const [meshColor, setMeshColor] = useState('Green');
+  const coilMeshRef = React.useRef(null);
+  const meshUrlRef = React.useRef(meshUrl);
+  const meshColorRef = React.useRef(meshColor);
+  const availableMeshesRef = React.useRef(availableMeshes);
+  meshUrlRef.current = meshUrl;
+  meshColorRef.current = meshColor;
+  availableMeshesRef.current = availableMeshes;
+
+  const removeCoilMesh = () => {
+    const m = coilMeshRef.current;
+    if (!m) return;
+    try {
+      nv.removeMesh(m);
+    } catch {
+      /* already gone */
+    }
+    nv.opts.meshXRay = 0.0;
+    coilMeshRef.current = null;
+  };
+
+  const addCoilToNv = async (url, color, meshes) => {
+    removeCoilMesh();
+    if (!url || !nv.gl || !nv.volumes[0]) return;
+    const rgba = meshRgba255(color);
+    const meshName = url.startsWith('blob:')
+      ? (() => {
+          const entry = Object.entries(meshes || {}).find(([, u]) => u === url);
+          if (entry) return entry[0].replace(/\.msh$/i, '') + '.vtk';
+          return 'mesh.vtk';
+        })()
+      : niivueSafeVolumeName(url, 'coil.obj');
+    try {
+      nv.opts.meshXRay = 0.5;
+      const mesh = await nv.addMeshFromUrl({ url, name: meshName, rgba255: rgba, opacity: 1.0 });
+      fitCoilMeshToVolumeWorld(mesh, nv);
+      mesh.rgba255 = rgba;
+      mesh.__camrieCoilMesh = true;
+      coilMeshRef.current = mesh;
+      try { nv.setMeshProperty(mesh.id, 'rgba255', rgba); } catch { /* ok */ }
+      try { nv.setMeshShader(mesh.id, 'Phong'); } catch { /* ok */ }
+      nv.drawScene();
+    } catch (e) {
+      console.warn('coil mesh:', e);
+    }
+  };
+
+  const meshMapKey = Object.entries(availableMeshes)
+    .map(([name, url]) => `${name}\0${url}`)
+    .sort()
+    .join('\n');
+  const prevMeshMapKeyRef = React.useRef('');
+  React.useEffect(() => {
+    if (meshMapKey === prevMeshMapKeyRef.current) return;
+    prevMeshMapKeyRef.current = meshMapKey;
+    const urls = Object.values(availableMeshes);
+    if (urls.length === 0) {
+      setMeshUrl('');
+      return;
+    }
+    if (meshUrl && urls.includes(meshUrl)) return;
+    setMeshUrl(preferredMarieMeshUrl(availableMeshes));
+  }, [meshMapKey]);
+
+  React.useEffect(() => {
+    if (!nv.volumes[0]) return;
+    void addCoilToNv(meshUrl, meshColor, availableMeshes);
+    return () => {
+      /* keep mesh across color-only updates; removeCoilMesh runs in addCoilToNv */
+    };
+  }, [meshUrl]);
+
+  React.useEffect(() => {
+    const mesh = coilMeshRef.current;
+    if (!mesh || !nv.gl) return;
+    const rgba = meshRgba255(meshColor);
+    mesh.rgba255 = rgba;
+    try { nv.setMeshProperty(mesh.id, 'rgba255', rgba); } catch { /* ok */ }
+    nv.drawScene();
+  }, [meshColor]);
 
   // Persists zoom + contrast across channel switches so they are not reset on load
   const savedViewStateRef = React.useRef(null);
@@ -274,6 +451,9 @@ export default function NiiVueport(props) {
     } else {
       removeFovBoundingBoxMesh(nv);
     }
+
+    // Volume load clears nv.meshes — re-add the coil from current selection.
+    void addCoilToNv(meshUrlRef.current, meshColorRef.current, availableMeshesRef.current);
   }
 
 
@@ -1572,6 +1752,12 @@ export default function NiiVueport(props) {
         setSaving={setSaving}
 
         resampleImage={resampleImage}
+
+        availableMeshes={availableMeshes}
+        meshUrl={meshUrl}
+        setMeshUrl={setMeshUrl}
+        meshColor={meshColor}
+        setMeshColor={setMeshColor}
 
       />
       <CmrConfirmation name={'New Changes Made'} message={"Consider saving your drawing before switching."}

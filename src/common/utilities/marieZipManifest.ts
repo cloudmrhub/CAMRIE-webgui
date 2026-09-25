@@ -269,6 +269,24 @@ export function marieInfoJsonToModelFields(
 
 const NII_PATTERN = /\.nii(\.gz)?$/i;
 
+/** Niivue mesh formats — not Gmsh `.msh` (handled separately via gmshToVtk). */
+const NIIVUE_MESH_PATTERN = /\.(obj|mz3|stl|vtk|ply|gii|off)(\.gz)?$/i;
+
+/** Gmsh mesh files that need frontend conversion before Niivue can load them. */
+const GMSH_PATTERN = /\.msh$/i;
+
+function entryLabel(e: MarieZipVolumeEntry, fallback: string): string {
+  const path = e.filename || "";
+  return (e.name && String(e.name).trim()) || path.split("/").pop() || fallback;
+}
+
+function entryPathForExt(e: MarieZipVolumeEntry): string {
+  const path = e.filename || "";
+  if (path) return path;
+  const url = e.link || "";
+  return url.split(/[?#]/)[0];
+}
+
 /** Niivue loads only remote NIfTI URLs; skip meshes, JSON, folders, and preview images. */
 export function marieVolumeEntriesToMap(entries: MarieZipVolumeEntry[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -276,16 +294,54 @@ export function marieVolumeEntriesToMap(entries: MarieZipVolumeEntry[]): Record<
     const url = e.link;
     if (!url || typeof url !== "string") continue;
 
-    const path = e.filename || "";
-    if (!NII_PATTERN.test(path) && !NII_PATTERN.test(url)) continue;
+    const path = entryPathForExt(e);
+    if (!NII_PATTERN.test(path)) continue;
 
-    const label =
-      (e.name && String(e.name).trim()) ||
-      path.split("/").pop() ||
-      "volume";
-    out[label] = url;
+    out[entryLabel(e, "volume")] = url;
   }
   return out;
+}
+
+/** Coil / wire / shield meshes Niivue can display (converted `.obj` etc., not `.msh`). */
+export function marieMeshEntriesToMap(entries: MarieZipVolumeEntry[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const e of entries) {
+    const url = e.link;
+    if (!url || typeof url !== "string") continue;
+
+    const path = entryPathForExt(e);
+    if (!NIIVUE_MESH_PATTERN.test(path)) continue;
+
+    out[entryLabel(e, "mesh")] = url;
+  }
+  return out;
+}
+
+/**
+ * Gmsh `.msh` entries from the unzip response.
+ * These are not directly loadable by Niivue — use `convertGmshEntries` from
+ * `gmshToVtk.ts` to convert them to VTK blob URLs first.
+ */
+export function marieGmshEntriesToMap(entries: MarieZipVolumeEntry[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const e of entries) {
+    const url = e.link;
+    if (!url || typeof url !== "string") continue;
+
+    const path = entryPathForExt(e);
+    if (!GMSH_PATTERN.test(path)) continue;
+
+    out[entryLabel(e, "mesh")] = url;
+  }
+  return out;
+}
+
+/** Prefer a coil mesh over ports / extras when auto-selecting. */
+export function preferredMarieMeshUrl(meshes: Record<string, string>): string {
+  const entries = Object.entries(meshes);
+  if (entries.length === 0) return "";
+  const coil = entries.find(([name]) => /coil/i.test(name) && !/port/i.test(name));
+  return (coil ?? entries[0])[1];
 }
 
 function inferPreviewImageLink(entries: MarieZipVolumeEntry[]): string | undefined {
@@ -411,6 +467,14 @@ export function buildMarieInputsFromInfo(info: Record<string, unknown>): MarieBa
 
 export type MarieZipManifestResult = {
   volumes: Record<string, string>;
+  /** Niivue-loadable meshes from the zip (obj/mz3/stl/…). Empty when none. */
+  meshes: Record<string, string>;
+  /**
+   * Gmsh `.msh` entries that need frontend conversion before Niivue can load them.
+   * Pass this map to `convertGmshEntries` from `gmshToVtk.ts`; the returned VTK
+   * blob URLs can then be merged into `meshMapFromZip` for the viewer.
+   */
+  gmshEntries: Record<string, string>;
   card: MarieSetupModelFields;
   previewImageLink?: string;
   /** Parsed MARIE `info.json` root (for backend `marie_inputs`). */
@@ -447,6 +511,8 @@ export async function fetchMarieZipManifest(
 
   const entries = Array.isArray(body.data) ? body.data : [];
   const volumes = marieVolumeEntriesToMap(entries);
+  const meshes = marieMeshEntriesToMap(entries);
+  const gmshEntries = marieGmshEntriesToMap(entries);
 
   const info = resolveMarieInfoDocument(body);
   const card = info
@@ -466,6 +532,8 @@ export async function fetchMarieZipManifest(
 
   return {
     volumes,
+    meshes,
+    gmshEntries,
     card,
     previewImageLink: body.previewImageLink ?? inferPreviewImageLink(entries),
     info,

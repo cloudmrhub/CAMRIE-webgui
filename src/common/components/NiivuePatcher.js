@@ -1808,6 +1808,9 @@ Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, s
             if (this.meshes[i2].visible === false) {
                 continue
             }
+            if (this.meshes[i2].__camrieCoilMesh && this.__camrieFovMeshPassIs3D !== true) {
+                continue
+            }
             const sliceFill = this.meshes[i2].__camrieFovSliceFillMesh === true
             if (sliceFill) {
                 gl.enable(gl.BLEND)
@@ -1858,6 +1861,9 @@ Niivue.prototype.drawCrossLinesMM=function(sliceIndex, axCorSag, axiMM, corMM, s
         gl.uniform1f(shader.uniforms.opacity, alpha)
         for (let i2 = 0; i2 < this.meshes.length; i2++) {
             if (this.meshes[i2].visible === false) {
+                continue
+            }
+            if (this.meshes[i2].__camrieCoilMesh && this.__camrieFovMeshPassIs3D !== true) {
                 continue
             }
             if (this.meshes[i2].indexCount < 3) {

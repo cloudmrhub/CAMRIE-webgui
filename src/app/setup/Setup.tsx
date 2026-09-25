@@ -96,7 +96,7 @@ import { downloadStringAsFile } from "cloudmr-ux/core/common/utilities/DownloadF
 import { uploadHandlerFactory } from "cloudmr-ux/core/common/utilities/SystemUtilities";
 import Select from "react-select";
 import { fetchMarieZipManifest } from "../../common/utilities/marieZipManifest";
-// [mesh] import { convertGmshEntries } from "../../common/utilities/gmshToVtk";
+import { convertGmshEntries } from "../../common/utilities/gmshToVtk";
 import { preprocessMarieModelZip } from "../../common/utilities/preprocessMarieModelZip";
 import { niivueSafeVolumeName } from "../../common/utilities/niivueVolumeUrl";
 import {
@@ -154,7 +154,7 @@ interface SetupModelOption {
   emSimulator: string;
   image: string;
   volumeMapFromZip?: Record<string, string>;
-  // [mesh] meshMapFromZip?: Record<string, string>;
+  meshMapFromZip?: Record<string, string>;
 }
 
 /** Pulse sequence row from an uploaded `.seq` file in Data storage. */
@@ -454,10 +454,10 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
     (): Record<string, string> => selectedModel?.volumeMapFromZip ?? {},
     [selectedModel?.volumeMapFromZip],
   );
-  // [mesh] const availableMeshes = useMemo(
-  // [mesh]   (): Record<string, string> => selectedModel?.meshMapFromZip ?? {},
-  // [mesh]   [selectedModel?.meshMapFromZip],
-  // [mesh] );
+  const availableMeshes = useMemo(
+    (): Record<string, string> => selectedModel?.meshMapFromZip ?? {},
+    [selectedModel?.meshMapFromZip],
+  );
 
   // NiiVue viewer state (matching Results.tsx)
   const [selectedVolume, setSelectedVolume] = useState(0);
@@ -698,7 +698,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       setMarieZipLoading(true);
       try {
         const locationPayload = JSON.parse(file.location) as unknown;
-        const { volumes, /* [mesh] meshes, gmshEntries, */ card, previewImageLink, info } =
+        const { volumes, meshes, gmshEntries, card, previewImageLink, info } =
           await fetchMarieZipManifest(locationPayload, file.fileName);
         setSelectedModelZipFile(file);
         setSelectedMarieInfo(info ?? null);
@@ -717,19 +717,19 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
           emSimulator: card.emSimulator,
           image: previewImageLink ?? "",
           volumeMapFromZip: volumes,
-          // [mesh] meshMapFromZip: meshes,
+          meshMapFromZip: meshes,
         });
 
-        // [mesh] Asynchronously convert any Gmsh meshes to VTK so Niivue can load them.
-        // [mesh] if (Object.keys(gmshEntries).length > 0) {
-        // [mesh]   void convertGmshEntries(gmshEntries).then((vtkMeshes) => {
-        // [mesh]     if (Object.keys(vtkMeshes).length > 0) {
-        // [mesh]       setSelectedModel((prev) =>
-        // [mesh]         prev ? { ...prev, meshMapFromZip: { ...prev.meshMapFromZip, ...vtkMeshes } } : prev,
-        // [mesh]       );
-        // [mesh]     }
-        // [mesh]   });
-        // [mesh] }
+        // Asynchronously convert any Gmsh meshes to VTK so Niivue can load them.
+        if (Object.keys(gmshEntries).length > 0) {
+          void convertGmshEntries(gmshEntries).then((vtkMeshes) => {
+            if (Object.keys(vtkMeshes).length > 0) {
+              setSelectedModel((prev) =>
+                prev ? { ...prev, meshMapFromZip: { ...prev.meshMapFromZip, ...vtkMeshes } } : prev,
+              );
+            }
+          });
+        }
       } catch (e) {
         console.error(e);
         const detail = e instanceof Error ? e.message : String(e);
@@ -3965,7 +3965,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                 {visible ? (
                 <NiiVue
                   niis={setupNiis}
-                  // [mesh] availableMeshes={availableMeshes}
+                  availableMeshes={availableMeshes}
                   warn={warn}
                   setWarning={setWarning}
                   setWarningOpen={setWarningOpen}
