@@ -7,6 +7,21 @@ import { uploadData } from "cloudmr-ux/core/features/data/dataActionCreation";
 import moment from "moment/moment";
 import { submitJobs } from "cloudmr-ux/core/features/setup/setupActionCreation";
 
+export type CamrieRerunSequence = {
+  fileName: string;
+  alias: string;
+  geometry?: unknown;
+  spinFactor?: number;
+  slicePadding?: number;
+};
+
+export type CamrieRerunSettings = {
+  computingUnitId?: string;
+  mode?: string;
+  bodymodelFilename?: string;
+  sequences: CamrieRerunSequence[];
+};
+
 interface SetupState {
   loading: boolean;
   activeSetup: SNR;
@@ -27,6 +42,7 @@ interface SetupState {
   tStore: number;
   maskFileStore?: FileReference;
   quotaExceeded: boolean;
+  pendingRerun: CamrieRerunSettings | null;
 }
 interface OutputInterface {
   coilsensitivity: boolean;
@@ -174,6 +190,7 @@ const initialState: SetupState = {
   cStore: 0.995,
   maskFileStore: undefined,
   quotaExceeded: false,
+  pendingRerun: null,
 };
 
 function UFtoFR(uploadedFile: UploadedFile): FileReference {
@@ -779,6 +796,19 @@ export const setupSlice = createSlice({
       if (action.payload.target === "noise") {
         state.noiseUploadProgress = action.payload.progress;
       }
+    },
+    loadCamrieRerun(
+      state: SetupState,
+      action: PayloadAction<CamrieRerunSettings>,
+    ) {
+      state.pendingRerun = action.payload;
+      if (action.payload.computingUnitId) {
+        state.selectedComputingUnitId = action.payload.computingUnitId;
+        state.selectedComputingUnitMode = action.payload.mode ?? "";
+      }
+    },
+    acknowledgeCamrieRerun(state: SetupState) {
+      state.pendingRerun = null;
     },
     // set maximum monthly calculation quota
     setQuotaExceeded(state, action: PayloadAction<boolean>) {

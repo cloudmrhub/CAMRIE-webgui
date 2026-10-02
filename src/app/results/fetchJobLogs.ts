@@ -198,3 +198,32 @@ export async function fetchJobLogSources(job: Job): Promise<JobLogSources> {
   }
   return combined;
 }
+
+/** Parsed JSON documents from a job's result files (info.json and other .json entries). */
+export async function fetchJobJsonDocuments(job: Job): Promise<any[]> {
+  const documents: any[] = [];
+  for (const file of downloadableResultFiles(job)) {
+    const buffer = await fetchDownloadedZip(file.link);
+    if (!buffer) continue;
+    const bytes = new Uint8Array(buffer);
+    const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+    if (!isZip) {
+      const parsed = parseJsonText(new TextDecoder().decode(buffer));
+      if (parsed) documents.push(parsed);
+      continue;
+    }
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(buffer);
+      for (const entry of Object.values(zip.files)) {
+        if (entry.dir) continue;
+        if (!entry.name.toLowerCase().endsWith(".json")) continue;
+        const parsed = parseJsonText(await entry.async("string"));
+        if (parsed) documents.push(parsed);
+      }
+    } catch (e) {
+      console.error("Rerun: JSZip failed while reading job JSON", e);
+    }
+  }
+  return documents;
+}

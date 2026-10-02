@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import "./Results.scss";
 import {
   CmrTable,
@@ -13,6 +13,7 @@ import type { RootState } from "../../features/store";
 import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import ReplayIcon from "@mui/icons-material/Replay";
 import { Job } from "cloudmr-ux/core/features/jobs/jobsSlice";
 import { getUpstreamJobs } from "cloudmr-ux/core/features/jobs/jobActionCreation";
 import {
@@ -24,6 +25,7 @@ import {
   loadResult,
 } from "cloudmr-ux/core/features/rois/resultActionCreation";
 import { resultActions } from "../../features/rois/resultSlice";
+import { retryCamrieJob } from "./retryCamrieJob";
 import {
   Alert,
   Button,
@@ -184,6 +186,21 @@ const Results = ({ visible }: { visible?: boolean }) => {
   const [infoLogText, setInfoLogText] = useState<string | undefined>(undefined);
   const [infoLogMissing, setInfoLogMissing] = useState(false);
   const [logsLoadingJobId, setLogsLoadingJobId] = useState<number | undefined>(undefined);
+  const [retryingJobId, setRetryingJobId] = useState<number | undefined>(undefined);
+  const logsRequestIdRef = useRef(0);
+
+  const clearLogsPanel = () => {
+    logsRequestIdRef.current += 1;
+    setLogsLoadingJobId(undefined);
+    setLogJobAlias(undefined);
+    setErrorTxt(undefined);
+    setErrorTxtMissing(false);
+    setInfoLogText(undefined);
+    setInfoLogMissing(false);
+  };
+
+  // Shown only after the failed-job eye icon is clicked.
+  const logsPanelVisible = logJobAlias != null || logsLoadingJobId != null;
 
   const [name, setName] = useState<string | undefined>(undefined);
   const [message, setMessage] = useState<string | undefined>(undefined);
@@ -279,7 +296,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
       field: "action",
       headerName: "Actions",
       sortable: false,
-      width: 320,
+      width: 380,
       disableClickEventBubbling: true,
       renderCell: (params: { row: Job }) => {
         return (
@@ -287,9 +304,10 @@ const Results = ({ visible }: { visible?: boolean }) => {
             {params.row.status !== "failed" && (
               <Tooltip title={`View job ${params.row.alias}`}>
                 <IconButton
-                  disabled={params.row.status === "pending"}
+                  disabled={params.row.status === "pending" || params.row.status === "queued"}
                   onClick={(event) => {
                     event.stopPropagation();
+                    clearLogsPanel();
                     if (params.row.pipeline_id === activeJob?.pipeline_id) {
                       dispatch(resultActions.setOpenPanel([1, 2]));
                       return;
@@ -328,7 +346,8 @@ const Results = ({ visible }: { visible?: boolean }) => {
                   }}
                 >
                   {resultLoading === params.row.id ||
-                    params.row.status === "pending" ? (
+                    params.row.status === "pending" ||
+                    params.row.status === "queued" ? (
                     <div
                       className="spinner-border spinner-border-sm"
                       style={{ aspectRatio: "1 / 1" }}
@@ -359,6 +378,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
                     onClick={async (e) => {
                       e.stopPropagation();
                       nvClearAllVolumes();
+                      const requestId = ++logsRequestIdRef.current;
                       // Failed-job logs are a new viewing session: drop the
                       // previously loaded completed job from viewer/settings.
                       dispatch(
@@ -377,18 +397,22 @@ const Results = ({ visible }: { visible?: boolean }) => {
                       window.setTimeout(scrollToLogsPanel, 400);
                       try {
                         const sources = await fetchJobLogSources(params.row);
+                        if (requestId !== logsRequestIdRef.current) return;
                         setErrorTxt(sources.errorTxt);
                         setErrorTxtMissing(sources.errorTxt == null);
                         setInfoLogText(sources.infoLogText);
                         setInfoLogMissing(sources.infoLogText == null);
                         window.setTimeout(scrollToLogsPanel, 50);
                       } catch (err) {
+                        if (requestId !== logsRequestIdRef.current) return;
                         console.error(err);
                         setErrorTxtMissing(true);
                         setInfoLogMissing(true);
                         warn("Could not load logs for this job.");
                       } finally {
-                        setLogsLoadingJobId(undefined);
+                        if (requestId === logsRequestIdRef.current) {
+                          setLogsLoadingJobId(undefined);
+                        }
                       }
                     }}
                   >
@@ -403,6 +427,51 @@ const Results = ({ visible }: { visible?: boolean }) => {
                     )}
                   </IconButton>
                 </span>
+              </Tooltip>
+            )}
+            {(params.row.status === "failed" || params.row.status === "completed") && (
+              <Tooltip title={`Rerun job ${params.row.alias}`}>
+                <IconButton
+                  aria-label={`Rerun job ${params.row.alias}`}
+                  disabled={retryingJobId === params.row.id}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setRetryingJobId(params.row.id);
+                    try {
+                      await dispatch(getUploadedData());
+                      const loaded = await retryCamrieJob(params.row, dispatch);
+                      if (!loaded) {
+                        warn(
+                          "Could not read this job's setup options from its result JSON.",
+                        );
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      warn(
+                        "Could not read this job's setup options from its result JSON.",
+                      );
+                    } finally {
+                      setRetryingJobId(undefined);
+                    }
+                  }}
+                >
+                  {retryingJobId === params.row.id ? (
+                    <div
+                      className="spinner-border spinner-border-sm"
+                      style={{ aspectRatio: "1 / 1" }}
+                      role="status"
+                    />
+                  ) : (
+                    <ReplayIcon
+                      sx={{
+                        color: "#1578A1",
+                        "&:hover": {
+                          color: "#126a8f",
+                        },
+                      }}
+                    />
+                  )}
+                </IconButton>
               </Tooltip>
             )}
             {(params.row.status === "completed" ||
@@ -748,7 +817,7 @@ const Results = ({ visible }: { visible?: boolean }) => {
           )}
         </CmrPanel>
         <CmrPanel
-          className={"mb-2 view-logs-and-errors"}
+          className={`mb-2 view-logs-and-errors${logsPanelVisible ? "" : " d-none"}`}
           header={
             logJobAlias
               ? `Viewing Logs and Errors for ${logJobAlias}`

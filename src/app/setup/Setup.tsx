@@ -67,7 +67,6 @@ import {
   MenuItem,
   FormHelperText,
   Snackbar,
-  Slide,
   Slider,
   InputAdornment,
   Dialog,
@@ -1211,6 +1210,85 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
       teMs: parseMs(seq.te),
     });
   };
+
+  const pendingRerun = useAppSelector((state) => state.setup.pendingRerun);
+
+  // Restore Set Up after Results → Rerun. Runs once, then clears the flag.
+  useEffect(() => {
+    if (!pendingRerun) return;
+    const rerun = pendingRerun;
+    dispatch(setupSetters.acknowledgeCamrieRerun());
+
+    const sequences: SetupSequence[] = rerun.sequences.map((seq, index) => {
+      const wanted = seq.fileName.replace(/^.*[/\\]/, "").toLowerCase();
+      const match = dataFiles.find(
+        (file) => file.fileName.replace(/^.*[/\\]/, "").toLowerCase() === wanted,
+      );
+      if (match) {
+        const base = uploadedFileToSequence(match);
+        return { ...base, alias: seq.alias || base.alias };
+      }
+      return {
+        id: `rerun-${index}-${seq.fileName}`,
+        fileName: seq.fileName,
+        alias: seq.alias || seq.fileName,
+        tr: "-",
+        te: "-",
+        fa: [],
+        type: seq.fileName.toLowerCase().endsWith(".mtrk") ? "mtrk" : "pulseq",
+      };
+    });
+
+    const geom: Record<string, SequenceGeometryFormState> = {};
+    rerun.sequences.forEach((seq, index) => {
+      const id = sequences[index].id;
+      let form = { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+      if (seq.geometry) {
+        try {
+          form = sequenceGeometryJsonToFormState(
+            seq.geometry as SequenceGeometryJson,
+          );
+        } catch {
+          form = { ...DEFAULT_SEQUENCE_GEOMETRY_FORM };
+        }
+      }
+      if (typeof seq.spinFactor === "number") {
+        form.spinFactor = clampSpinFactor(seq.spinFactor);
+      }
+      if (typeof seq.slicePadding === "number" && Number.isFinite(seq.slicePadding)) {
+        form.slicePadding = seq.slicePadding;
+      }
+      geom[id] = form;
+    });
+
+    setProtocol("");
+    setProtocolSequences(sequences);
+    setGeometryBySequenceId(geom);
+    setProtocolChecked({});
+    setOpenModelPanel([0]);
+    setOpenPulsePanel([0]);
+    setOpenFieldofViewPanel([0]);
+    if (sequences[0]) {
+      handleSelectProtocolSequence(sequences[0]);
+    } else {
+      setSelectedSequence(null);
+      setSelectedProtocolSeqId(null);
+    }
+
+    if (rerun.bodymodelFilename) {
+      const wanted = rerun.bodymodelFilename.replace(/^.*[/\\]/, "").toLowerCase();
+      const modelFile = modelFileSelection.find(
+        (file) => file.fileName.replace(/^.*[/\\]/, "").toLowerCase() === wanted,
+      );
+      if (modelFile) {
+        handleModelSelected(modelFile);
+      } else {
+        warn(`Body model "${rerun.bodymodelFilename}" is no longer in your uploads.`);
+      }
+    }
+    // pendingRerun is cleared at the start of this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRerun]);
   // -- end ---
 
   const viewerSequenceId = selectedProtocolSeqId;
@@ -1718,8 +1796,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
   return (
     <Fragment>
       <Snackbar
-        anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        TransitionComponent={(props: any) => <Slide {...props} direction="right" />}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         open={warningOpen}
         autoHideDuration={7000}
         onClose={() => setWarningOpen(false)}
@@ -1733,8 +1810,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         </Alert>
       </Snackbar>
       <Snackbar
-        anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        TransitionComponent={(props: any) => <Slide {...props} direction="right" />}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         open={successToastOpen}
         autoHideDuration={3000}
         onClose={() => setSuccessToastOpen(false)}
@@ -1748,8 +1824,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
         </Alert>
       </Snackbar>
       <Snackbar
-        anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        TransitionComponent={(props: any) => <Slide {...props} direction="right" />}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         open={queueSuccessOpen}
         autoHideDuration={4000}
         onClose={() => setQueueSuccessOpen(false)}
