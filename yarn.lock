@@ -4072,10 +4072,10 @@ cliui@^7.0.2:
     strip-ansi "^6.0.0"
     wrap-ansi "^7.0.0"
 
-cloudmr-ux@6.2.5:
-  version "6.2.5"
-  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-6.2.5.tgz"
-  integrity sha512-r5gSW29FBR48MnV8a5YavMWaliG9cIMOgiTJT0KpsfgjG/xTPNqRscMh1m0joozS98H2+QI2C2RbjypfGMmUgg==
+cloudmr-ux@6.2.6:
+  version "6.2.6"
+  resolved "https://registry.npmjs.org/cloudmr-ux/-/cloudmr-ux-6.2.6.tgz"
+  integrity sha512-vfYPDl8X5Wwf8oLKN+CJK5aW2mOtWZVOvcClRhWH8XaomLAUTAFkgBWF2m2nZEXYBKCjc6jfUd0h8k8SoxMdZw==
   dependencies:
     "@fortawesome/fontawesome-svg-core" "^6.7.2"
     "@fortawesome/free-solid-svg-icons" "^6.7.2"
