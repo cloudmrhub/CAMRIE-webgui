@@ -215,7 +215,7 @@ export default function NiiVueport(props) {
 
   const addCoilToNv = async (url, color, meshes) => {
     removeCoilMesh();
-    if (!url || !nv.gl || !nv.volumes[0]) return;
+    if (!url || color === 'None' || !nv.gl || !nv.volumes[0]) return;
     const rgba = meshRgba255(color);
     const meshName = url.startsWith('blob:')
       ? (() => {
@@ -227,6 +227,12 @@ export default function NiiVueport(props) {
     try {
       nv.opts.meshXRay = 0.5;
       const mesh = await nv.addMeshFromUrl({ url, name: meshName, rgba255: rgba, opacity: 1.0 });
+      if (meshColorRef.current === 'None') {
+        try { nv.removeMesh(mesh); } catch { /* ok */ }
+        nv.opts.meshXRay = 0.0;
+        nv.drawScene();
+        return;
+      }
       fitCoilMeshToVolumeWorld(mesh, nv);
       mesh.rgba255 = rgba;
       mesh.__camrieCoilMesh = true;
@@ -265,8 +271,17 @@ export default function NiiVueport(props) {
   }, [meshUrl]);
 
   React.useEffect(() => {
+    if (meshColor === 'None') {
+      removeCoilMesh();
+      return;
+    }
     const mesh = coilMeshRef.current;
-    if (!mesh || !nv.gl) return;
+    if (!mesh || !nv.gl) {
+      if (nv.volumes[0]) {
+        void addCoilToNv(meshUrlRef.current, meshColor, availableMeshesRef.current);
+      }
+      return;
+    }
     const rgba = meshRgba255(meshColor);
     mesh.rgba255 = rgba;
     try { nv.setMeshProperty(mesh.id, 'rgba255', rgba); } catch { /* ok */ }
@@ -1754,8 +1769,6 @@ export default function NiiVueport(props) {
         resampleImage={resampleImage}
 
         availableMeshes={availableMeshes}
-        meshUrl={meshUrl}
-        setMeshUrl={setMeshUrl}
         meshColor={meshColor}
         setMeshColor={setMeshColor}
 
