@@ -152,7 +152,7 @@ export default function NiiVueport(props) {
         })()
       : niivueSafeVolumeName(url, 'coil.obj');
     try {
-      nv.opts.meshXRay = 0.5;
+      nv.opts.meshXRay = 0.0;
       const mesh = await nv.addMeshFromUrl({ url, name: meshName, rgba255: rgba, opacity: 1.0 });
       if (meshColorRef.current === 'None') {
         try { nv.removeMesh(mesh); } catch { /* ok */ }
