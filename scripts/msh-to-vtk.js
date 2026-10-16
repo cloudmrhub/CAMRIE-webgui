@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const GMSH_TRI = 2;
+const M_TO_MM = 1000.0;
 
 function parseGmshV2(lines) {
   const nodesIdx = lines.findIndex(l => l.trim() === '$Nodes');
@@ -106,13 +107,21 @@ function convertMshToVtk(mshPath) {
 
   const parts = [
     '# vtk DataFile Version 3.0',
-    path.basename(mshPath, '.msh'),
+    `${path.basename(mshPath, '.msh')} SPACE=RAS`,
     'ASCII',
     'DATASET POLYDATA',
     `POINTS ${nPts} float`,
   ];
-  for (let i = 0; i < nPts; i++)
-    parts.push(`${mesh.coords[i*3]} ${mesh.coords[i*3+1]} ${mesh.coords[i*3+2]}`);
+  // Gmsh/MARIANA mesh coordinates are stored in meters.
+  // Convert to millimeters so the mesh uses the same physical units as
+  // the exported NIfTI body volumes. The VTK header explicitly declares
+  // these coordinates as RAS for 3D Slicer.
+  for (let i = 0; i < nPts; i++) {
+    const x = mesh.coords[i*3]     * M_TO_MM;
+    const y = mesh.coords[i*3 + 1] * M_TO_MM;
+    const z = mesh.coords[i*3 + 2] * M_TO_MM;
+    parts.push(`${x} ${y} ${z}`);
+  }
   parts.push(`POLYGONS ${nTris} ${nTris * 4}`);
   for (let i = 0; i < nTris; i++)
     parts.push(`3 ${mesh.tris[i*3]} ${mesh.tris[i*3+1]} ${mesh.tris[i*3+2]}`);

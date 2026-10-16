@@ -12,6 +12,7 @@
  */
 
 const GMSH_TRI_ELEMENT_TYPE = 2;
+const M_TO_MM = 1000;
 
 interface RawMesh {
   /** Flat [x0,y0,z0, x1,y1,z1, …] */
@@ -136,18 +137,22 @@ function meshToVtkPolydata(mesh: RawMesh, title: string): string {
   const nPts = mesh.coords.length / 3;
   const nTris = mesh.tris.length / 3;
 
+  // Gmsh coordinates are meters. Write millimeters and mark RAS so the coil
+  // matches the NIfTI body without a later scale or recenter.
+  const header = `${title} SPACE=RAS`.slice(0, 256);
   const parts: string[] = [
     "# vtk DataFile Version 3.0",
-    title.slice(0, 255),
+    header,
     "ASCII",
     "DATASET POLYDATA",
     `POINTS ${nPts} float`,
   ];
 
   for (let i = 0; i < nPts; i++) {
-    parts.push(
-      `${mesh.coords[i * 3]} ${mesh.coords[i * 3 + 1]} ${mesh.coords[i * 3 + 2]}`,
-    );
+    const x = mesh.coords[i * 3] * M_TO_MM;
+    const y = mesh.coords[i * 3 + 1] * M_TO_MM;
+    const z = mesh.coords[i * 3 + 2] * M_TO_MM;
+    parts.push(`${x} ${y} ${z}`);
   }
 
   // VTK POLYGONS: total connectivity = nTris * (1 count + 3 indices) = nTris * 4

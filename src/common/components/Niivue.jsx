@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { NVImage } from '@niivue/niivue';
-import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh, volumeWorldAabbMm } from '../utilities/fovBoundingBoxMesh';
+import { attachFovBoundingBoxMesh, removeFovBoundingBoxMesh } from '../utilities/fovBoundingBoxMesh';
 import { niivueSafeVolumeName } from '../utilities/niivueVolumeUrl';
 import { preferredMarieMeshUrl } from '../utilities/marieZipManifest';
 import { SettingsPanel } from './SettingsPanel.jsx';
@@ -64,79 +64,6 @@ function meshRgba255(colorName) {
     Math.round(rgba[3] * 255),
   ];
 }
-
-function meshPtsArray(mesh) {
-  return mesh?.pts || mesh?.vertices || null;
-}
-
-function meshWorldExtent(pts) {
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  for (let i = 0; i + 2 < pts.length; i += 3) {
-    const x = pts[i], y = pts[i + 1], z = pts[i + 2];
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-  }
-  return {
-    min: [minX, minY, minZ],
-    max: [maxX, maxY, maxZ],
-    span: Math.max(maxX - minX, maxY - minY, maxZ - minZ),
-    center: [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2],
-  };
-}
-
-/** MARIE coils are meters at isocenter; NIfTI world is often mm and origin-shifted. Match volume units and place on the head. */
-function fitCoilMeshToVolumeWorld(mesh, nv) {
-  const pts = meshPtsArray(mesh);
-  if (!pts || pts.length < 6 || !nv?.volumes?.[0]) return;
-  let vol;
-  try {
-    vol = volumeWorldAabbMm(nv);
-  } catch {
-    return;
-  }
-  const volSpan = Math.max(
-    Math.abs(vol.max[0] - vol.min[0]),
-    Math.abs(vol.max[1] - vol.min[1]),
-    Math.abs(vol.max[2] - vol.min[2]),
-  );
-  const meshBox = meshWorldExtent(pts);
-  if (!(volSpan > 0) || !(meshBox.span > 0)) return;
-
-  let scale = 1;
-  if (meshBox.span < 2 && volSpan > 20) scale = 1000;
-  else if (meshBox.span > 20 && volSpan < 2) scale = 0.001;
-
-  // Units already match: keep authoring pose (isocenter). Only move when we had to convert m↔mm.
-  if (scale === 1) return;
-
-  const volCenter = [
-    (vol.min[0] + vol.max[0]) / 2,
-    (vol.min[1] + vol.max[1]) / 2,
-    (vol.min[2] + vol.max[2]) / 2,
-  ];
-  for (let i = 0; i + 2 < pts.length; i += 3) {
-    pts[i] = (pts[i] - meshBox.center[0]) * scale + volCenter[0];
-    pts[i + 1] = (pts[i + 1] - meshBox.center[1]) * scale + volCenter[1];
-    pts[i + 2] = (pts[i + 2] - meshBox.center[2]) * scale + volCenter[2];
-  }
-  const fitted = meshWorldExtent(pts);
-  mesh.extentsMin = fitted.min;
-  mesh.extentsMax = fitted.max;
-  if ('furthestVertexFromOrigin' in mesh) {
-    let maxR = 0;
-    for (let i = 0; i + 2 < pts.length; i += 3) {
-      const r = Math.hypot(pts[i], pts[i + 1], pts[i + 2]);
-      if (r > maxR) maxR = r;
-    }
-    mesh.furthestVertexFromOrigin = maxR;
-  }
-  if (typeof mesh.updateMesh === 'function' && nv.gl) {
-    mesh.updateMesh(nv.gl);
-  }
-}
-
 
 // The NiiVue component wraps all other components in the UI. 
 // It is exported so that it can be used in other projects easily
@@ -233,7 +160,6 @@ export default function NiiVueport(props) {
         nv.drawScene();
         return;
       }
-      fitCoilMeshToVolumeWorld(mesh, nv);
       mesh.rgba255 = rgba;
       mesh.__camrieCoilMesh = true;
       coilMeshRef.current = mesh;

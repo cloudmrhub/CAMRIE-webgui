@@ -1,6 +1,5 @@
 import { Box, Divider, MenuItem, Card, CardContent } from "@mui/material";
 import { Typography } from "@mui/material";
-import { CmrLabel } from "cloudmr-ux";
 import { Select } from "@mui/material";
 import { InputLabel } from "@mui/material";
 import { FormControl } from "@mui/material";
@@ -46,7 +45,6 @@ export default function Layer(props) {
   const nii = props.nii
   const [detailsOpen, setDetailsOpen] = React.useState(true)
   const [color, setColor] = React.useState(image.colormap)
-  const opacity = props.opacity ?? 1.0
   let ArrowIcon = detailsOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />
   // console.log(props.colorMapValues)
   let allColors = props.nv.colormaps().filter((colorName) => allowedColorMaps.includes(colorName)).map((colorName) => {
@@ -103,11 +101,6 @@ export default function Layer(props) {
     props.onRemoveLayer(image)
   }
 
-  function handleOpacityChanged(a) {
-    image.opacity = a
-    props.onOpacityChange(a)
-  }
-
   return (
     <Box
       sx={{
@@ -132,38 +125,6 @@ export default function Layer(props) {
           display: detailsOpen ? 'flex' : 'none',
           flexDirection: 'column'
         }}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            width: '100%',
-            marginBottom: '10px'
-          }}
-        >
-          <CmrLabel marginLeft={2}>
-            Opacity: {opacity.toFixed(2)}
-          </CmrLabel>
-
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={opacity}
-            onChange={(e) => {
-              const v = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
-              handleOpacityChanged(v);           // updates local state, image.opacity, and notifies parent
-            }}
-            style={{
-              width: '100%',
-              alignSelf: 'center',
-              margin: '8px 0 16px 0',
-              accentColor: '#1578A1',           // <-- your purple
-            }}
-          />
-        </Box>
-
         <Box
           sx={{
             display: 'flex',

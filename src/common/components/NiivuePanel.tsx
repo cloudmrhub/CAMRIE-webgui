@@ -6,8 +6,7 @@ import { DrawToolkit, DrawToolkitProps } from "./DrawToolKit";
 // import GUI from "lil-gui";
 import "./Toolbar.scss";
 // import { DualSlider } from "../../Cmr-components/double-slider/DualSlider";
-import TKDualRange from "./tk-dualrange/TKDualRange";
-import { CmrLabel, CmrCheckbox } from "cloudmr-ux";
+import { CmrLabel, NiivueContrastAdjustments } from "cloudmr-ux";
 interface NiivuePanelProps {
   nv: any;
   canvasId?: string;
@@ -89,9 +88,6 @@ export function NiivuePanel(props: NiivuePanelProps) {
   const [rangeMin, setRangeMin] = useState(undefined);
   const [rangeMax, setRangemax] = useState(undefined);
 
-
-  //Transform factors are applied when scientific notation for voxel values become necessary
-  const { a, b } = props.transformFactors;
 
   const safeSpan = (i: 0 | 1 | 2) => Math.max(1e-9, maxs[i] - mins[i]);
   const ratio = (val: number, i: 0 | 1 | 2) => (val - mins[i]) / safeSpan(i);
@@ -257,8 +253,8 @@ export function NiivuePanel(props: NiivuePanelProps) {
           <Box id={"controlDock"} className={'title'} style={{ width: '100%' }} ref={sliceControl}>
             Displayed Section
           </Box>
-          <Card variant="outlined" sx={{ flex: 1, display: 'flex', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', '&:last-child': { paddingBottom: 2 } }}>
             <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
 
               <div style={{ marginBottom: 20 }}>
@@ -406,98 +402,41 @@ export function NiivuePanel(props: NiivuePanelProps) {
         </Card>
         </Box>
 
-        {/* Contrast Adjustments */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <Box id={"controlDock"} className={'title'} style={{ width: '100%' }}>
-            Contrast Adjustments
-          </Box>
-          <Card variant="outlined" sx={{ flex: 1, display: 'flex', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
-
-              <Box sx={{ width: "100%" }}>
-                <TKDualRange
-                  name="Values:"
-                  minDomain={props.nv.volumes[0]?.robust_min ?? 0}
-                  maxDomain={props.nv.volumes[0]?.robust_max ?? 1}
-                  valueLow={props.min}
-                  valueHigh={props.max}
-                  onChangeLow={(min) => {
-                    if (props.contrastLocked) return;
-                    const v = props.nv.volumes[0];
-                    if (!v) return;
-                    v.cal_min = min;
-                    props.nv.refreshLayers(v, 0, props.nv.volumes.length);
-                    props.nv.drawScene();
-                    props.setMin(min);
-                  }}
-                  onChangeHigh={(max) => {
-                    if (props.contrastLocked) return;
-                    const v = props.nv.volumes[0];
-                    if (!v) return;
-                    v.cal_max = max;
-                    props.nv.refreshLayers(v, 0, props.nv.volumes.length);
-                    props.nv.drawScene();
-                    props.setMax(max);
-                  }}
-                  transform={(x) => x / a + b}
-                  inverse={(y) => a * y - a * b}
-                  precision={3}
-                  accentColor="#1578A1"
-                  disabled={props.contrastLocked}
-                />
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    width: "100%",
-                    mt: 0.5,
-                    userSelect: "none",
-                  }}
-                >
-                  <Box sx={{ "& .MuiFormControlLabel-root": { margin: 0 } }}>
-                    <CmrCheckbox
-                      id="contrast-lock-value"
-                      checked={props.contrastLocked}
-                      checkedColor="#1578A1"
-                      onChange={(e) => props.setContrastLocked(e.target.checked)}
-                    >
-                      Lock Value
-                    </CmrCheckbox>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Gamma */}
-              <div style={{ marginTop: 20, marginBottom: 15 }}>
-                <CmrLabel style={{ display: 'block', marginBottom: 6 }}>
-                  Gamma: {props.gamma.toFixed(2)}
-                </CmrLabel>
-                <input
-                  id="gamma"
-                  type="range"
-                  min={0.1}
-                  max={3.0}
-                  step={0.05}
-                  value={props.gamma}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    props.setGamma(val);   // update in Niivue.jsx
-                    props.nv.setGamma(val); // update the Niivue engine
-                  }}
-                  style={{ width: '100%', accentColor: '#1578A1' }}
-                  key={props.gammaKey} // force remount when Toolbar calls nv.onResetGamma()
-                />
-              </div>
-
-
-              <Box style={{ height: '100%' }}>
-                {props.layerList}
-              </Box>
-
-            </Box>
-          </CardContent>
-        </Card>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            '& > div': {
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+            },
+            '& .MuiCard-root': {
+              flex: 1,
+              mb: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            },
+            '& .MuiCardContent-root': {
+              flex: 1,
+            },
+          }}
+        >
+          <NiivueContrastAdjustments
+            nv={props.nv}
+            min={props.min}
+            max={props.max}
+            setMin={props.setMin}
+            setMax={props.setMax}
+            transformFactors={props.transformFactors}
+            gamma={props.gamma}
+            gammaKey={props.gammaKey}
+            setGamma={props.setGamma}
+            layerList={props.layerList}
+            accentColor="#1578A1"
+          />
         </Box>
       </Box>
 
