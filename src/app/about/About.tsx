@@ -118,6 +118,9 @@ const refs = (
         <li className="cmReference">
             Montin E, Carluccio G, Collins CM, Lattanzi R. CAMRIE - cloud-accessible MRI emulator. Proceedings of the 28th Annual Meeting of the International Society for Magnetic Resonance in Medicine; August 8–14, 2020; Virtual Conference. Abstract 1037.
         </li>
+        <li className="cmReference">
+            Montin E, Cruz Serrallés JE, Giannakopoulos I, Artiges A, Castillo-Passi C, Lattanzi R. A modular end-to-end open-source software pipeline to simulate the entire MRI experiment. Proceedings of the 33rd Annual Meeting of the International Society for Magnetic Resonance in Medicine; May 10–15, 2025; Honolulu, HI. Abstract 943.
+        </li>
     </ul>
 );
 
