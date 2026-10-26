@@ -38,25 +38,44 @@ export const nv = new Niivue({
   dragMode: 'pan',
   crosshairWidth: 0,
   // crosshairColor: [0.098,0.453,0.824]
-  crosshairColor: [1, 1, 0],
+  crosshairColor: [1, 1, 0, 1],
   fontColor: [0.00, 0.94, 0.37, 1],
   isNearestInterpolation: true,
   isFilledPen: true,
   drawPen: 1,
-  isOrientCube: true,
+  isOrientCube: false,
 });
+
+// Same calls Results uses. The stock setter throws while crosshairs3D is still
+// null, which skips the redraw and the React update on the first click.
+nv.setCrosshairWidth = function (width) {
+  this.opts.crosshairWidth = width;
+  if (this.crosshairs3D?.mm) this.crosshairs3D.mm[0] = NaN;
+  this.drawScene();
+};
+
+// Results' patcher replaces this method after this module loads, and that copy
+// leaves the depth test on, so 2D letters never show over the slice.
+const drawSliceOrientationText = nv.drawSliceOrientationText.bind(nv);
+nv.drawSliceOrientationText = function (leftTopWidthHeight, axCorSag) {
+  const gl = this.gl;
+  if (gl) {
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.colorMask(true, true, true, true);
+  }
+  return drawSliceOrientationText(leftTopWidthHeight, axCorSag);
+};
 
 const EMPTY_MESHES = {};
 const MESH_COLORS = {
-  Green: [0, 1, 0, 1],
+  Copper: [1, 184 / 255, 48 / 255, 1],
   Yellow: [1, 1, 0, 1],
-  Gray: [1, 1, 1, 1],
-  Red: [1, 0, 0, 1],
-  Cyan: [0, 1, 1, 1],
+  Gray: [0.75, 0.75, 0.75, 1],
 };
 
 function meshRgba255(colorName) {
-  const rgba = MESH_COLORS[colorName] || MESH_COLORS.Green;
+  const rgba = MESH_COLORS[colorName] || MESH_COLORS.Copper;
   return [
     Math.round(rgba[0] * 255),
     Math.round(rgba[1] * 255),
@@ -77,6 +96,8 @@ export default function NiiVueport(props) {
   const [openSettings, setOpenSettings] = React.useState(false)
   const [openLayers, setOpenLayers] = React.useState(false)
   const [crosshairColor, setCrosshairColor] = React.useState(nv.opts.crosshairColor)
+  const [crosshairSize, setCrosshairSize] = React.useState(1)
+  const [fontColor, setFontColor] = React.useState(nv.opts.fontColor)
   const [selectionBoxColor, setSelectionBoxColor] = React.useState(nv.opts.selectionBoxColor)
   const [backColor, setBackColor] = React.useState(nv.opts.backColor)
   const [clipPlaneColor, setClipPlaneColor] = React.useState(nv.opts.clipPlaneColor)
@@ -119,7 +140,7 @@ export default function NiiVueport(props) {
     ? props.availableMeshes
     : EMPTY_MESHES;
   const [meshUrl, setMeshUrl] = useState('');
-  const [meshColor, setMeshColor] = useState('Green');
+  const [meshColor, setMeshColor] = useState('Copper');
   const coilMeshRef = React.useRef(null);
   const meshUrlRef = React.useRef(meshUrl);
   const meshColorRef = React.useRef(meshColor);
@@ -296,11 +317,13 @@ export default function NiiVueport(props) {
     }
   }, []);
 
+  const selectedNiiKey = props.niis?.[props.selectedVolume]?.link ?? props.niis?.[props.selectedVolume]?.name;
   React.useEffect(() => {
-    // console.log(props.niis[props.selectedVolume]);
-    //Wait for other rendering processes to complete  before applying styles
-    stylingProxy(props.niis[props.selectedVolume]);
-  }, [props.selectedVolume, props.niis])
+    const nii = props.niis?.[props.selectedVolume];
+    if (!nii) return;
+    // Only when the opened volume changes. `niis` is a new array on every parent render.
+    stylingProxy(nii);
+  }, [props.selectedVolume, selectedNiiKey])
 
   // only run this when the component is mounted on the page
   // or else it will be recursive and continuously add all
@@ -378,7 +401,9 @@ export default function NiiVueport(props) {
     nv.scene.crosshairPos = [...oldCrosshairPos]
     // keep display mode consistent after resets
     nvUpdateSliceType(sliceType);
-    nv.opts.crosshairWidth = showCrosshair ? 1 : 0;
+    nv.opts.crosshairWidth = showCrosshair ? crosshairSize : 0;
+    nv.hideText = !textsVisible;
+    nv.opts.isOrientCube = textsVisible;
     setMMs(nv.frac2mm(nv.scene.crosshairPos));
 
     if (props.showFovBoundingBox) {
@@ -626,16 +651,16 @@ export default function NiiVueport(props) {
     nv.updateGLVolume()
   }
 
+  function nvSetLabelsVisible(visible) {
+    nv.hideText = !visible;
+    nv.opts.isOrientCube = visible;
+    setTextsVisible(visible);
+    setOrientCube(visible);
+    nv.drawScene();
+  }
+
   function nvToggleLabelVisible() {
-    if (textsVisible) {
-      nv.hideText = true;
-      nv.drawScene();
-      setTextsVisible(false);
-    } else {
-      nv.hideText = false;
-      nv.drawScene();
-      setTextsVisible(true);
-    }
+    nvSetLabelsVisible(!textsVisible);
   }
 
   const [dragMode, setDragMode] = useState("pan");
@@ -708,6 +733,7 @@ export default function NiiVueport(props) {
 
   function nvUpdateCrosshairColor(rgb01, a = 1) {
     setCrosshairColor([...rgb01, a])
+    setCrosshairOpacity(a)
     nv.setCrosshairColor([...rgb01, a])
   }
 
@@ -783,6 +809,12 @@ export default function NiiVueport(props) {
     nv.drawScene()
   }
 
+  function nvUpdateFontColor(rgb01, a = 1) {
+    setFontColor([...rgb01, a])
+    nv.opts.fontColor = [...rgb01, a]
+    nv.drawScene()
+  }
+
   function nvUpdateRulerColor(rgb01, a = 1) {
     setRulerColor([...rgb01, a])
     nv.opts.rulerColor = [...rgb01, a]
@@ -848,9 +880,10 @@ export default function NiiVueport(props) {
   }
 
   function nvUpdateCrosshair() {
-    nv.opts.crosshairWidth = showCrosshair ? 0 : 1;
-    nv.drawScene();
-    setShowCrosshair(!showCrosshair);
+    const next = !showCrosshair;
+    const width = next ? crosshairSize : 0;
+    setShowCrosshair(next);
+    nv.setCrosshairWidth(width);
   }
 
   function nvUpdateRadiological() {
@@ -880,8 +913,16 @@ export default function NiiVueport(props) {
   }
 
   function nvUpdateCrosshairSize(w) {
-    nv.opts.crosshairWidth = w
-    nv.drawScene()
+    const next = Number(w);
+    const size = Number.isFinite(next) && next > 0 ? next : (crosshairSize > 0 ? crosshairSize : 1);
+    setCrosshairSize(size);
+    if (!showCrosshair) return;
+    if (typeof nv.setCrosshairWidth === "function") {
+      nv.setCrosshairWidth(size);
+    } else {
+      nv.opts.crosshairWidth = size;
+      nv.drawScene();
+    }
   }
 
 
@@ -1043,21 +1084,15 @@ export default function NiiVueport(props) {
   function stylingProxy(nii) {
     if (nii.dim === 2) {
       nvUpdateSliceType('axial');
-      setShowCrosshair(false);
-      setTextsVisible(false);
-      nv.opts.crosshairWidth = 0;
-      nv.hideText = true;
       setTimeout(() => {
         nv.setCenteredZoom(0.7)
       }, 300)
     } else {
-      // nvUpdateSliceType('multi');
       nvUpdateSliceType(sliceType);
-      setShowCrosshair(false);
-      setTextsVisible(false);
-      nv.opts.crosshairWidth = 0;
-      nv.hideText = true;
     }
+    setShowCrosshair(false);
+    nv.opts.crosshairWidth = 0;
+    nvSetLabelsVisible(false);
   }
 
   let dispatch = useAppDispatch();
@@ -1093,7 +1128,7 @@ export default function NiiVueport(props) {
 
         // ensure engine mode matches the remembered selection
         nvUpdateSliceType(sliceType);
-        nv.opts.crosshairWidth = showCrosshair ? 1 : 0;
+        nv.opts.crosshairWidth = showCrosshair ? crosshairSize : 0;
       } catch (e) {
         setWarning("Error loading results, please check internet connectivity");
         setWarningOpen(true);
@@ -1684,6 +1719,18 @@ export default function NiiVueport(props) {
 
         labelsVisible={textsVisible}
         toggleLabelsVisible={nvToggleLabelVisible}
+
+        crosshairColor={crosshairColor}
+        crosshairOpacity={crosshairOpacity}
+        crosshairSize={crosshairSize}
+        backgroundColor={backColor}
+        labelColor={fontColor}
+        maxDrawUndoBitmaps={maxDrawUndoBitmaps}
+        onCrosshairColorChange={(rgb01, opacity) => nvUpdateCrosshairColor(rgb01, opacity)}
+        onCrosshairSizeChange={(size) => nvUpdateCrosshairSize(size)}
+        onBackgroundColorChange={(rgb01) => nvUpdateBackColor(rgb01)}
+        onLabelColorChange={(rgb01) => nvUpdateFontColor(rgb01)}
+        onMaxDrawUndoBitmapsChange={nvUpdateMaxDrawUndoBitmaps}
 
         showFovSlicesToggle={props.showFovSlicesToggle}
         showFovSlices={props.showFovSlices}

@@ -249,6 +249,25 @@ const FOV_GEOMETRY_TRANSLATION_INPUT_WIDTH_PX = 120;
 
 /** Parallel Ranges row - compact fields; thickness label is wider. */
 const FOV_PARALLEL_RANGES_FIELD_WIDTH_PX = 132;
+
+/** Phone: each control on its own full-width row. Desktop widths stay on the fields themselves. */
+const setupMobileFieldRowSx = {
+  display: "flex",
+  flexDirection: { xs: "column", sm: "row" },
+  flexWrap: "wrap",
+  alignItems: { xs: "stretch", sm: "flex-end" },
+  gap: 1.5,
+  width: "100%",
+  minWidth: 0,
+  maxWidth: "100%",
+  "@media (max-width:599.95px)": {
+    "& > .MuiFormControl-root": {
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+    },
+  },
+};
 /** Fits full “Slice thickness (mm)” label on small inputs. */
 const FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX = 178;
 
@@ -1837,7 +1856,26 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
           Job queued successfully.
         </Alert>
       </Snackbar>
-      <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+      <Grid
+        className="setup-page"
+        container
+        spacing={2}
+        sx={{
+          alignItems: "stretch",
+          width: "100%",
+          minWidth: 0,
+          "@media (max-width:899.95px)": {
+            width: "100% !important",
+            marginLeft: "0 !important",
+            marginRight: "0 !important",
+            "& > .MuiGrid-item": {
+              paddingLeft: "0 !important",
+              paddingRight: "0 !important",
+              maxWidth: "100%",
+            },
+          },
+        }}
+      >
       {/* Computing units selectors (Setup) */}
         <Grid item xs={12}>
           <CmrCollapse
@@ -1853,9 +1891,11 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
             ) : (
               <Box
                 sx={{
-                  maxWidth: 600,
+                  maxWidth: { xs: "100%", sm: 600 },
+                  width: "100%",
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "stretch", sm: "center" },
                   gap: 2,
                 }}
               >
@@ -1966,7 +2006,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
 
           </CmrCollapse>
         </Grid>
-        <Grid item xs={12} md={5} >
+        <Grid item xs={12} md={5} sx={{ minWidth: 0, maxWidth: "100%" }}>
           {/* Model */}
           <CmrCollapse
             accordion={false}
@@ -1979,24 +2019,26 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                 <Col>
                   <Box display="flex" flexDirection="column">
                     {/* Inline row for label, upload, clear, checkbox */}
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, width: "100%", minWidth: 0 }}>
                       <CmrLabel style={{ marginRight: "10px" }}>
                         Model:
                       </CmrLabel>
 
-                      <CMRSelectUpload
-                        fileSelection={modelFileSelection}
-                        onSelected={handleModelSelected}
-                        onUploaded={() => {
-                          dispatch(getUploadedData() as never);
-                        }}
-                        chosenFile={selectedModel?.name}
-                        maxCount={1}
-                        preprocess={preprocessMarieModelZip}
-                        uploadHandler={modelZipUploadHandler}
-                        buttonText="Choose"
-                        selectStyles={selectStyles}
-                      />
+                      <Box sx={{ minWidth: 0, maxWidth: "100%", "& .MuiButton-root": { maxWidth: "100%", height: "auto", whiteSpace: "normal", overflowWrap: "anywhere", textAlign: "left" } }}>
+                        <CMRSelectUpload
+                          fileSelection={modelFileSelection}
+                          onSelected={handleModelSelected}
+                          onUploaded={() => {
+                            dispatch(getUploadedData() as never);
+                          }}
+                          chosenFile={selectedModel?.name}
+                          maxCount={1}
+                          preprocess={preprocessMarieModelZip}
+                          uploadHandler={modelZipUploadHandler}
+                          buttonText="Choose"
+                          selectStyles={selectStyles}
+                        />
+                      </Box>
 
                       {marieZipLoading && (
                         <CircularProgress size={22} sx={{ color: "#1578a1" }} />
@@ -2056,49 +2098,49 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       ) : null}
 
                       {/* RIGHT: Details */}
-                      <Grid item xs={12} md={selectedModel.image ? 8 : 12}>
+                      <Grid item xs={12} md={selectedModel.image ? 8 : 12} sx={{ minWidth: 0, maxWidth: "100%" }}>
                         {/* <Typography variant="h6" sx={{ mb: 2, fontSize: "16px" }}>
                         {selectedModel.name}
                       </Typography> */}
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Object Name:</strong> {selectedModel.objectName}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>B<sub>0</sub>:</strong> {selectedModel.b0}
                         </Typography>
 
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Nucleus:</strong> {selectedModel.nucleus}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Frequency:</strong> {selectedModel.frequency} MHz
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Resolution:</strong> {selectedModel.resolution}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Number of Tissues:</strong> {selectedModel.numOfTissues}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Coil:</strong> {selectedModel.coil}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Receive Channels:</strong> {selectedModel.receiveChannels}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>Transmit Channels:</strong> {selectedModel.transmitChannels}
                         </Typography>
 
-                        <Typography>
+                        <Typography sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           <strong>EM Simulator:</strong> {selectedModel.emSimulator}
                         </Typography>
                       </Grid>
@@ -2121,7 +2163,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
             </CmrPanel>
           </CmrCollapse>
 
-          {/* Pulse Sequence */}
+          <Box sx={{ pt: 2 }}>
           <CmrCollapse
             accordion={false}
             expandIconPosition="right"
@@ -2136,7 +2178,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
 
 
                   {/* Inline row for label, upload, clear, checkbox */}
-                  <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, width: "100%", minWidth: 0 }}>
 
                     <CmrLabel style={{ marginRight: "10px" }}>
                       Sequence:
@@ -2211,7 +2253,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       <Box textAlign="left" height="100%">
                         <Typography><strong>File Name:</strong>&nbsp;{selectedSequence.fileName ?? selectedSequence.id}</Typography>
                         {/* Alias */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, width: "100%", minWidth: 0 }}>
                           <Typography>
                             <strong>Alias:</strong>
                           </Typography>
@@ -2223,7 +2265,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                               onChange={(e) =>
                                 setEditSeqDraft((d) => ({ ...d, alias: e.target.value }))
                               }
-                              sx={{ width: 300, mt: 1, mb: 0.5 }}
+                              sx={{ width: { xs: "100%", sm: 300 }, maxWidth: "100%", mt: 1, mb: 0.5 }}
                             />
                           ) : (
                             <Typography>{selectedSequence.alias}</Typography>
@@ -2231,7 +2273,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         </Box>
 
                         {/* TR */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, width: "100%", minWidth: 0 }}>
                           <Typography>
                             <strong>TR:</strong>
                           </Typography>
@@ -2256,7 +2298,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         </Box>
 
                         {/* TE */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, width: "100%", minWidth: 0 }}>
                           <Typography>
                             <strong>TE:</strong>
                           </Typography>
@@ -2309,13 +2351,13 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
 
               <Box sx={{ pt: 3, pb: 3 }}>
                 {/* Inline row for label, upload, clear, checkbox */}
-                <Box display="flex" alignItems="center" gap={1} sx={{ pb: 2 }}>
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1, pb: 2, width: "100%", minWidth: 0 }}>
 
                   <CmrLabel style={{ marginRight: "10px" }}>
                     Protocol:
                   </CmrLabel>
 
-                  <Box sx={{ minWidth: 150 }}>
+                  <Box sx={{ minWidth: { xs: 0, sm: 150 }, width: { xs: "100%", sm: 280 }, maxWidth: "100%", flex: 1 }}>
                     <Select
                       value={protocolOptions.find((o) => o.value === protocol) ?? protocolOptions[0]}
                       onChange={handleProtocolChange}
@@ -2501,6 +2543,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         <Box
                           sx={{
                             display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
                             gap: 1.5,
                             width: "100%",
                           }}
@@ -2556,9 +2599,10 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
             </CmrPanel>
 
           </CmrCollapse>
+          </Box>
         </Grid>
 
-        <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column' }}>
+        <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: '100%' }}>
           {/* Field of View - NiiVue viewer (same as Results) */}
           {Object.keys(availableVolumes).length > 0 ? (
             <CmrCollapse activeKey={openFieldofViewPanel}>
@@ -2606,8 +2650,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                        Slice Orientation 
                       </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-end" }}>
-                        <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
+                      <Box sx={{ ...setupMobileFieldRowSx, gap: 1 }}>
+                        <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 220 }, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", flex: { xs: 1, sm: "0 0 auto" } }} disabled={protocolSequences.length === 0}>
                           <InputLabel id="fov-orientation-label">Slice Orientation</InputLabel>
                           <MuiSelect
                             labelId="fov-orientation-label"
@@ -2637,7 +2681,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                         Spin Factor
                       </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                      <Box sx={{ ...setupMobileFieldRowSx }}>
                         <TextField
                           label="Spin Factor"
                           type="text"
@@ -2689,7 +2733,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                           Phase Encoding
                         </Typography>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <Box sx={{ ...setupMobileFieldRowSx }}>
                           <TextField
                             label="FoV (mm)"
                             type="number"
@@ -2726,8 +2770,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             inputProps={{ step: "any" }}
                             sx={{ width: 160 }}
                           />
-                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
-                            <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
+                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", minWidth: 0 }}>
+                            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 220 }, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", flex: { xs: 1, sm: "0 0 auto" } }} disabled={protocolSequences.length === 0}>
                               <InputLabel id="fov-phase-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-phase-encoding-direction-label"
@@ -2775,7 +2819,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                           Frequency Encoding
                         </Typography>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-end" }}>
+                        <Box sx={{ ...setupMobileFieldRowSx }}>
                           <TextField
                             label="FoV (mm)"
                             type="number"
@@ -2812,8 +2856,8 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             inputProps={{ step: "any" }}
                             sx={{ width: 160 }}
                           />
-                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25 }}>
-                            <FormControl size="small" sx={{ minWidth: 220 }} disabled={protocolSequences.length === 0}>
+                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", minWidth: 0 }}>
+                            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 220 }, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", flex: { xs: 1, sm: "0 0 auto" } }} disabled={protocolSequences.length === 0}>
                               <InputLabel id="fov-frequency-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-frequency-encoding-direction-label"
@@ -3908,7 +3952,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                       }}
                     >
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "0 1 auto" }, minWidth: 0 }}>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-end" }}>
+                        <Box sx={{ ...setupMobileFieldRowSx, gap: 1 }}>
                           <TextField
                             label="Number of slices"
                             type="number"

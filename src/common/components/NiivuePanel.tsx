@@ -244,7 +244,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
         sx={{
           width: "100%",
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
+          flexDirection: { xs: "column", md: "row" },
           gap: 2,
         }}
       >
@@ -255,7 +255,7 @@ export function NiivuePanel(props: NiivuePanelProps) {
           </Box>
           <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
           <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', '&:last-child': { paddingBottom: 2 } }}>
-            <Box style={{ display: 'flex', flex: 1, minWidth: '245px', flexDirection: 'column' }}>
+            <Box style={{ display: 'flex', flex: 1, minWidth: 0, flexDirection: 'column' }}>
 
               <div style={{ marginBottom: 20 }}>
                 {/* Label and text field */}
@@ -421,6 +421,9 @@ export function NiivuePanel(props: NiivuePanelProps) {
             },
             '& .MuiCardContent-root': {
               flex: 1,
+            },
+            '& .MuiCardContent-root > .MuiBox-root': {
+              minWidth: '0 !important',
             },
           }}
         >

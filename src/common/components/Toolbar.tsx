@@ -17,8 +17,8 @@ import {
   MenuItem,
   InputLabel,
 } from "@mui/material";
-import SettingsIcon from "@mui/icons-material/Settings";
 import MenuIcon from "@mui/icons-material/Menu";
+import NiivueViewerSettingsButton from "./NiivueViewerSettingsButton";
 import { ROI } from "cloudmr-ux/core";
 import { useAppDispatch, useAppSelector } from "../../features/hooks";
 import { getPipelineROI } from "cloudmr-ux/core";
@@ -58,6 +58,18 @@ interface ToolbarProps {
 
   labelsVisible: boolean;
   toggleLabelsVisible: () => void;
+
+  crosshairColor?: number[];
+  crosshairOpacity?: number;
+  crosshairSize?: number;
+  backgroundColor?: number[];
+  labelColor?: number[];
+  maxDrawUndoBitmaps?: number;
+  onCrosshairColorChange?: (rgb01: number[], opacity: number) => void;
+  onCrosshairSizeChange?: (size: number) => void;
+  onBackgroundColorChange?: (rgb01: number[]) => void;
+  onLabelColorChange?: (rgb01: number[]) => void;
+  onMaxDrawUndoBitmapsChange?: (value: number) => void;
 
   availableMeshes?: Record<string, string>;
   meshColor?: string;
@@ -107,11 +119,20 @@ export default function Toolbar(props: ToolbarProps) {
             sx={{
               display: "flex",
               width: "100%",
-              flexDirection: "row",
-              justifyItems: "left",
-              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
               backgroundColor: "white",
               flexWrap: "wrap",
+              minWidth: 0,
+              "@media (max-width:599.95px)": {
+                "& .MuiFormControl-root": {
+                  width: "100%",
+                  minWidth: 0,
+                  maxWidth: "100%",
+                  marginLeft: 0,
+                  marginRight: 0,
+                },
+              },
             }}
           >
             {/* Temporarily hide hamburger side menu */}
@@ -179,16 +200,13 @@ export default function Toolbar(props: ToolbarProps) {
                 <Select
                   labelId="mesh-color-label"
                   id="mesh-color"
-                  value={props.meshColor ?? "Green"}
+                  value={props.meshColor ?? "Copper"}
                   label="Coil Color"
                   onChange={(e) => props.setMeshColor?.(String(e.target.value))}
                 >
-                  <MenuItem value="None">None</MenuItem>
-                  <MenuItem value="Green">Green</MenuItem>
+                  <MenuItem value="Copper">Copper</MenuItem>
                   <MenuItem value="Yellow">Yellow</MenuItem>
                   <MenuItem value="Gray">Gray</MenuItem>
-                  <MenuItem value="Red">Red</MenuItem>
-                  <MenuItem value="Cyan">Cyan</MenuItem>
                 </Select>
               </FormControl>
             )}
@@ -308,22 +326,25 @@ export default function Toolbar(props: ToolbarProps) {
             >
               Save Drawing Layer
             </Button> */}
-            <IconButton
-              onClick={props.toggleSettings}
-              style={{ marginLeft: "auto" }}
-            >
-              <SettingsIcon />
-            </IconButton>
           </Box>
           <Box
             sx={{
               display: "flex",
               width: "100%",
-              flexDirection: "row",
-              justifyItems: "left",
-              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
               backgroundColor: "white",
               flexWrap: "wrap",
+              minWidth: 0,
+              "@media (max-width:599.95px)": {
+                "& .MuiFormControl-root": {
+                  width: "100%",
+                  minWidth: 0,
+                  maxWidth: "100%",
+                  marginLeft: 0,
+                  marginRight: 0,
+                },
+              },
             }}
           >
             <Box
@@ -451,6 +472,22 @@ export default function Toolbar(props: ToolbarProps) {
               </Box>
             ) : null}
 
+            <NiivueViewerSettingsButton
+              nv={props.nv}
+              crosshairColor={props.crosshairColor}
+              crosshairOpacity={props.crosshairOpacity}
+              crosshairSize={props.crosshairSize}
+              backgroundColor={props.backgroundColor}
+              labelColor={props.labelColor}
+              maxDrawUndoBitmaps={props.maxDrawUndoBitmaps}
+              onCrosshairColorChange={props.onCrosshairColorChange}
+              onCrosshairSizeChange={props.onCrosshairSizeChange}
+              onBackgroundColorChange={props.onBackgroundColorChange}
+              onLabelColorChange={props.onLabelColorChange}
+              onMaxDrawUndoBitmapsChange={props.onMaxDrawUndoBitmapsChange}
+              accentColor="#1578A1"
+            />
+
             <Stack flexDirection={"row"} sx={{ m: 2 }}>
               <Tooltip title={"Reset Views"} placement={"top"}>
                 <IconButton onClick={() => props.nv.resetScene()}>
@@ -484,7 +521,7 @@ export default function Toolbar(props: ToolbarProps) {
             </Stack>
 
             {/* Spacer pushes zoom buttons to the far right */}
-            <Box sx={{ flex: 1 }} />
+            <Box sx={{ flex: 1, display: { xs: "none", sm: "block" } }} />
 
             <Stack
               flexDirection={"row"}

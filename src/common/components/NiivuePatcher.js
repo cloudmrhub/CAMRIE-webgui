@@ -792,6 +792,10 @@ Niivue.prototype.draw2D = function (leftTopWidthHeight, axCorSag, customMM = NaN
         // no crossbars for mosaic view
         this.drawCrosshairs3D(false, 0.15, obj.modelViewProjectionMatrix, true, this.opts.isSliceMM)
     }
+    // Slice and mesh draws leave the depth test on, which hides these letters.
+    gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.SCISSOR_TEST)
+    gl.colorMask(true, true, true, true)
     this.drawSliceOrientationText(leftTopWidthHeight, axCorSag)
     this.readyForSync = true
 }
@@ -1402,7 +1406,10 @@ Niivue.prototype.drawSliceOrientationText = function(leftTopWidthHeight, axCorSa
     if(this.hideText){
         return;
     }
-    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
+    // Slice draw leaves the depth test on, which hides these labels on 2D tiles.
+    const gl = this.gl
+    gl.disable(gl.DEPTH_TEST)
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
     let topText = 'S'
     if (axCorSag === SLICE_TYPE.AXIAL) {
         topText = 'A'
