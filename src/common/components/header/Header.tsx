@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import "./Header.scss";
 import { Link, useNavigate } from "react-router-dom";
 import { Toolbar, Container } from "@mui/material";
@@ -6,6 +6,7 @@ import logoUrl from "../../../assets/camrieLogo.png";
 interface MenuItem {
   path: string;
   title: string;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
 
 const isExternalPath = (path: string) => /^https?:\/\//.test(path);
@@ -117,6 +118,11 @@ const Header = ({
                       rel={isExternal ? "noopener noreferrer" : undefined}
                       style={{ cursor: "pointer" }}
                       onClick={(event) => {
+                        if (menuItem.onClick) {
+                          event.preventDefault();
+                          menuItem.onClick(event);
+                          return;
+                        }
                         switch (menuItem.title) {
                           case "Bug Report":
                             window.open(

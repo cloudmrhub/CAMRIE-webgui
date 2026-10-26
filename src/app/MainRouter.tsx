@@ -10,6 +10,7 @@ import BugReport from "./bug-report/BugReport";
 import { useAppDispatch, useAppSelector } from "../features/hooks";
 import { signOut } from "cloudmr-ux/core/features/authenticate/authenticateActionCreation";
 import WebSignin from "./WebSignin";
+import useLaunchCloudMrHub, { CLOUDMR_HUB_ORIGIN } from "./useLaunchCloudMrHub";
 import { AuthenticatedHttpClient } from "cloudmr-ux/core/common/utilities/AuthenticatedRequests";
 import { store } from "../features/store";
 import appIcon from "../assets/camrieColor.png";
@@ -105,9 +106,17 @@ const MainRouterInner = () => {
     };
   }, [isLoginPage]);
 
+  const openCloudMrHub = useLaunchCloudMrHub();
+
   const menuList = [
     { title: 'About', path: '/about' },
-    { title: 'Cloud MR', path: 'https://cmr.cloudmrhub.com/' },
+    {
+      title: 'Cloud MR',
+      path: `${CLOUDMR_HUB_ORIGIN}/`,
+      onClick: () => {
+        openCloudMrHub();
+      },
+    },
     { title: 'Bug Report', path: '/bug-report' },
   ];
 
