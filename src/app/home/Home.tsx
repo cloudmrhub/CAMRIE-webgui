@@ -1,10 +1,9 @@
 import { Fragment, useEffect, useState } from "react";
 import "./Home.scss";
 import Upload from "cloudmr-ux/core/app/upload/Upload";
-import { CmrCollapse, CmrPanel, CmrConfirmation } from "cloudmr-ux";
+import { CmrCollapse, CmrPanel } from "cloudmr-ux";
 import { useAppSelector } from "../../features/hooks";
-import { Box, Card, CardContent, CardHeader, IconButton, Tooltip, Typography } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { Box, Card, CardContent, CardHeader, Typography } from "@mui/material";
 import { CLOUDMR_SERVER } from "../../env";
 
 const APP_NAME = "CAMRIE";
@@ -91,27 +90,6 @@ async function fetchComputingUnits(
   return resp.json();
 }
 
-async function deleteComputingUnitById(
-  computingUnitId: string,
-  token: any,
-  apiServer = CLOUDMR_SERVER,
-) {
-  const tokenStr = normalizeToken(token);
-  if (!tokenStr) throw new Error("Authentication token not found. Please login.");
-  const base = apiServer.replace(/\/$/, "");
-  const url = `${base}/computing-unit/delete`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenStr}` },
-    body: JSON.stringify({ computingUnitId }),
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`API error: ${resp.status} - ${text}`);
-  }
-  return resp.json();
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 const Home = () => {
@@ -122,17 +100,6 @@ const Home = () => {
   const [loadingCounts, setLoadingCounts] = useState(true);
   const [errorCounts, setErrorCounts] = useState<string | null>(null);
   const [units, setUnits] = useState({ mode_2: [] as any[] });
-  const [deletingUnitIds, setDeletingUnitIds] = useState<Record<string, boolean>>({});
-
-  // Used by the computing-unit error dialog
-  const [name] = useState<string | undefined>(undefined);
-  const [message, setMessage] = useState<string | undefined>(undefined);
-  const [color, setColor] = useState<
-    "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning" | undefined
-  >(undefined);
-  const [open, setOpen] = useState(false);
-  const [confirmCallback, setConfirmCallback] = useState<() => void>(() => {});
-  const [cancelCallback, setCancelCallback] = useState<() => void>(() => {});
 
   const getUnitId = (u: any, idx: number) =>
     String(u?.computingUnitId ?? u?.computing_unit_id ?? u?.id ?? u?.appId ?? u?.name ?? idx);
@@ -196,7 +163,6 @@ const Home = () => {
             <Box>
               {units.mode_2.map((u: any, idx: number) => {
                 const unitId = getUnitId(u, idx);
-                const isDeleting = !!deletingUnitIds[unitId];
                 return (
                   <Card variant="outlined" key={unitId}>
                     <CardHeader
@@ -211,50 +177,6 @@ const Home = () => {
                         borderBottom: "1px solid #E6E6EA",
                         "& .MuiCardHeader-subheader": { color: "#333", fontWeight: 600, fontSize: "14px" },
                       }}
-                      action={
-                        <Tooltip title="Delete">
-                          <span>
-                            <IconButton
-                              aria-label="delete"
-                              size="small"
-                              disabled={isDeleting}
-                              onClick={async () => {
-                                const computingUnitId = u.computingUnitId ?? u.computing_unit_id ?? u.id;
-                                const label = u.alias ?? computingUnitId ?? "this unit";
-                                if (!computingUnitId) {
-                                  setMessage("Missing computingUnitId on this computing unit.");
-                                  setColor("error");
-                                  setConfirmCallback(() => () => {});
-                                  setCancelCallback(() => () => {});
-                                  setOpen(true);
-                                  return;
-                                }
-                                if (!confirm(`Are you sure you want to delete computing unit ${label}?`)) return;
-                                try {
-                                  setDeletingUnitIds((s) => ({ ...s, [String(computingUnitId)]: true }));
-                                  await deleteComputingUnitById(String(computingUnitId), apiToken);
-                                  const units2 = await fetchComputingUnits(APP_NAME, "mode_2", apiToken);
-                                  setUnits((prev) => ({ ...prev, mode_2: normalizeUnitsPayload(units2, "mode_2") }));
-                                } catch (e: any) {
-                                  setMessage(e?.message ?? String(e));
-                                  setColor("error");
-                                  setConfirmCallback(() => () => {});
-                                  setCancelCallback(() => () => {});
-                                  setOpen(true);
-                                } finally {
-                                  setDeletingUnitIds((s) => {
-                                    const next = { ...s };
-                                    delete next[String(computingUnitId)];
-                                    return next;
-                                  });
-                                }
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      }
                     />
                     <CardContent>
                       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 1 }}>
@@ -283,19 +205,6 @@ const Home = () => {
         headerTextColor="#333"
         headerIconColor="#1578A1"
         checkboxCheckedColor="#1578A1"
-      />
-
-      {/* Error dialog for computing unit operations */}
-      <CmrConfirmation
-        name={name}
-        message={message}
-        color={color}
-        open={open}
-        setOpen={setOpen}
-        confirmCallback={confirmCallback}
-        cancelCallback={cancelCallback}
-        cancellable={true}
-        width={450}
       />
 
       <div style={{ height: "69px" }}></div>

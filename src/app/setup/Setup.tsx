@@ -268,6 +268,57 @@ const setupMobileFieldRowSx = {
     },
   },
 };
+
+/** Encoding rows: keep resolution / pixel / direction widths; FoV is a short numeric field. */
+const ENCODING_FOV_FIELD_WIDTH_PX = 120;
+const ENCODING_TRIPLET_FIELD_WIDTH_PX = 160;
+const ENCODING_DIRECTION_FIELD_WIDTH_PX = 220;
+const ENCODING_DIRECTION_FIELD_MIN_WIDTH_PX = 168;
+
+const encodingFieldRowSx = {
+  ...setupMobileFieldRowSx,
+  flexWrap: { xs: "wrap", lg: "nowrap" },
+  gap: { xs: 1.5, lg: 1 },
+};
+
+const encodingFovFieldSx = {
+  width: { xs: "100%", sm: ENCODING_FOV_FIELD_WIDTH_PX },
+  minWidth: { sm: ENCODING_FOV_FIELD_WIDTH_PX },
+  maxWidth: { xs: "100%", sm: ENCODING_FOV_FIELD_WIDTH_PX },
+  flex: { sm: `0 0 ${ENCODING_FOV_FIELD_WIDTH_PX}px` },
+};
+
+const encodingTripletFieldSx = {
+  width: { xs: "100%", sm: ENCODING_TRIPLET_FIELD_WIDTH_PX },
+  minWidth: { sm: ENCODING_TRIPLET_FIELD_WIDTH_PX },
+  maxWidth: { xs: "100%", sm: ENCODING_TRIPLET_FIELD_WIDTH_PX },
+  flex: { sm: `0 0 ${ENCODING_TRIPLET_FIELD_WIDTH_PX}px` },
+};
+
+const encodingDirectionWrapSx = {
+  display: "flex",
+  alignItems: "flex-end",
+  gap: 0.25,
+  width: { xs: "100%", sm: "auto" },
+  maxWidth: "100%",
+  minWidth: { xs: 0, lg: ENCODING_DIRECTION_FIELD_MIN_WIDTH_PX },
+  flex: { xs: "1 1 100%", sm: "0 0 auto", lg: "0 1 auto" },
+};
+
+const encodingDirectionControlSx = {
+  minWidth: { xs: 0, sm: ENCODING_DIRECTION_FIELD_WIDTH_PX, lg: ENCODING_DIRECTION_FIELD_MIN_WIDTH_PX },
+  width: { xs: "100%", sm: ENCODING_DIRECTION_FIELD_WIDTH_PX, lg: ENCODING_DIRECTION_FIELD_WIDTH_PX },
+  maxWidth: { xs: "100%", lg: ENCODING_DIRECTION_FIELD_WIDTH_PX },
+  flex: { xs: 1, sm: "0 0 auto", lg: "1 1 auto" },
+};
+
+const encodingDirectionSelectSx = {
+  "& .MuiSelect-select": {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+};
 /** Fits full “Slice thickness (mm)” label on small inputs. */
 const FOV_PARALLEL_RANGES_THICKNESS_FIELD_WIDTH_PX = 178;
 
@@ -2733,7 +2784,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                           Phase Encoding
                         </Typography>
-                        <Box sx={{ ...setupMobileFieldRowSx }}>
+                        <Box sx={encodingFieldRowSx}>
                           <TextField
                             label="FoV (mm)"
                             type="number"
@@ -2744,7 +2795,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovXMMdraft(e.target.value)}
                             onBlur={() => onBlurPhaseEncodingTriplet("fovMm")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingFovFieldSx}
                           />
                           <TextField
                             label="Resolution (mm/pixel)"
@@ -2756,7 +2807,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovResXMMDraft(e.target.value)}
                             onBlur={() => onBlurPhaseEncodingTriplet("res")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingTripletFieldSx}
                           />
                           <TextField
                             label="Number of pixels"
@@ -2768,15 +2819,16 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovPixelsXDraft(e.target.value)}
                             onBlur={() => onBlurPhaseEncodingTriplet("pixels")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingTripletFieldSx}
                           />
-                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", minWidth: 0 }}>
-                            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 220 }, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", flex: { xs: 1, sm: "0 0 auto" } }} disabled={protocolSequences.length === 0}>
+                          <Box sx={encodingDirectionWrapSx}>
+                            <FormControl size="small" sx={encodingDirectionControlSx} disabled={protocolSequences.length === 0}>
                               <InputLabel id="fov-phase-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-phase-encoding-direction-label"
                                 label="Direction"
                                 displayEmpty
+                                sx={encodingDirectionSelectSx}
                                 value={activeForm.phaseEncodingDirection ?? ""}
                                 onChange={(e) => {
                                   const next = e.target.value as EncodingDirectionId;
@@ -2806,7 +2858,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                                   aria-label="About phase encoding direction"
                                   disabled={protocolSequences.length === 0}
                                   tabIndex={protocolSequences.length === 0 ? -1 : 0}
-                                  sx={{ color: "text.secondary", mb: 0.25 }}
+                                  sx={{ color: "text.secondary", mb: 0.25, flexShrink: 0 }}
                                 >
                                   <InfoOutlinedIcon fontSize="small" />
                                 </IconButton>
@@ -2819,7 +2871,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
                           Frequency Encoding
                         </Typography>
-                        <Box sx={{ ...setupMobileFieldRowSx }}>
+                        <Box sx={encodingFieldRowSx}>
                           <TextField
                             label="FoV (mm)"
                             type="number"
@@ -2830,7 +2882,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovYMMDraft(e.target.value)}
                             onBlur={() => onBlurFrequencyEncodingTriplet("fovMm")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingFovFieldSx}
                           />
                           <TextField
                             label="Resolution (mm/pixel)"
@@ -2842,7 +2894,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovResYMMDraft(e.target.value)}
                             onBlur={() => onBlurFrequencyEncodingTriplet("res")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingTripletFieldSx}
                           />
                           <TextField
                             label="Number of pixels"
@@ -2854,15 +2906,16 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                             onChange={(e) => setFovPixelsYDraft(e.target.value)}
                             onBlur={() => onBlurFrequencyEncodingTriplet("pixels")}
                             inputProps={{ step: "any" }}
-                            sx={{ width: 160 }}
+                            sx={encodingTripletFieldSx}
                           />
-                          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 0.25, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", minWidth: 0 }}>
-                            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 220 }, width: { xs: "100%", sm: "auto" }, maxWidth: "100%", flex: { xs: 1, sm: "0 0 auto" } }} disabled={protocolSequences.length === 0}>
+                          <Box sx={encodingDirectionWrapSx}>
+                            <FormControl size="small" sx={encodingDirectionControlSx} disabled={protocolSequences.length === 0}>
                               <InputLabel id="fov-frequency-encoding-direction-label" shrink>Direction</InputLabel>
                               <MuiSelect
                                 labelId="fov-frequency-encoding-direction-label"
                                 label="Direction"
                                 displayEmpty
+                                sx={encodingDirectionSelectSx}
                                 value={activeForm.frequencyEncodingDirection ?? ""}
                                 onChange={(e) => {
                                   const next = e.target.value as EncodingDirectionId;
@@ -2892,7 +2945,7 @@ const Setup = ({ visible = true }: { visible?: boolean }) => {
                                   aria-label="About frequency encoding direction"
                                   disabled={protocolSequences.length === 0}
                                   tabIndex={protocolSequences.length === 0 ? -1 : 0}
-                                  sx={{ color: "text.secondary", mb: 0.25 }}
+                                  sx={{ color: "text.secondary", mb: 0.25, flexShrink: 0 }}
                                 >
                                   <InfoOutlinedIcon fontSize="small" />
                                 </IconButton>
